@@ -35,19 +35,26 @@ class MaintenanceReportSnapshot {
     required this.nextMonthStart,
     required this.trailingYearStart,
     required this.trailingYearEnd,
+    required this.currentYearStart,
+    required this.currentYearEnd,
     required this.nextThirtyDaysEnd,
     required this.completedThisMonth,
     required this.currentOverdueCount,
     required this.cumulativeOverdueDays,
     required this.dueNextThirtyDays,
     required this.costLastTwelveMonths,
+    required this.costCurrentYear,
     required this.onTimeCompletionCount,
     required this.eligibleCompletionCount,
     required this.excludedCompletionCount,
     required this.totalRecordCount,
     required this.ignoredCostRecordCount,
+    required this.ignoredCurrentYearCostRecordCount,
     required this.costsByItem,
     required this.costsByCategory,
+    required this.currentYearCostsByItem,
+    required this.currentYearCostsByCategory,
+    required this.currentYearRecords,
     required this.recentRecords,
   });
 
@@ -60,6 +67,8 @@ class MaintenanceReportSnapshot {
     final nextMonthStart = DateTime(today.year, today.month + 1);
     final trailingYearStart = DateTime(today.year, today.month - 11);
     final trailingYearEnd = nextMonthStart;
+    final currentYearStart = DateTime(today.year);
+    final currentYearEnd = DateTime(today.year + 1);
     final nextThirtyDaysEnd = addMaintenanceDays(today, 30);
     final tasks = maintenanceTasksForItems(items, now: today);
     final records = <MaintenanceReportRecord>[];
@@ -83,11 +92,20 @@ class MaintenanceReportSnapshot {
       return a.record.id.compareTo(b.record.id);
     });
 
-    final trailingRecords = records.where((entry) {
-      final completedAt = maintenanceDateOnly(entry.record.completedAt);
-      return !completedAt.isBefore(trailingYearStart) &&
-          completedAt.isBefore(trailingYearEnd);
-    }).toList(growable: false);
+    final trailingRecords = records
+        .where((entry) {
+          final completedAt = maintenanceDateOnly(entry.record.completedAt);
+          return !completedAt.isBefore(trailingYearStart) &&
+              completedAt.isBefore(trailingYearEnd);
+        })
+        .toList(growable: false);
+    final currentYearRecords = records
+        .where((entry) {
+          final completedAt = maintenanceDateOnly(entry.record.completedAt);
+          return !completedAt.isBefore(currentYearStart) &&
+              completedAt.isBefore(currentYearEnd);
+        })
+        .toList(growable: false);
     final itemById = {for (final item in items) item.id: item};
     final itemCosts = <String, double>{};
     final categoryCosts = <String, double>{};
@@ -96,6 +114,10 @@ class MaintenanceReportSnapshot {
     var onTimeCompletionCount = 0;
     var eligibleCompletionCount = 0;
     var excludedCompletionCount = 0;
+    final currentYearItemCosts = <String, double>{};
+    final currentYearCategoryCosts = <String, double>{};
+    var costCurrentYear = 0.0;
+    var ignoredCurrentYearCostRecordCount = 0;
 
     for (final entry in trailingRecords) {
       final record = entry.record;
@@ -123,11 +145,31 @@ class MaintenanceReportSnapshot {
         continue;
       }
       eligibleCompletionCount++;
-      if (!maintenanceDateOnly(record.completedAt).isAfter(
-        maintenanceDateOnly(plannedDueDate),
-      )) {
+      if (!maintenanceDateOnly(
+        record.completedAt,
+      ).isAfter(maintenanceDateOnly(plannedDueDate))) {
         onTimeCompletionCount++;
       }
+    }
+
+    for (final entry in currentYearRecords) {
+      final cost = entry.record.cost;
+      if (!cost.isFinite || cost < 0) {
+        ignoredCurrentYearCostRecordCount++;
+        continue;
+      }
+      costCurrentYear += cost;
+      currentYearItemCosts.update(
+        entry.itemId,
+        (value) => value + cost,
+        ifAbsent: () => cost,
+      );
+      final category = _reportCategory(itemById[entry.itemId]?.category);
+      currentYearCategoryCosts.update(
+        category,
+        (value) => value + cost,
+        ifAbsent: () => cost,
+      );
     }
 
     final overdueTasks = tasks.where(
@@ -154,19 +196,26 @@ class MaintenanceReportSnapshot {
       nextMonthStart: nextMonthStart,
       trailingYearStart: trailingYearStart,
       trailingYearEnd: trailingYearEnd,
+      currentYearStart: currentYearStart,
+      currentYearEnd: currentYearEnd,
       nextThirtyDaysEnd: nextThirtyDaysEnd,
       completedThisMonth: completedThisMonth,
       currentOverdueCount: currentOverdueCount,
       cumulativeOverdueDays: cumulativeOverdueDays,
       dueNextThirtyDays: dueNextThirtyDays,
       costLastTwelveMonths: costLastTwelveMonths,
+      costCurrentYear: costCurrentYear,
       onTimeCompletionCount: onTimeCompletionCount,
       eligibleCompletionCount: eligibleCompletionCount,
       excludedCompletionCount: excludedCompletionCount,
       totalRecordCount: records.length,
       ignoredCostRecordCount: ignoredCostRecordCount,
+      ignoredCurrentYearCostRecordCount: ignoredCurrentYearCostRecordCount,
       costsByItem: _itemBreakdown(itemCosts, itemById),
       costsByCategory: _categoryBreakdown(categoryCosts),
+      currentYearCostsByItem: _itemBreakdown(currentYearItemCosts, itemById),
+      currentYearCostsByCategory: _categoryBreakdown(currentYearCategoryCosts),
+      currentYearRecords: List.unmodifiable(currentYearRecords),
       recentRecords: List.unmodifiable(records),
     );
   }
@@ -176,19 +225,26 @@ class MaintenanceReportSnapshot {
   final DateTime nextMonthStart;
   final DateTime trailingYearStart;
   final DateTime trailingYearEnd;
+  final DateTime currentYearStart;
+  final DateTime currentYearEnd;
   final DateTime nextThirtyDaysEnd;
   final int completedThisMonth;
   final int currentOverdueCount;
   final int cumulativeOverdueDays;
   final int dueNextThirtyDays;
   final double costLastTwelveMonths;
+  final double costCurrentYear;
   final int onTimeCompletionCount;
   final int eligibleCompletionCount;
   final int excludedCompletionCount;
   final int totalRecordCount;
   final int ignoredCostRecordCount;
+  final int ignoredCurrentYearCostRecordCount;
   final List<MaintenanceCostBreakdown> costsByItem;
   final List<MaintenanceCostBreakdown> costsByCategory;
+  final List<MaintenanceCostBreakdown> currentYearCostsByItem;
+  final List<MaintenanceCostBreakdown> currentYearCostsByCategory;
+  final List<MaintenanceReportRecord> currentYearRecords;
   final List<MaintenanceReportRecord> recentRecords;
 
   double? get onTimeCompletionRate => eligibleCompletionCount == 0
@@ -213,19 +269,18 @@ List<MaintenanceCostBreakdown> _itemBreakdown(
       ),
 );
 
-List<MaintenanceCostBreakdown> _categoryBreakdown(
-  Map<String, double> costs,
-) => _sortedBreakdown(
-  costs.entries
-      .where((entry) => entry.value > 0)
-      .map(
-        (entry) => MaintenanceCostBreakdown(
-          id: entry.key,
-          label: entry.key,
-          amount: entry.value,
-        ),
-      ),
-);
+List<MaintenanceCostBreakdown> _categoryBreakdown(Map<String, double> costs) =>
+    _sortedBreakdown(
+      costs.entries
+          .where((entry) => entry.value > 0)
+          .map(
+            (entry) => MaintenanceCostBreakdown(
+              id: entry.key,
+              label: entry.key,
+              amount: entry.value,
+            ),
+          ),
+    );
 
 List<MaintenanceCostBreakdown> _sortedBreakdown(
   Iterable<MaintenanceCostBreakdown> values,

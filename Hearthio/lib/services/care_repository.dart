@@ -4,21 +4,27 @@ import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/care_item.dart';
+import '../models/care_space.dart';
 
-const currentCareSchemaVersion = 2;
+const currentCareSchemaVersion = 3;
 
 class CareDataEnvelope {
   const CareDataEnvelope({
     required this.items,
+    this.spaces = const [],
     this.schemaVersion = currentCareSchemaVersion,
+    this.migratedFromOlderSchema = false,
   });
 
   final int schemaVersion;
   final List<CareItem> items;
+  final List<CareSpace> spaces;
+  final bool migratedFromOlderSchema;
 
   Map<String, dynamic> toJson() => {
     'schemaVersion': schemaVersion,
     'items': items.map((item) => item.toJson()).toList(),
+    'spaces': spaces.map((space) => space.toJson()).toList(),
   };
 
   String encode() => jsonEncode(toJson());
@@ -32,41 +38,75 @@ class CareDataEnvelope {
     }
     final json = Map<String, dynamic>.from(decoded);
     final schemaVersion = json['schemaVersion'];
-    if (schemaVersion != currentCareSchemaVersion) {
+    if (schemaVersion != 2 && schemaVersion != currentCareSchemaVersion) {
       throw FormatException('Unsupported schema version: $schemaVersion');
     }
     final rawItems = json['items'];
     if (rawItems is! List) {
       throw const FormatException('Envelope items are missing');
     }
-    final items = rawItems
+    var items = rawItems
         .map(
           (value) => CareItem.fromJson(Map<String, dynamic>.from(value as Map)),
         )
         .toList(growable: false);
-    _validate(items);
-    return CareDataEnvelope(items: items);
+    List<CareSpace> spaces;
+    if (schemaVersion == 2) {
+      final migrated = migrateLegacyItemLocations(items);
+      items = migrated.items;
+      spaces = migrated.spaces;
+    } else {
+      final rawSpaces = json['spaces'] as List? ?? const [];
+      spaces = rawSpaces
+          .map(
+            (value) =>
+                CareSpace.fromJson(Map<String, dynamic>.from(value as Map)),
+          )
+          .toList(growable: false);
+    }
+    _validate(items, spaces);
+    return CareDataEnvelope(
+      items: items,
+      spaces: spaces,
+      migratedFromOlderSchema: schemaVersion != currentCareSchemaVersion,
+    );
   }
 
   factory CareDataEnvelope.fromLegacyDecoded(dynamic decoded) {
     if (decoded is! List) {
       throw const FormatException('Legacy item list is invalid');
     }
-    final items = decoded
+    final legacyItems = decoded
         .map(
           (value) =>
               CareItem.fromLegacyJson(Map<String, dynamic>.from(value as Map)),
         )
         .toList(growable: false);
-    _validate(items);
-    return CareDataEnvelope(items: items);
+    final migrated = migrateLegacyItemLocations(legacyItems);
+    _validate(migrated.items, migrated.spaces);
+    return CareDataEnvelope(
+      items: migrated.items,
+      spaces: migrated.spaces,
+      migratedFromOlderSchema: true,
+    );
   }
 
-  static void _validate(List<CareItem> items) {
+  static void _validate(List<CareItem> items, List<CareSpace> spaces) {
+    final spaceIds = <String>{};
+    for (final space in spaces) {
+      if (!spaceIds.add(space.id)) {
+        throw FormatException('Duplicate space id: ${space.id}');
+      }
+    }
     final itemIds = <String>{};
     for (final item in items) {
       if (!itemIds.add(item.id)) {
         throw FormatException('Duplicate item id: ${item.id}');
+      }
+      if (item.spaceId case final spaceId?) {
+        if (!spaceIds.contains(spaceId)) {
+          throw FormatException('Unknown space id in item ${item.id}');
+        }
       }
       final planIds = <String>{};
       for (final plan in item.plans) {
@@ -93,11 +133,13 @@ class CareDataEnvelope {
 class CareDataLoadResult {
   const CareDataLoadResult({
     required this.items,
+    required this.spaces,
     required this.migratedLegacyData,
     required this.seededInitialData,
   });
 
   final List<CareItem> items;
+  final List<CareSpace> spaces;
   final bool migratedLegacyData;
   final bool seededInitialData;
 }
@@ -119,8 +161,12 @@ class CareRepository {
     final current = _preferences.getString(storageKey);
     if (current != null) {
       final envelope = CareDataEnvelope.decode(current);
+      if (envelope.migratedFromOlderSchema) {
+        await _write(envelope.encode());
+      }
       return CareDataLoadResult(
         items: envelope.items,
+        spaces: envelope.spaces,
         migratedLegacyData: false,
         seededInitialData: false,
       );
@@ -132,25 +178,35 @@ class CareRepository {
       await _write(envelope.encode());
       return CareDataLoadResult(
         items: envelope.items,
+        spaces: envelope.spaces,
         migratedLegacyData: true,
         seededInitialData: false,
       );
     }
 
-    final envelope = CareDataEnvelope(items: initialItems);
+    final migrated = migrateLegacyItemLocations(initialItems);
+    final envelope = CareDataEnvelope(
+      items: migrated.items,
+      spaces: migrated.spaces,
+    );
     await _write(envelope.encode());
     return CareDataLoadResult(
       items: envelope.items,
+      spaces: envelope.spaces,
       migratedLegacyData: false,
       seededInitialData: true,
     );
   }
 
-  String encodeSnapshot(List<CareItem> items) =>
-      CareDataEnvelope(items: items).encode();
+  String encodeSnapshot(
+    List<CareItem> items, {
+    List<CareSpace> spaces = const [],
+  }) => CareDataEnvelope(items: items, spaces: spaces).encode();
 
-  Future<void> save(List<CareItem> items) =>
-      writeEncodedSnapshot(encodeSnapshot(items));
+  Future<void> save(
+    List<CareItem> items, {
+    List<CareSpace> spaces = const [],
+  }) => writeEncodedSnapshot(encodeSnapshot(items, spaces: spaces));
 
   Future<void> writeEncodedSnapshot(String snapshot) async {
     // Re-parse before switching the active value so a partial or invalid
@@ -163,4 +219,78 @@ class CareRepository {
     final saved = await _preferences.setString(storageKey, snapshot);
     if (!saved) throw const FileSystemException('Unable to persist care data');
   }
+}
+
+({List<CareItem> items, List<CareSpace> spaces}) migrateLegacyItemLocations(
+  List<CareItem> items, {
+  List<CareSpace> existingSpaces = const [],
+}) {
+  final spaces = [...existingSpaces];
+  final spaceByName = <String, CareSpace>{
+    for (final space in existingSpaces) space.name: space,
+  };
+  final spaceIds = existingSpaces.map((space) => space.id).toSet();
+  final migratedItems = <CareItem>[];
+  const knownNames = <String>[
+    '客厅',
+    '卧室',
+    '厨房',
+    '卫生间',
+    '阳台',
+    '书房',
+    '餐厅',
+    '储物间',
+    '玄关',
+    '浴室',
+    '洗手间',
+  ];
+  const separators = <String>[' · ', '·', '-', '—', '/'];
+
+  for (final item in items) {
+    final raw = item.location.trim();
+    if (raw.isEmpty || item.spaceId != null) {
+      migratedItems.add(item);
+      continue;
+    }
+
+    var roomName = raw;
+    var detail = '';
+    for (final candidate in knownNames) {
+      if (raw == candidate) {
+        roomName = candidate;
+        break;
+      }
+      var matched = false;
+      for (final separator in separators) {
+        final prefix = '$candidate$separator';
+        if (!raw.startsWith(prefix)) continue;
+        roomName = candidate;
+        detail = raw.substring(prefix.length).trim();
+        matched = true;
+        break;
+      }
+      if (matched) break;
+    }
+
+    final space = spaceByName.putIfAbsent(roomName, () {
+      var suffix = spaces.length + 1;
+      while (spaceIds.contains('legacy-space-$suffix')) {
+        suffix++;
+      }
+      final created = CareSpace(
+        id: 'legacy-space-$suffix',
+        type: careSpaceTypeForLegacyName(roomName),
+        name: roomName,
+      );
+      spaces.add(created);
+      spaceIds.add(created.id);
+      return created;
+    });
+    migratedItems.add(item.copyWith(spaceId: space.id, locationDetail: detail));
+  }
+
+  return (
+    items: List.unmodifiable(migratedItems),
+    spaces: List.unmodifiable(spaces),
+  );
 }

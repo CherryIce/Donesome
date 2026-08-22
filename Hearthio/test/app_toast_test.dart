@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hearthio/widgets/app_toast.dart';
 
@@ -82,6 +83,9 @@ void main() {
     expect(find.byKey(const Key('second-toast')), findsOneWidget);
     expect(find.text('第二条'), findsOneWidget);
     expect(find.byIcon(Icons.priority_high_rounded), findsOneWidget);
+    final paragraph = tester.renderObject<RenderParagraph>(find.text('第二条'));
+    expect(paragraph.text.style?.inherit, isFalse);
+    expect(paragraph.text.style?.decoration, TextDecoration.none);
 
     AppToast.dismiss();
     await tester.pump(const Duration(milliseconds: 200));

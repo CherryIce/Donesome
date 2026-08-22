@@ -13,19 +13,75 @@ const _reportGreen = Color(0xFF31584B);
 const _reportAmber = Color(0xFFE59A72);
 const _reportRed = Color(0xFFB64B43);
 
-class MaintenanceReportPage extends StatelessWidget {
+enum MaintenanceReportScope { trailingTwelveMonths, currentYear }
+
+enum _MaintenanceCostGrouping { item, category }
+
+class MaintenanceReportPage extends StatefulWidget {
   const MaintenanceReportPage({
     super.key,
     required this.items,
     this.now,
+    this.initialScope = MaintenanceReportScope.trailingTwelveMonths,
+    this.navigationVersion = 0,
+    this.onOpenItem,
   });
 
   final List<CareItem> items;
   final DateTime? now;
+  final MaintenanceReportScope initialScope;
+  final int navigationVersion;
+  final ValueChanged<String>? onOpenItem;
+
+  @override
+  State<MaintenanceReportPage> createState() => _MaintenanceReportPageState();
+}
+
+class _MaintenanceReportPageState extends State<MaintenanceReportPage> {
+  late MaintenanceReportScope scope = widget.initialScope;
+  _MaintenanceCostGrouping costGrouping = _MaintenanceCostGrouping.item;
+
+  @override
+  void didUpdateWidget(covariant MaintenanceReportPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.navigationVersion != widget.navigationVersion) {
+      scope = widget.initialScope;
+      costGrouping = _MaintenanceCostGrouping.item;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final report = MaintenanceReportSnapshot.fromItems(items, now: now);
+    final report = MaintenanceReportSnapshot.fromItems(
+      widget.items,
+      now: widget.now,
+    );
+    final isCurrentYear = scope == MaintenanceReportScope.currentYear;
+    final rangeStart = isCurrentYear
+        ? report.currentYearStart
+        : report.trailingYearStart;
+    final rangeEnd = isCurrentYear
+        ? report.currentYearEnd
+        : report.trailingYearEnd;
+    final scopedCost = isCurrentYear
+        ? report.costCurrentYear
+        : report.costLastTwelveMonths;
+    final scopedItemCosts = isCurrentYear
+        ? report.currentYearCostsByItem
+        : report.costsByItem;
+    final scopedCategoryCosts = isCurrentYear
+        ? report.currentYearCostsByCategory
+        : report.costsByCategory;
+    final ignoredCostCount = isCurrentYear
+        ? report.ignoredCurrentYearCostRecordCount
+        : report.ignoredCostRecordCount;
+    final scopedRecords = report.recentRecords
+        .where((entry) {
+          final completedAt = maintenanceDateOnly(entry.record.completedAt);
+          return !completedAt.isBefore(rangeStart) &&
+              completedAt.isBefore(rangeEnd);
+        })
+        .toList(growable: false);
     return ColoredBox(
       color: _reportCanvas,
       child: Column(
@@ -57,31 +113,33 @@ class MaintenanceReportPage extends StatelessWidget {
           Expanded(
             child: ListView(
               key: const PageStorageKey('maintenance-report-scroll'),
-              keyboardDismissBehavior:
-                  ScrollViewKeyboardDismissBehavior.onDrag,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
               children: [
-                _ScopeCard(report: report),
+                _ScopeSelector(
+                  scope: scope,
+                  onChanged: (value) => setState(() => scope = value),
+                ),
+                const SizedBox(height: 10),
+                _ScopeCard(report: report, scope: scope),
                 if (report.totalRecordCount == 0) ...[
                   const SizedBox(height: 12),
                   const _ReportNotice(
                     key: Key('maintenance-report-empty'),
                     icon: Icons.receipt_long_outlined,
-                    text:
-                        '还没有完成记录。完成一次保养后，这里会显示真实费用与完成情况；当前计划的逾期和未来任务仍照常统计。',
+                    text: '还没有完成记录。完成一次保养后，这里会显示真实费用与完成情况；当前计划的逾期和未来任务仍照常统计。',
                   ),
                 ],
                 const SizedBox(height: 18),
-                const _SectionTitle(
-                  title: '当前任务',
-                  subtitle: '按本机日历日实时计算',
-                ),
+                const _SectionTitle(title: '当前任务', subtitle: '按本机日历日实时计算'),
                 const SizedBox(height: 10),
                 _MetricGrid(report: report),
                 const SizedBox(height: 22),
-                const _SectionTitle(
-                  title: '近 12 个月',
-                  subtitle: '费用与完成率使用同一自然月范围',
+                _SectionTitle(
+                  title: isCurrentYear ? '本年维护' : '近 12 个月',
+                  subtitle: isCurrentYear
+                      ? '自然年内已完成记录的实际费用'
+                      : '费用与完成率使用同一自然月范围',
                 ),
                 const SizedBox(height: 10),
                 _ReportSurface(
@@ -96,7 +154,7 @@ class MaintenanceReportPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 5),
                       Text(
-                        _money(report.costLastTwelveMonths),
+                        _money(scopedCost),
                         style: const TextStyle(
                           color: _reportAmber,
                           fontSize: 28,
@@ -105,17 +163,17 @@ class MaintenanceReportPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        '${_date(report.trailingYearStart)} 至 ${_date(addMaintenanceDays(report.trailingYearEnd, -1))}；只相加完成记录中的实际费用。',
+                        '${_date(rangeStart)} 至 ${_date(addMaintenanceDays(rangeEnd, -1))}；只相加完成记录中的实际费用。',
                         style: const TextStyle(
                           color: _reportMuted,
                           fontSize: 12,
                           height: 1.45,
                         ),
                       ),
-                      if (report.ignoredCostRecordCount > 0) ...[
+                      if (ignoredCostCount > 0) ...[
                         const SizedBox(height: 5),
                         Text(
-                          '${report.ignoredCostRecordCount} 条异常费用未纳入汇总。',
+                          '$ignoredCostCount 条异常费用未纳入汇总。',
                           style: const TextStyle(
                             color: _reportRed,
                             fontSize: 12,
@@ -125,35 +183,48 @@ class MaintenanceReportPage extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
-                _CompletionRateCard(report: report),
+                if (!isCurrentYear) ...[
+                  const SizedBox(height: 10),
+                  _CompletionRateCard(report: report),
+                ],
                 const SizedBox(height: 22),
-                const _SectionTitle(
-                  title: '费用去向',
-                  subtitle: '按同一近 12 个自然月范围汇总',
+                _SectionTitle(title: '费用去向', subtitle: '切换查看维度，费用总额不重复计算'),
+                const SizedBox(height: 10),
+                _CostGroupingSelector(
+                  grouping: costGrouping,
+                  onChanged: (value) => setState(() => costGrouping = value),
                 ),
                 const SizedBox(height: 10),
                 _BreakdownSection(
-                  key: const Key('maintenance-report-item-costs'),
-                  title: '按物品',
-                  emptyText: '暂无有金额的维护记录',
-                  values: report.costsByItem,
+                  key: ValueKey(
+                    costGrouping == _MaintenanceCostGrouping.item
+                        ? 'maintenance-report-item-costs'
+                        : 'maintenance-report-category-costs',
+                  ),
+                  title: costGrouping == _MaintenanceCostGrouping.item
+                      ? '物品明细'
+                      : '类别汇总',
+                  emptyText: costGrouping == _MaintenanceCostGrouping.item
+                      ? '暂无有金额的维护记录'
+                      : '暂无可汇总的类别费用',
+                  values: costGrouping == _MaintenanceCostGrouping.item
+                      ? scopedItemCosts
+                      : scopedCategoryCosts,
+                  onOpen: costGrouping == _MaintenanceCostGrouping.item
+                      ? widget.onOpenItem
+                      : null,
                 ),
-                const SizedBox(height: 10),
-                _BreakdownSection(
-                  key: const Key('maintenance-report-category-costs'),
-                  title: '按类别',
-                  emptyText: '暂无可汇总的类别费用',
-                  values: report.costsByCategory,
-                ),
-                if (report.recentRecords.isNotEmpty) ...[
+                if (scopedRecords.isNotEmpty) ...[
                   const SizedBox(height: 22),
                   const _SectionTitle(
                     title: '最近维护记录',
                     subtitle: '每笔金额均可回到真实完成记录',
                   ),
                   const SizedBox(height: 10),
-                  _RecentRecords(records: report.recentRecords),
+                  _RecentRecords(
+                    records: scopedRecords,
+                    onOpenItem: widget.onOpenItem,
+                  ),
                 ],
               ],
             ),
@@ -164,10 +235,122 @@ class MaintenanceReportPage extends StatelessWidget {
   }
 }
 
+class _CostGroupingSelector extends StatelessWidget {
+  const _CostGroupingSelector({
+    required this.grouping,
+    required this.onChanged,
+  });
+
+  final _MaintenanceCostGrouping grouping;
+  final ValueChanged<_MaintenanceCostGrouping> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    label: '费用去向查看方式',
+    child: Row(
+      children: [
+        Expanded(
+          child: _ScopeButton(
+            key: const Key('maintenance-report-group-by-item'),
+            label: '按物品',
+            selected: grouping == _MaintenanceCostGrouping.item,
+            onTap: () => onChanged(_MaintenanceCostGrouping.item),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ScopeButton(
+            key: const Key('maintenance-report-group-by-category'),
+            label: '按类别',
+            selected: grouping == _MaintenanceCostGrouping.category,
+            onTap: () => onChanged(_MaintenanceCostGrouping.category),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ScopeSelector extends StatelessWidget {
+  const _ScopeSelector({required this.scope, required this.onChanged});
+
+  final MaintenanceReportScope scope;
+  final ValueChanged<MaintenanceReportScope> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: _ScopeButton(
+          key: const Key('maintenance-report-scope-current-year'),
+          label: '本年',
+          selected: scope == MaintenanceReportScope.currentYear,
+          onTap: () => onChanged(MaintenanceReportScope.currentYear),
+        ),
+      ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: _ScopeButton(
+          key: const Key('maintenance-report-scope-trailing-year'),
+          label: '近 12 个月',
+          selected: scope == MaintenanceReportScope.trailingTwelveMonths,
+          onTap: () => onChanged(MaintenanceReportScope.trailingTwelveMonths),
+        ),
+      ),
+    ],
+  );
+}
+
+class _ScopeButton extends StatelessWidget {
+  const _ScopeButton({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    selected: selected,
+    child: Material(
+      color: selected ? _reportGreen : _reportPaper,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: selected ? _reportGreen : const Color(0xFFDCE4DD),
+            ),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : _reportInk,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class _ScopeCard extends StatelessWidget {
-  const _ScopeCard({required this.report});
+  const _ScopeCard({required this.report, required this.scope});
 
   final MaintenanceReportSnapshot report;
+  final MaintenanceReportScope scope;
 
   @override
   Widget build(BuildContext context) => _ReportSurface(
@@ -180,7 +363,9 @@ class _ScopeCard extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            '统计口径：本月按完成日；逾期按今天与原到期日的日历日差；未来 30 天含今天；费用与按时率统计 ${_date(report.trailingYearStart)} 至 ${_date(addMaintenanceDays(report.trailingYearEnd, -1))}。',
+            scope == MaintenanceReportScope.currentYear
+                ? '统计口径：本月按完成日；逾期按今天与原到期日的日历日差；未来 30 天含今天；本年费用统计 ${_date(report.currentYearStart)} 至 ${_date(addMaintenanceDays(report.currentYearEnd, -1))}。'
+                : '统计口径：本月按完成日；逾期按今天与原到期日的日历日差；未来 30 天含今天；费用与按时率统计 ${_date(report.trailingYearStart)} 至 ${_date(addMaintenanceDays(report.trailingYearEnd, -1))}。',
             style: const TextStyle(
               color: _reportInk,
               fontSize: 12,
@@ -219,9 +404,7 @@ class _MetricGrid extends StatelessWidget {
             width: width,
             title: '当前逾期',
             value: '${report.currentOverdueCount} 项',
-            color: report.currentOverdueCount == 0
-                ? _reportGreen
-                : _reportRed,
+            color: report.currentOverdueCount == 0 ? _reportGreen : _reportRed,
           ),
           _MetricCard(
             key: const Key('maintenance-report-overdue-days'),
@@ -348,11 +531,13 @@ class _BreakdownSection extends StatelessWidget {
     required this.title,
     required this.emptyText,
     required this.values,
+    this.onOpen,
   });
 
   final String title;
   final String emptyText;
   final List<MaintenanceCostBreakdown> values;
+  final ValueChanged<String>? onOpen;
 
   @override
   Widget build(BuildContext context) => _ReportSurface(
@@ -374,9 +559,8 @@ class _BreakdownSection extends StatelessWidget {
             style: const TextStyle(color: _reportMuted, fontSize: 12),
           )
         else
-          ...values.indexed.map(
-            (entry) => Padding(
-              key: ValueKey('maintenance-cost-${entry.$2.id}'),
+          ...values.indexed.map((entry) {
+            final row = Padding(
               padding: EdgeInsets.only(top: entry.$1 == 0 ? 0 : 9),
               child: Row(
                 children: [
@@ -397,83 +581,120 @@ class _BreakdownSection extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
+                  if (onOpen != null) ...[
+                    const SizedBox(width: 7),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: _reportMuted,
+                      size: 18,
+                    ),
+                  ],
                 ],
               ),
-            ),
-          ),
+            );
+            return Material(
+              key: ValueKey('maintenance-cost-${entry.$2.id}'),
+              color: Colors.transparent,
+              child: onOpen == null
+                  ? row
+                  : InkWell(
+                      onTap: () => onOpen!(entry.$2.id),
+                      borderRadius: BorderRadius.circular(10),
+                      child: row,
+                    ),
+            );
+          }),
       ],
     ),
   );
 }
 
 class _RecentRecords extends StatelessWidget {
-  const _RecentRecords({required this.records});
+  const _RecentRecords({required this.records, this.onOpenItem});
 
   final List<MaintenanceReportRecord> records;
+  final ValueChanged<String>? onOpenItem;
 
   @override
   Widget build(BuildContext context) => Column(
-    children: records.indexed.map((entry) {
-      final record = entry.$2.record;
-      return Padding(
-        padding: EdgeInsets.only(top: entry.$1 == 0 ? 0 : 8),
-        child: _ReportSurface(
-          key: ValueKey('maintenance-report-record-${record.id}'),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: _reportAmber.withValues(alpha: .13),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.receipt_long_outlined,
-                  color: _reportAmber,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      record.kind,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _reportInk,
-                        fontWeight: FontWeight.w800,
+    children: records.indexed
+        .map((entry) {
+          final record = entry.$2.record;
+          return Padding(
+            padding: EdgeInsets.only(top: entry.$1 == 0 ? 0 : 8),
+            child: Material(
+              key: ValueKey('maintenance-report-record-${record.id}'),
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onOpenItem == null
+                    ? null
+                    : () => onOpenItem!(entry.$2.itemId),
+                borderRadius: BorderRadius.circular(20),
+                child: _ReportSurface(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: _reportAmber.withValues(alpha: .13),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.receipt_long_outlined,
+                          color: _reportAmber,
+                          size: 20,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${entry.$2.itemName} · ${_date(record.completedAt)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _reportMuted,
-                        fontSize: 12,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              record.kind,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: _reportInk,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '${entry.$2.itemName} · ${_date(record.completedAt)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: _reportMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 10),
+                      Text(
+                        record.cost == 0 ? '—' : _money(record.cost),
+                        style: const TextStyle(
+                          color: _reportGreen,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      if (onOpenItem != null)
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: _reportMuted,
+                          size: 18,
+                        ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Text(
-                record.cost == 0 ? '—' : _money(record.cost),
-                style: const TextStyle(
-                  color: _reportGreen,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }).toList(growable: false),
+            ),
+          );
+        })
+        .toList(growable: false),
   );
 }
 

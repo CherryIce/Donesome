@@ -1,3 +1,62 @@
+# Inventory archive redesign QA
+
+## Visual truth and runtime state
+
+- Selected source: `/Users/starburst/.codex/generated_images/01a027fd-4eb2-7773-a44e-3332b3d19a24/exec-352f710f-c006-4760-8ca9-14a8014982b9.png`.
+- Source dimensions: 853 x 1844 pixels, generated for a 390 x 844 logical-pixel mobile target without device chrome.
+- Final implementation: `/Users/starburst/Donesome/Hearthio/qa-artifacts/inventory-archive-implementation-v1.png`.
+- Runtime viewport: iPhone 17 Pro simulator, iOS 26.5, 402 x 874 logical pixels at 3x density; the capture is 1206 x 2622 pixels and includes the real iOS status bar and safe areas.
+- State: `全部 2` selected, default `按名称` sort, one item without a plan and one item planned for 2026-11-20. The persisted second-item location is the user's existing `restroom` value rather than the mock's illustrative `卫生间`.
+
+## Density normalization and comparison evidence
+
+- The 853 x 1844 source was normalized to 1206 x 2622 for the full-view comparison. Matching the simulator dimensions introduces about 0.5% vertical scaling because the generated source omits platform chrome; the comparison does not treat the status bar or Dynamic Island as app-owned pixels.
+- Final full-view source-left / implementation-right comparison: `/Users/starburst/Donesome/Hearthio/qa-artifacts/inventory-archive-comparison-v1.png`.
+- Final focused source-left / implementation-right comparison: `/Users/starburst/Donesome/Hearthio/qa-artifacts/inventory-archive-focus-comparison-v1.png`.
+- The focused comparison uses equal 1206 x 1300 crops aligned at the search field: normalized source y=300 and implementation y=459. It isolates the app-owned search, filters, section controls, icons, list rows, status treatment, and date layout.
+
+## Required fidelity surfaces
+
+- Fonts and typography: the implementation uses the native iOS Chinese system fallback with a 30-point heavy page title, 14-point subtitle/filter labels, 18-point section title, 17-point item names, and 11-13-point supporting facts. Hierarchy, wrapping, and truncation follow the source; native glyph width, weight, and antialiasing remain P3 differences.
+- Spacing and layout rhythm: 20-point primary margins, 56-point search height, 44-point status filter, 22-point list radius, 56-point item icons, shared row dividers, and the existing 66-point bottom dock reproduce the selected top-to-bottom structure. The real status bar reduces the app-owned vertical area, but the search-to-dock rhythm and persistent controls remain intact without overlap.
+- Colors and visual tokens: canvas `#F7F8F3`, paper `#FFFEFA`, forest green `#31584B`, ink `#263630`, muted sage `#72817A`, mist `#EAF1E9`, light divider/border colors, and the restrained amber setup action map to the selected source and existing Hearthio palette.
+- Image quality and assets: the selected screen contains no raster photo, logo, decorative illustration, or generated asset. The implementation uses the project's Material icon family, including an item-specific washing-machine symbol; no placeholder, emoji, handcrafted SVG, or code-drawn substitute is present.
+- Copy and content: `物品档案`, `管理物品与保养计划`, search copy, three status counts, sort label, setup action, planned state, and next-date label match the selected direction. Dynamic item names, locations, counts, and dates continue to come from stored app data.
+- Accessibility and responsiveness: the header add action and filter segments expose button/selected semantics, the search has a functional clear action, the sort control opens real options, rows remain fully tappable, and primary controls retain practical touch targets. A 390 x 844 Widget viewport verifies layout stability and no overflow.
+
+## Interaction and regression evidence
+
+- The focused Widget test exercises header add, search and clear, `全部` / `已计划` / `待设置` filters, the empty search result, sort-sheet selection, default display order, and date-order reordering.
+- The existing primary-page regression confirms the new header add action still opens the complete category/preset-first item flow.
+- `flutter analyze` reports no issues. The full local Flutter suite passes 124 tests.
+- `flutter run` built, installed, and launched the final code on the booted iPhone 17 Pro simulator before the final screenshot was captured. No physical-device, archive, TestFlight, or App Store evidence is claimed.
+
+## Comparison history
+
+### First pass findings
+
+- [P2] The default raw string sort placed numeric item `003` before `洗衣机`, reversing the selected source's intended scan order.
+- [P2] The first implementation used the category-level refrigerator symbol for both rows, while the selected source distinguishes the washing machine from the generic appliance.
+- First-pass source-left / implementation-right evidence: `/Users/starburst/Donesome/Hearthio/qa-artifacts/inventory-archive-comparison-before-order-fix.png`.
+
+### Fixes and final evidence
+
+- Added display-name sorting that keeps text-led household names before numeric identifiers while preserving deterministic ordering; selecting `按时间` still moves the planned item ahead of an unplanned item.
+- Added an item-specific washing-machine icon selection while retaining the existing category icon fallback for all other inventory types.
+- The final full-view and focused comparisons confirm matching hierarchy, row order, icon distinction, search/filter/sort structure, status/date treatment, list surface, and bottom navigation. No actionable P0, P1, or P2 issue remains.
+
+## Follow-up polish
+
+- [P3] Native Chinese glyph metrics and available Material icon contours differ slightly from the generated source.
+- [P3] The persisted `restroom` value is longer than the mock's illustrative `卫生间`, so the metadata truncates in the compact planned row; preserving factual user data takes precedence over changing it for screenshot parity.
+- [P3] The generated source omits iOS chrome while the simulator correctly reserves the real status and safe-area regions.
+
+## Final result
+
+passed
+
+---
+
 # Add-item two-step flow design QA
 
 ## Visual truth

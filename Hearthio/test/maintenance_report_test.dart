@@ -237,5 +237,35 @@ void main() {
     );
     expect(find.text('客厅空调'), findsOneWidget);
     expect(find.text('厨房净水器'), findsOneWidget);
+
+    expect(
+      find.byKey(const Key('maintenance-report-item-costs')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('maintenance-report-category-costs')),
+      findsNothing,
+    );
+    expect(find.text('物品明细'), findsOneWidget);
+    expect(find.text('家电'), findsNothing);
+
+    await tester.tap(
+      find.byKey(const Key('maintenance-report-group-by-category')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('maintenance-report-item-costs')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('maintenance-report-category-costs')),
+      findsOneWidget,
+    );
+    expect(find.text('类别汇总'), findsOneWidget);
+    expect(find.text('家电'), findsOneWidget);
+    expect(find.text('厨卫'), findsOneWidget);
+    expect(find.text('客厅空调'), findsNothing);
+    expect(find.text('厨房净水器'), findsNothing);
   });
 }

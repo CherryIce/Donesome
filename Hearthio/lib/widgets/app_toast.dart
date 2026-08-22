@@ -227,10 +227,12 @@ class _AppToastCard extends StatelessWidget {
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
+                      inherit: false,
                       color: foreground,
                       fontSize: 14,
                       height: 1.35,
                       fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                 ),

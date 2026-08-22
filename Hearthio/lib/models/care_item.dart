@@ -9,6 +9,8 @@ class CareItem {
     required this.name,
     required this.category,
     required this.location,
+    this.spaceId,
+    this.locationDetail = '',
     required this.brand,
     required this.model,
     required this.notes,
@@ -37,7 +39,12 @@ class CareItem {
   final String id;
   final String name;
   final String category;
+  // `location` is retained as a lossless compatibility fallback for v1/v2
+  // archives. New UI resolves the actual room through `spaceId` and keeps the
+  // optional within-room description in `locationDetail`.
   final String location;
+  final String? spaceId;
+  final String locationDetail;
   final String brand;
   final String model;
   final String notes;
@@ -138,6 +145,8 @@ class CareItem {
     String? name,
     String? category,
     String? location,
+    String? spaceId,
+    String? locationDetail,
     String? brand,
     String? model,
     String? notes,
@@ -156,6 +165,7 @@ class CareItem {
     bool clearWarrantyDate = false,
     bool clearLastCareDate = false,
     bool clearInterval = false,
+    bool clearSpaceId = false,
     bool? isSample,
   }) {
     final scheduleChanged =
@@ -180,6 +190,8 @@ class CareItem {
       name: name ?? this.name,
       category: category ?? this.category,
       location: location ?? this.location,
+      spaceId: clearSpaceId ? null : spaceId ?? this.spaceId,
+      locationDetail: locationDetail ?? this.locationDetail,
       brand: brand ?? this.brand,
       model: model ?? this.model,
       notes: notes ?? this.notes,
@@ -257,6 +269,8 @@ class CareItem {
     'name': name,
     'category': category,
     'location': location,
+    'spaceId': spaceId,
+    'locationDetail': locationDetail,
     'brand': brand,
     'model': model,
     'notes': notes,
@@ -279,6 +293,8 @@ class CareItem {
     name: _requiredString(json, 'name'),
     category: json['category'] as String? ?? '其他',
     location: json['location'] as String? ?? '',
+    spaceId: json['spaceId'] as String?,
+    locationDetail: json['locationDetail'] as String? ?? '',
     brand: json['brand'] as String? ?? '',
     model: json['model'] as String? ?? '',
     notes: json['notes'] as String? ?? '',

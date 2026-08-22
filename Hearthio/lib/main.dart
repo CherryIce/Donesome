@@ -2,6 +2,14 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/cupertino.dart'
+    show
+        CupertinoButton,
+        CupertinoIcons,
+        CupertinoPicker,
+        CupertinoTheme,
+        CupertinoThemeData,
+        showCupertinoModalPopup;
 import 'package:flutter/material.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -14,6 +22,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:url_launcher/url_launcher.dart';
 
 import 'models/care_item.dart';
+import 'models/care_space.dart';
 import 'models/maintenance_completion.dart';
 import 'models/maintenance_calendar.dart';
 import 'models/maintenance_lifecycle.dart';
@@ -42,6 +51,7 @@ import 'widgets/maintenance_report_page.dart';
 import 'widgets/system_permission_alert.dart';
 
 export 'models/care_item.dart';
+export 'models/care_space.dart';
 export 'models/maintenance_completion.dart';
 export 'models/maintenance_calendar.dart';
 export 'models/maintenance_lifecycle.dart';
@@ -935,11 +945,39 @@ class CareStore extends ChangeNotifier
   Future<void> _dataMutationTail = Future.value();
   bool _writesBlocked = false;
   List<CareItem> items = [];
+  List<CareSpace> spaces = [];
   bool loaded = false;
   String? loadError;
 
   bool get isDataReadOnly => _writesBlocked;
   bool get isRestoringBackup => _restoreOperation != null;
+
+  CareSpace? spaceById(String? id) {
+    if (id == null) return null;
+    for (final space in spaces) {
+      if (space.id == id) return space;
+    }
+    return null;
+  }
+
+  String? spaceNameFor(CareItem item) => spaceById(item.spaceId)?.name;
+
+  String locationLabelFor(CareItem item) {
+    final room = spaceNameFor(item)?.trim() ?? '';
+    final detail = item.locationDetail.trim();
+    if (room.isNotEmpty && detail.isNotEmpty) return '$room · $detail';
+    if (room.isNotEmpty) return room;
+    if (detail.isNotEmpty) return '未设置空间 · $detail';
+    return item.location.trim();
+  }
+
+  List<CareItem> itemsInSpace(String? spaceId) => items
+      .where(
+        (item) => spaceId == null
+            ? spaceById(item.spaceId) == null
+            : item.spaceId == spaceId,
+      )
+      .toList(growable: false);
 
   bool get hasPendingNotificationNavigation =>
       _pendingNotificationPayloads.isNotEmpty;
@@ -973,15 +1011,30 @@ class CareStore extends ChangeNotifier
       final repository = await _openRepository();
       final result = await repository.load(initialItems: [_newExampleItem()]);
       items = [...result.items];
+      spaces = [...result.spaces];
       loadError = null;
       _writesBlocked = false;
       final replacedExamples = _replaceLegacyExamples();
       final normalizedFacts = _normalizeMaintenanceFactsIn(items);
-      if (replacedExamples || normalizedFacts) await _persist();
+      final migratedLocations = migrateLegacyItemLocations(
+        items,
+        existingSpaces: spaces,
+      );
+      final linkedLocations =
+          migratedLocations.spaces.length != spaces.length ||
+          migratedLocations.items.indexed.any(
+            (entry) => !identical(entry.$2, items[entry.$1]),
+          );
+      items = [...migratedLocations.items];
+      spaces = [...migratedLocations.spaces];
+      if (replacedExamples || normalizedFacts || linkedLocations) {
+        await _persist();
+      }
     } catch (_) {
       // Keep the app usable while making it explicit that the unreadable
       // snapshot was preserved and must not be replaced by an empty list.
       items = [];
+      spaces = [];
       loadError = '本地档案读取失败，原数据仍保留在设备上，当前编辑已暂停。请勿卸载应用，可重启或从有效备份恢复。';
       _writesBlocked = true;
     }
@@ -1031,8 +1084,17 @@ class CareStore extends ChangeNotifier
     }
   }
 
-  Future<void> _writeItems(List<CareItem> nextItems) {
-    final snapshot = CareDataEnvelope(items: nextItems).encode();
+  Future<void> _writeItems(List<CareItem> nextItems) =>
+      _writeData(nextItems, spaces);
+
+  Future<void> _writeData(
+    List<CareItem> nextItems,
+    List<CareSpace> nextSpaces,
+  ) {
+    final snapshot = CareDataEnvelope(
+      items: nextItems,
+      spaces: nextSpaces,
+    ).encode();
     final write = _persistenceTail.then((_) async {
       final repository = await _openRepository();
       await repository.writeEncodedSnapshot(snapshot);
@@ -1042,6 +1104,79 @@ class CareStore extends ChangeNotifier
       onError: (Object _, StackTrace __) {},
     );
     return write;
+  }
+
+  Future<CareSpace> saveSpace(CareSpace space) =>
+      _serializeDataMutation(() => _saveSpace(space));
+
+  Future<CareSpace> _saveSpace(CareSpace space) async {
+    _ensureWritable();
+    final normalized = CareSpace(
+      id: space.id,
+      type: space.type.trim(),
+      name: space.name.trim(),
+    );
+    if (normalized.name.isEmpty) throw const FormatException('空间名称不能为空');
+    if (spaces.any(
+      (candidate) =>
+          candidate.id != normalized.id &&
+          candidate.name.toLowerCase() == normalized.name.toLowerCase(),
+    )) {
+      throw const FormatException('空间名称不能重复');
+    }
+    final nextSpaces = [...spaces];
+    final index = nextSpaces.indexWhere((entry) => entry.id == normalized.id);
+    if (index == -1) {
+      nextSpaces.add(normalized);
+    } else {
+      nextSpaces[index] = normalized;
+    }
+    await _writeData(items, nextSpaces);
+    spaces = nextSpaces;
+    notifyListeners();
+    return normalized;
+  }
+
+  Future<void> removeSpace(String spaceId, {String? replacementSpaceId}) =>
+      _serializeDataMutation(
+        () => _removeSpace(spaceId, replacementSpaceId: replacementSpaceId),
+      );
+
+  Future<void> _removeSpace(
+    String spaceId, {
+    String? replacementSpaceId,
+  }) async {
+    _ensureWritable();
+    if (spaceId == replacementSpaceId) {
+      throw const FormatException('不能迁移到正在删除的空间');
+    }
+    final target = spaceById(replacementSpaceId);
+    if (replacementSpaceId != null && target == null) {
+      throw const FormatException('迁移目标空间不存在');
+    }
+    final nextSpaces = spaces.where((space) => space.id != spaceId).toList();
+    if (nextSpaces.length == spaces.length) return;
+    final nextItems = items
+        .map((item) {
+          if (item.spaceId != spaceId) return item;
+          final detail = item.locationDetail.trim();
+          final fallback = target == null
+              ? detail
+              : [
+                  target.name,
+                  detail,
+                ].where((value) => value.isNotEmpty).join(' · ');
+          return item.copyWith(
+            spaceId: replacementSpaceId,
+            clearSpaceId: replacementSpaceId == null,
+            location: fallback,
+          );
+        })
+        .toList(growable: false);
+    await _writeData(nextItems, nextSpaces);
+    items = nextItems;
+    spaces = nextSpaces;
+    notifyListeners();
   }
 
   Future<void> _deletePhoto(String path) async {
@@ -1114,8 +1249,13 @@ class CareStore extends ChangeNotifier
     final replacement = _newExampleItem();
     final nextItems = items.where((item) => !item.isSample).toList()
       ..insert(0, replacement);
-    await _writeItems(nextItems);
-    items = nextItems;
+    final migrated = migrateLegacyItemLocations(
+      nextItems,
+      existingSpaces: spaces,
+    );
+    await _writeData(migrated.items, migrated.spaces);
+    items = [...migrated.items];
+    spaces = [...migrated.spaces];
     notifyListeners();
     for (final item in examples) {
       _deleteUnreferencedPhotos(
@@ -1477,7 +1617,7 @@ class CareStore extends ChangeNotifier
         [
           item.name,
           item.category,
-          item.location,
+          locationLabelFor(item),
           item.brand,
           item.model,
           _date(item.purchaseDate),
@@ -1517,6 +1657,7 @@ class CareStore extends ChangeNotifier
       }
       final bytes = CareBackupCodec.encode(
         items: items,
+        spaces: spaces,
         photoBytesByPath: photoBytes,
       );
       final file = File(
@@ -1616,11 +1757,16 @@ class CareStore extends ChangeNotifier
         await destination.writeAsBytes(entry.value, flush: true);
         restoredPhotoPaths[entry.key] = destination.path;
       }
-      final restored = decoded.items
+      var restored = decoded.items
           .map((item) => _withRestoredPhotoPaths(item, restoredPhotoPaths))
           .toList();
       _replaceLegacyExamplesIn(restored);
       _normalizeMaintenanceFactsIn(restored);
+      final migratedLocations = migrateLegacyItemLocations(
+        restored,
+        existingSpaces: decoded.spaces,
+      );
+      restored = [...migratedLocations.items];
       await _deleteUnreferencedPhotosNow(
         restoredPhotoPaths.values,
         retainedBy: restored,
@@ -1634,8 +1780,9 @@ class CareStore extends ChangeNotifier
 
         // Join the same ordered write path as every other data mutation. Only
         // publish the restored list after its complete snapshot is durable.
-        await _writeItems(restored);
+        await _writeData(restored, migratedLocations.spaces);
         items = restored;
+        spaces = [...migratedLocations.spaces];
         loadError = null;
         _writesBlocked = false;
         restoreCommitted = true;
@@ -1808,7 +1955,7 @@ class CareStore extends ChangeNotifier
 
   Future<void> _persist() async {
     final repository = await _openRepository();
-    await repository.save(items);
+    await repository.save(items, spaces: spaces);
   }
 
   Future<void> _initializeNotifications() async {
@@ -2144,6 +2291,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   bool _notificationNavigationScheduled = false;
   bool _notificationNavigationInFlight = false;
   int tab = 0;
+  InventoryLanding _inventoryLanding = InventoryLanding.allItems;
+  int _inventoryNavigationVersion = 0;
+  MaintenanceReportScope _reportScope =
+      MaintenanceReportScope.trailingTwelveMonths;
+  int _reportNavigationVersion = 0;
 
   @override
   void initState() {
@@ -2223,15 +2375,70 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         );
       }
 
+      void openItemById(String itemId) {
+        CareItem? item;
+        for (final candidate in store.items) {
+          if (candidate.id == itemId) {
+            item = candidate;
+            break;
+          }
+        }
+        if (item == null) return;
+        final selectedItem = item;
+        Navigator.push<void>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DetailPage(store: store, item: selectedItem),
+          ),
+        );
+      }
+
+      void openInventory(InventoryLanding landing) {
+        setState(() {
+          _inventoryLanding = landing;
+          _inventoryNavigationVersion++;
+          tab = 1;
+        });
+      }
+
+      void openCurrentYearReport() {
+        setState(() {
+          _reportScope = MaintenanceReportScope.currentYear;
+          _reportNavigationVersion++;
+          tab = 3;
+        });
+      }
+
+      void openSpaces() {
+        Navigator.push<void>(
+          context,
+          MaterialPageRoute(builder: (_) => SpacePage(store: store)),
+        );
+      }
+
       final pages = [
         Dashboard(
           store: store,
           onAdd: openItemEditor,
           onOpenSchedule: () => setState(() => tab = 2),
+          onOpenItems: () => openInventory(InventoryLanding.allItems),
+          onOpenSpaces: openSpaces,
+          onOpenAnnualCost: openCurrentYearReport,
+          onOpenAssets: () => openInventory(InventoryLanding.assets),
         ),
-        InventoryPage(store: store),
+        InventoryPage(
+          store: store,
+          onAdd: openItemEditor,
+          initialLanding: _inventoryLanding,
+          navigationVersion: _inventoryNavigationVersion,
+        ),
         SchedulePage(store: store),
-        MaintenanceReportPage(items: store.items),
+        MaintenanceReportPage(
+          items: store.items,
+          initialScope: _reportScope,
+          navigationVersion: _reportNavigationVersion,
+          onOpenItem: openItemById,
+        ),
         SettingsPage(store: store),
       ];
       return Scaffold(
@@ -2253,14 +2460,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
-              Expanded(child: pages[tab]),
+              Expanded(
+                child: IndexedStack(index: tab, children: pages),
+              ),
             ],
           ),
         ),
-        floatingActionButton: tab == 1
-            ? AddItemButton(onTap: openItemEditor)
-            : null,
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         bottomNavigationBar: AppBottomDock(
           selected: tab,
           onSelect: (v) => setState(() => tab = v),
@@ -2276,12 +2481,20 @@ class Dashboard extends StatelessWidget {
     required this.store,
     this.onAdd,
     this.onOpenSchedule,
+    this.onOpenItems,
+    this.onOpenSpaces,
+    this.onOpenAnnualCost,
+    this.onOpenAssets,
     this.now,
   });
 
   final CareStore store;
   final VoidCallback? onAdd;
   final VoidCallback? onOpenSchedule;
+  final VoidCallback? onOpenItems;
+  final VoidCallback? onOpenSpaces;
+  final VoidCallback? onOpenAnnualCost;
+  final VoidCallback? onOpenAssets;
   final DateTime? now;
 
   @override
@@ -2296,12 +2509,6 @@ class Dashboard extends StatelessWidget {
       0,
       (sum, item) => sum + (item.currentValue ?? item.purchasePrice ?? 0),
     );
-    final rooms = <String, int>{};
-    for (final item in store.items) {
-      if (item.location.isNotEmpty) {
-        rooms[item.location] = (rooms[item.location] ?? 0) + 1;
-      }
-    }
     final tasks = maintenanceTasksForItems(store.items, now: today);
     final attentionCount = tasks
         .where(
@@ -2367,9 +2574,13 @@ class Dashboard extends StatelessWidget {
                   const SizedBox(height: 10),
                   _DashboardHouseholdOverview(
                     itemCount: store.items.length,
-                    roomCount: rooms.length,
+                    roomCount: store.spaces.length,
                     annualCost: annualCost,
                     assetValue: assetValue,
+                    onOpenItems: onOpenItems,
+                    onOpenSpaces: onOpenSpaces,
+                    onOpenAnnualCost: onOpenAnnualCost,
+                    onOpenAssets: onOpenAssets,
                   ),
                 ],
               ),
@@ -2809,92 +3020,150 @@ class _DashboardHouseholdOverview extends StatelessWidget {
     required this.roomCount,
     required this.annualCost,
     required this.assetValue,
+    this.onOpenItems,
+    this.onOpenSpaces,
+    this.onOpenAnnualCost,
+    this.onOpenAssets,
   });
 
   final int itemCount;
   final int roomCount;
   final double annualCost;
   final double assetValue;
+  final VoidCallback? onOpenItems;
+  final VoidCallback? onOpenSpaces;
+  final VoidCallback? onOpenAnnualCost;
+  final VoidCallback? onOpenAssets;
 
   @override
-  Widget build(BuildContext context) => Container(
-    key: const Key('dashboard-household-overview'),
-    height: 96,
-    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 9),
-    decoration: BoxDecoration(
-      color: _paper,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFDCE4DD)),
-    ),
-    child: Row(
+  Widget build(BuildContext context) {
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.25;
+    final facts = [
+      _DashboardFact(
+        key: const Key('dashboard-fact-items'),
+        icon: Icons.inventory_2_outlined,
+        label: '物品',
+        value: '$itemCount',
+        semanticsLabel: '物品，$itemCount件，查看全部物品',
+        onTap: onOpenItems,
+      ),
+      _DashboardFact(
+        key: const Key('dashboard-fact-spaces'),
+        icon: Icons.chair_outlined,
+        label: '空间',
+        value: '$roomCount',
+        semanticsLabel: '空间，$roomCount个，查看家庭空间',
+        onTap: onOpenSpaces,
+      ),
+      _DashboardFact(
+        key: const Key('dashboard-fact-annual-cost'),
+        icon: Icons.paid_outlined,
+        label: '今年维护',
+        value: '¥${annualCost.toStringAsFixed(0)}',
+        semanticsLabel: '今年维护，${annualCost.toStringAsFixed(0)}元，查看本年维护报告',
+        onTap: onOpenAnnualCost,
+      ),
+      _DashboardFact(
+        key: const Key('dashboard-fact-assets'),
+        icon: Icons.home_outlined,
+        label: '资产',
+        value: '¥${assetValue.toStringAsFixed(0)}',
+        semanticsLabel: '资产，${assetValue.toStringAsFixed(0)}元，查看资产估值',
+        onTap: onOpenAssets,
+      ),
+    ];
+    Widget factRow(int start) => Row(
       children: [
-        _DashboardFact(
-          icon: Icons.inventory_2_outlined,
-          label: '物品',
-          value: '$itemCount',
-        ),
+        Expanded(child: facts[start]),
         const _DashboardFactDivider(),
-        _DashboardFact(
-          icon: Icons.chair_outlined,
-          label: '空间',
-          value: '$roomCount',
-        ),
-        const _DashboardFactDivider(),
-        _DashboardFact(
-          icon: Icons.paid_outlined,
-          label: '今年维护',
-          value: '¥${annualCost.toStringAsFixed(0)}',
-        ),
-        const _DashboardFactDivider(),
-        _DashboardFact(
-          icon: Icons.home_outlined,
-          label: '资产',
-          value: '¥${assetValue.toStringAsFixed(0)}',
-        ),
+        Expanded(child: facts[start + 1]),
       ],
-    ),
-  );
+    );
+    return Container(
+      key: const Key('dashboard-household-overview'),
+      constraints: BoxConstraints(minHeight: largeText ? 178 : 96),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 9),
+      decoration: BoxDecoration(
+        color: _paper,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFDCE4DD)),
+      ),
+      child: largeText
+          ? Column(
+              children: [
+                factRow(0),
+                const Divider(height: 1, color: Color(0xFFE2E8E2)),
+                factRow(2),
+              ],
+            )
+          : Row(
+              children: [
+                for (var index = 0; index < facts.length; index++) ...[
+                  Expanded(child: facts[index]),
+                  if (index != facts.length - 1) const _DashboardFactDivider(),
+                ],
+              ],
+            ),
+    );
+  }
 }
 
 class _DashboardFact extends StatelessWidget {
   const _DashboardFact({
+    super.key,
     required this.icon,
     required this.label,
     required this.value,
+    required this.semanticsLabel,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final String semanticsLabel;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: _muted, size: 20),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: _muted, fontSize: 10),
-          ),
-          const SizedBox(height: 2),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: _ink,
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: semanticsLabel,
+    excludeSemantics: true,
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: _muted, size: 20),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: _muted, fontSize: 10),
               ),
-            ),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 1),
+              const Icon(Icons.chevron_right_rounded, color: _muted, size: 13),
+            ],
           ),
-        ],
+        ),
       ),
     ),
   );
@@ -3051,104 +3320,986 @@ class MaintenanceTaskEmptyState extends StatelessWidget {
   );
 }
 
-class InventoryPage extends StatefulWidget {
-  const InventoryPage({super.key, required this.store});
+enum InventoryLanding { allItems, assets }
+
+class SpacePage extends StatelessWidget {
+  const SpacePage({super.key, required this.store});
+
   final CareStore store;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: store,
+    builder: (context, _) {
+      final unassigned = store.itemsInSpace(null);
+      return Scaffold(
+        appBar: AppBar(
+          toolbarHeight: 72,
+          title: const Text('家庭空间'),
+          leading: AppBackButton(onPressed: () => Navigator.pop(context)),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 14),
+              child: IconButton.filledTonal(
+                key: const Key('add-space'),
+                tooltip: '添加空间',
+                onPressed: () => _openSpaceEditor(context, store),
+                icon: const Icon(Icons.add_rounded),
+              ),
+            ),
+          ],
+        ),
+        body: store.spaces.isEmpty && unassigned.isEmpty
+            ? _SpaceEmptyState(onAdd: () => _openSpaceEditor(context, store))
+            : ListView(
+                key: const PageStorageKey('space-list'),
+                padding: appSafeScrollPadding(
+                  context,
+                  const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                ),
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(4, 0, 4, 14),
+                    child: Text(
+                      '按实际房间管理物品位置；房间内的具体位置仍由你补充。',
+                      style: TextStyle(
+                        color: _muted,
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                  for (final space in store.spaces) ...[
+                    _SpaceCard(
+                      space: space,
+                      itemCount: store.itemsInSpace(space.id).length,
+                      onTap: () => Navigator.push<void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              SpaceDetailPage(store: store, spaceId: space.id),
+                        ),
+                      ),
+                      onEdit: () =>
+                          _openSpaceEditor(context, store, existing: space),
+                      onDelete: () => _deleteSpace(context, store, space),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  if (unassigned.isNotEmpty)
+                    _SpaceCard(
+                      key: const Key('unassigned-space'),
+                      itemCount: unassigned.length,
+                      onTap: () => Navigator.push<void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              SpaceDetailPage.unassigned(store: store),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+      );
+    },
+  );
+}
+
+class _SpaceEmptyState extends StatelessWidget {
+  const _SpaceEmptyState({required this.onAdd});
+
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: const BoxDecoration(
+              color: _mist,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.chair_outlined, color: _indigo, size: 34),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            '还没有家庭空间',
+            style: TextStyle(
+              color: _ink,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 7),
+          const Text(
+            '添加客厅、卧室或厨房等实际房间，之后编辑物品时就可以直接选择。',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _muted, height: 1.45),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            key: const Key('add-first-space'),
+            onPressed: onAdd,
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('添加空间'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _SpaceCard extends StatelessWidget {
+  const _SpaceCard({
+    super.key,
+    this.space,
+    required this.itemCount,
+    required this.onTap,
+    this.onEdit,
+    this.onDelete,
+  });
+
+  final CareSpace? space;
+  final int itemCount;
+  final VoidCallback onTap;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = space?.name ?? '未设置空间';
+    final type = space?.type ?? '等待归类';
+    return Material(
+      key: space == null ? null : ValueKey('space-${space!.id}'),
+      color: _paper,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFFE0E7E0)),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: _mist,
+                  borderRadius: BorderRadius.circular(17),
+                ),
+                child: Icon(
+                  _iconForSpaceType(space?.type),
+                  color: _indigo,
+                  size: 27,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        color: _ink,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$type · $itemCount 件物品',
+                      style: const TextStyle(color: _muted, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              if (space != null)
+                PopupMenuButton<String>(
+                  tooltip: '管理空间',
+                  onSelected: (value) {
+                    if (value == 'edit') onEdit?.call();
+                    if (value == 'delete') onDelete?.call();
+                  },
+                  itemBuilder: (_) => const [
+                    PopupMenuItem(value: 'edit', child: Text('重命名空间')),
+                    PopupMenuItem(value: 'delete', child: Text('删除空间')),
+                  ],
+                )
+              else
+                const Icon(Icons.chevron_right_rounded, color: _muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SpaceDetailPage extends StatelessWidget {
+  const SpaceDetailPage({super.key, required this.store, required this.spaceId})
+    : unassigned = false;
+
+  const SpaceDetailPage.unassigned({super.key, required this.store})
+    : spaceId = null,
+      unassigned = true;
+
+  final CareStore store;
+  final String? spaceId;
+  final bool unassigned;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: store,
+    builder: (context, _) {
+      final space = store.spaceById(spaceId);
+      final title = unassigned ? '未设置空间' : space?.name ?? '空间已删除';
+      final items = store.itemsInSpace(unassigned ? null : spaceId);
+      return Scaffold(
+        appBar: AppBar(
+          toolbarHeight: 72,
+          title: Text(title),
+          leading: AppBackButton(onPressed: () => Navigator.pop(context)),
+          actions: [
+            if (unassigned || space != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 14),
+                child: IconButton.filledTonal(
+                  key: const Key('add-item-from-space'),
+                  tooltip: '在此空间添加物品',
+                  onPressed: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EditorPage(
+                        store: store,
+                        initialSpaceId: unassigned ? null : spaceId,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add_rounded),
+                ),
+              ),
+          ],
+        ),
+        body: items.isEmpty
+            ? Center(
+                child: EmptyState(
+                  icon: Icons.inventory_2_outlined,
+                  text: unassigned ? '没有未归类的物品' : '这个空间里还没有物品',
+                ),
+              )
+            : ListView.separated(
+                key: const PageStorageKey('space-item-list'),
+                padding: appSafeScrollPadding(
+                  context,
+                  const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                ),
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return BreezeSurface(
+                    padding: EdgeInsets.zero,
+                    radius: 20,
+                    child: ItemCard(
+                      key: ValueKey('space-item-${item.id}'),
+                      item: item,
+                      locationLabel: store.locationLabelFor(item),
+                      onTap: () => Navigator.push<void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DetailPage(store: store, item: item),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+      );
+    },
+  );
+}
+
+class AddSpacePage extends StatefulWidget {
+  const AddSpacePage({super.key, required this.store, this.existing});
+
+  final CareStore store;
+  final CareSpace? existing;
+
+  @override
+  State<AddSpacePage> createState() => _AddSpacePageState();
+}
+
+class _AddSpacePageState extends State<AddSpacePage> {
+  late String type = widget.existing?.type ?? careSpaceTypeTemplates.first;
+  late final TextEditingController name = TextEditingController(
+    text: widget.existing?.name ?? careSpaceTypeTemplates.first,
+  );
+  bool saving = false;
+
+  @override
+  void dispose() {
+    name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      toolbarHeight: 72,
+      title: Text(widget.existing == null ? '添加空间' : '编辑空间'),
+      leading: AppBackButton(onPressed: () => Navigator.pop(context)),
+    ),
+    body: ListView(
+      padding: appSafeScrollPadding(context, const EdgeInsets.all(20)),
+      children: [
+        const Text(
+          '空间类型',
+          style: TextStyle(
+            color: _ink,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 9,
+          runSpacing: 9,
+          children: [
+            for (final option in careSpaceTypeTemplates)
+              ChoiceChip(
+                key: ValueKey('space-type-$option'),
+                label: Text(option),
+                avatar: Icon(_iconForSpaceType(option), size: 18),
+                selected: type == option,
+                onSelected: (_) => setState(() {
+                  final oldType = type;
+                  type = option;
+                  if (name.text.trim().isEmpty || name.text.trim() == oldType) {
+                    name.text = option;
+                  }
+                }),
+              ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          key: const Key('space-name'),
+          controller: name,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _save(),
+          decoration: const InputDecoration(
+            labelText: '实际名称',
+            hintText: '例如：主卧、次卧、儿童房',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          '类型用于归类，实际名称用于物品位置显示。',
+          style: TextStyle(color: _muted, fontSize: 12),
+        ),
+        const SizedBox(height: 24),
+        FilledButton(
+          key: const Key('save-space'),
+          onPressed: saving ? null : _save,
+          child: Text(widget.existing == null ? '添加空间' : '保存修改'),
+        ),
+      ],
+    ),
+  );
+
+  Future<void> _save() async {
+    final normalized = name.text.trim();
+    if (normalized.isEmpty || saving) {
+      if (normalized.isEmpty) {
+        AppToast.show(context, '请填写空间名称', style: AppToastStyle.error);
+      }
+      return;
+    }
+    setState(() => saving = true);
+    try {
+      final saved = await widget.store.saveSpace(
+        CareSpace(
+          id:
+              widget.existing?.id ??
+              'space-${DateTime.now().microsecondsSinceEpoch}',
+          type: type,
+          name: normalized,
+        ),
+      );
+      if (mounted) Navigator.pop(context, saved);
+    } catch (error) {
+      if (mounted) {
+        AppToast.show(
+          context,
+          error is FormatException ? error.message.toString() : '空间保存失败，请重试。',
+          style: AppToastStyle.error,
+        );
+        setState(() => saving = false);
+      }
+    }
+  }
+}
+
+const _unassignedSpaceSelection = '__unassigned__';
+
+class SelectSpacePage extends StatelessWidget {
+  const SelectSpacePage({super.key, required this.store, this.selectedSpaceId});
+
+  final CareStore store;
+  final String? selectedSpaceId;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: store,
+    builder: (context, _) => Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 72,
+        title: const Text('选择所在空间'),
+        leading: AppBackButton(onPressed: () => Navigator.pop(context)),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: IconButton.filledTonal(
+              key: const Key('add-space-from-selector'),
+              tooltip: '添加空间',
+              onPressed: () async {
+                final created = await _openSpaceEditor(context, store);
+                if (created != null && context.mounted) {
+                  Navigator.pop(context, created.id);
+                }
+              },
+              icon: const Icon(Icons.add_rounded),
+            ),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: appSafeScrollPadding(context, const EdgeInsets.all(16)),
+        children: [
+          _SpaceSelectionTile(
+            key: const Key('select-unassigned-space'),
+            icon: Icons.not_listed_location_outlined,
+            name: '未设置空间',
+            subtitle: '稍后再整理',
+            selected: selectedSpaceId == null,
+            onTap: () => Navigator.pop(context, _unassignedSpaceSelection),
+          ),
+          const SizedBox(height: 8),
+          for (final space in store.spaces) ...[
+            _SpaceSelectionTile(
+              key: ValueKey('select-space-${space.id}'),
+              icon: _iconForSpaceType(space.type),
+              name: space.name,
+              subtitle:
+                  '${space.type} · ${store.itemsInSpace(space.id).length} 件物品',
+              selected: selectedSpaceId == space.id,
+              onTap: () => Navigator.pop(context, space.id),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+class _SpaceSelectionTile extends StatelessWidget {
+  const _SpaceSelectionTile({
+    super.key,
+    required this.icon,
+    required this.name,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String name;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: selected ? _mist : _paper,
+    borderRadius: BorderRadius.circular(18),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: selected ? _indigo : const Color(0xFFE0E7E0),
+          ),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: _indigo),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      color: _ink,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: _muted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check_circle_rounded, color: _indigo)
+            else
+              const Icon(Icons.chevron_right_rounded, color: _muted),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Future<CareSpace?> _openSpaceEditor(
+  BuildContext context,
+  CareStore store, {
+  CareSpace? existing,
+}) => Navigator.push<CareSpace>(
+  context,
+  MaterialPageRoute(
+    builder: (_) => AddSpacePage(store: store, existing: existing),
+  ),
+);
+
+Future<void> _deleteSpace(
+  BuildContext context,
+  CareStore store,
+  CareSpace space,
+) async {
+  final affected = store.itemsInSpace(space.id);
+  String? replacement;
+  if (affected.isEmpty) {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('删除空间？'),
+        content: Text('“${space.name}”中没有物品，可以直接删除。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+  } else {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '先安置 ${affected.length} 件物品',
+                style: const TextStyle(
+                  color: _ink,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                '删除“${space.name}”后，这些物品需要移到其他空间或设为未设置。',
+                style: const TextStyle(color: _muted, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.not_listed_location_outlined),
+                title: const Text('设为未设置空间'),
+                onTap: () =>
+                    Navigator.pop(sheetContext, _unassignedSpaceSelection),
+              ),
+              for (final target in store.spaces.where(
+                (entry) => entry.id != space.id,
+              ))
+                ListTile(
+                  leading: Icon(_iconForSpaceType(target.type)),
+                  title: Text('移到 ${target.name}'),
+                  onTap: () => Navigator.pop(sheetContext, target.id),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected == null) return;
+    replacement = selected == _unassignedSpaceSelection ? null : selected;
+  }
+  try {
+    await store.removeSpace(space.id, replacementSpaceId: replacement);
+  } catch (_) {
+    if (context.mounted) {
+      AppToast.show(context, '空间删除失败，原数据未改变。', style: AppToastStyle.error);
+    }
+  }
+}
+
+IconData _iconForSpaceType(String? type) => switch (type) {
+  '客厅' => Icons.chair_outlined,
+  '卧室' => Icons.bed_outlined,
+  '厨房' => Icons.kitchen_outlined,
+  '卫生间' => Icons.bathtub_outlined,
+  '阳台' => Icons.deck_outlined,
+  '书房' => Icons.menu_book_outlined,
+  '餐厅' => Icons.dining_outlined,
+  '储物间' => Icons.inventory_2_outlined,
+  '玄关' => Icons.door_front_door_outlined,
+  _ => Icons.home_work_outlined,
+};
+
+class InventoryPage extends StatefulWidget {
+  const InventoryPage({
+    super.key,
+    required this.store,
+    required this.onAdd,
+    this.initialLanding = InventoryLanding.allItems,
+    this.navigationVersion = 0,
+  });
+
+  final CareStore store;
+  final VoidCallback onAdd;
+  final InventoryLanding initialLanding;
+  final int navigationVersion;
+
   @override
   State<InventoryPage> createState() => _InventoryPageState();
 }
 
+enum _InventoryFilter { all, planned, needsSetup }
+
+enum _InventorySort { name, nextCareDate }
+
 class _InventoryPageState extends State<InventoryPage> {
+  final searchController = TextEditingController();
   String query = '';
+  _InventoryFilter filter = _InventoryFilter.all;
+  _InventorySort sort = _InventorySort.name;
+  late InventoryLanding landing = widget.initialLanding;
+
+  bool _hasPlan(CareItem item) => item.nextCareDate != null;
+
+  @override
+  void didUpdateWidget(covariant InventoryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.navigationVersion != widget.navigationVersion) {
+      landing = widget.initialLanding;
+      if (landing == InventoryLanding.allItems) _resetToAllItems();
+    }
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final filtered = widget.store.items
-        .where(
-          (item) =>
-              item.name.contains(query) ||
-              item.location.contains(query) ||
-              item.category.contains(query),
-        )
-        .toList();
+    if (landing == InventoryLanding.assets) {
+      return _AssetValuationView(
+        store: widget.store,
+        onShowItems: () => setState(() {
+          landing = InventoryLanding.allItems;
+          _resetToAllItems();
+        }),
+      );
+    }
+    final plannedCount = widget.store.items.where(_hasPlan).length;
+    final needsSetupCount = widget.store.items.length - plannedCount;
+    final filtered =
+        widget.store.items
+            .where(
+              (item) =>
+                  (item.name.contains(query) ||
+                      widget.store.locationLabelFor(item).contains(query) ||
+                      item.category.contains(query)) &&
+                  switch (filter) {
+                    _InventoryFilter.all => true,
+                    _InventoryFilter.planned => _hasPlan(item),
+                    _InventoryFilter.needsSetup => !_hasPlan(item),
+                  },
+            )
+            .toList()
+          ..sort(_compareItems);
+
     return Column(
       children: [
+        _InventoryHeader(onAdd: widget.onAdd),
         Padding(
-          padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: SizedBox(
+            height: 56,
+            child: TextField(
+              key: const Key('inventory-search'),
+              controller: searchController,
+              onChanged: (value) => setState(() => query = value.trim()),
+              style: const TextStyle(color: _ink, fontSize: 16),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: _indigo,
+                  size: 25,
+                ),
+                hintText: '搜索物品、空间或类别',
+                suffixIcon: query.isEmpty
+                    ? null
+                    : IconButton(
+                        key: const Key('inventory-clear-search'),
+                        tooltip: '清除搜索',
+                        onPressed: () {
+                          searchController.clear();
+                          setState(() => query = '');
+                          FocusManager.instance.primaryFocus?.unfocus();
+                        },
+                        icon: const Icon(
+                          Icons.cancel_rounded,
+                          color: _muted,
+                          size: 19,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: _InventoryFilterBar(
+            selected: filter,
+            totalCount: widget.store.items.length,
+            plannedCount: plannedCount,
+            needsSetupCount: needsSetupCount,
+            onSelected: (value) => setState(() => filter = value),
+          ),
+        ),
+        const SizedBox(height: 17),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
             children: [
-              const BreezeHeader(title: '物品档案', subtitle: '按空间、类别或名称快速找到它'),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: TextField(
-                  onChanged: (v) => setState(() => query = v.trim()),
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search_rounded, color: _indigo),
-                    hintText: '搜索物品、位置或类别',
+              Expanded(
+                child: Text(
+                  switch (filter) {
+                    _InventoryFilter.all => '全部物品',
+                    _InventoryFilter.planned => '已计划物品',
+                    _InventoryFilter.needsSetup => '待设置物品',
+                  },
+                  style: const TextStyle(
+                    color: _ink,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.2,
                   ),
                 ),
+              ),
+              _InventorySortButton(
+                label: sort == _InventorySort.name ? '按名称' : '按时间',
+                onTap: _selectSort,
               ),
             ],
           ),
         ),
+        const SizedBox(height: 10),
         Expanded(
-          child: filtered.isEmpty
-              ? const EmptyState(
-                  icon: Icons.inventory_2_outlined,
-                  text: '没有找到物品',
-                )
-              : ListView.separated(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 100),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final item = filtered[index];
-                    return Dismissible(
-                      key: ValueKey(item.id),
-                      direction: DismissDirection.endToStart,
-                      confirmDismiss: (_) async {
-                        if (!await _confirmDelete(context, item)) return false;
-                        try {
-                          await widget.store.remove(item);
-                          return true;
-                        } catch (_) {
-                          if (context.mounted) {
-                            AppToast.show(
-                              context,
-                              '物品删除失败，原数据未改变，请重试。',
-                              style: AppToastStyle.error,
-                            );
-                          }
-                          return false;
-                        }
-                      },
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 22),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade400,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(Icons.delete, color: Colors.white),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: _paper,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFFE2E9E1)),
+              ),
+              child: filtered.isEmpty
+                  ? _InventoryEmptyState(
+                      hasAnyItems: widget.store.items.isNotEmpty,
+                      onAdd: widget.onAdd,
+                    )
+                  : ListView.separated(
+                      key: const PageStorageKey('inventory-list'),
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: EdgeInsets.zero,
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const Divider(
+                        height: 1,
+                        indent: 16,
+                        endIndent: 16,
+                        color: Color(0xFFE2E9E1),
                       ),
-                      child: ItemCard(
-                        item: item,
-                        onTap: () => Navigator.push(
+                      itemBuilder: (context, index) {
+                        final item = filtered[index];
+                        void openItem() => Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) =>
                                 DetailPage(store: widget.store, item: item),
                           ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                        );
+                        return Dismissible(
+                          key: ValueKey(item.id),
+                          direction: DismissDirection.endToStart,
+                          confirmDismiss: (_) async {
+                            if (!await _confirmDelete(context, item)) {
+                              return false;
+                            }
+                            try {
+                              await widget.store.remove(item);
+                              return true;
+                            } catch (_) {
+                              if (context.mounted) {
+                                AppToast.show(
+                                  context,
+                                  '物品删除失败，原数据未改变，请重试。',
+                                  style: AppToastStyle.error,
+                                );
+                              }
+                              return false;
+                            }
+                          },
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 22),
+                            color: Colors.red.shade400,
+                            child: const Icon(
+                              Icons.delete,
+                              color: Colors.white,
+                            ),
+                          ),
+                          child: ItemCard(
+                            key: ValueKey('inventory-item-${item.id}'),
+                            item: item,
+                            locationLabel: widget.store.locationLabelFor(item),
+                            onTap: openItem,
+                            onPlanTap: _hasPlan(item) ? null : openItem,
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ),
         ),
       ],
     );
+  }
+
+  void _resetToAllItems() {
+    searchController.clear();
+    query = '';
+    filter = _InventoryFilter.all;
+  }
+
+  int _compareItems(CareItem left, CareItem right) {
+    if (sort == _InventorySort.name) {
+      return _compareDisplayNames(left.name, right.name);
+    }
+    final leftDate = left.nextCareDate;
+    final rightDate = right.nextCareDate;
+    if (leftDate == null && rightDate == null) {
+      return _compareDisplayNames(left.name, right.name);
+    }
+    if (leftDate == null) return 1;
+    if (rightDate == null) return -1;
+    final result = leftDate.compareTo(rightDate);
+    return result == 0 ? _compareDisplayNames(left.name, right.name) : result;
+  }
+
+  int _compareDisplayNames(String left, String right) {
+    bool beginsWithDigit(String value) {
+      if (value.isEmpty) return false;
+      final first = value.codeUnitAt(0);
+      return first >= 0x30 && first <= 0x39;
+    }
+
+    final leftBeginsWithDigit = beginsWithDigit(left);
+    final rightBeginsWithDigit = beginsWithDigit(right);
+    if (leftBeginsWithDigit != rightBeginsWithDigit) {
+      return leftBeginsWithDigit ? 1 : -1;
+    }
+    return left.compareTo(right);
+  }
+
+  Future<void> _selectSort() async {
+    final selected = await showModalBottomSheet<_InventorySort>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 2, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '物品排序',
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _InventorySortOption(
+                key: const Key('inventory-sort-name'),
+                icon: Icons.sort_by_alpha_rounded,
+                label: '按名称',
+                selected: sort == _InventorySort.name,
+                onTap: () => Navigator.pop(context, _InventorySort.name),
+              ),
+              _InventorySortOption(
+                key: const Key('inventory-sort-date'),
+                icon: Icons.event_rounded,
+                label: '按下次保养时间',
+                selected: sort == _InventorySort.nextCareDate,
+                onTap: () =>
+                    Navigator.pop(context, _InventorySort.nextCareDate),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected != null && mounted) setState(() => sort = selected);
   }
 
   Future<bool> _confirmDelete(BuildContext context, CareItem item) async =>
@@ -3166,6 +4317,518 @@ class _InventoryPageState extends State<InventoryPage> {
         ],
       ) ??
       false;
+}
+
+class _AssetValuationView extends StatelessWidget {
+  const _AssetValuationView({required this.store, required this.onShowItems});
+
+  final CareStore store;
+  final VoidCallback onShowItems;
+
+  @override
+  Widget build(BuildContext context) {
+    final valuedItems = [...store.items]
+      ..sort((left, right) {
+        final leftValue = left.currentValue ?? left.purchasePrice ?? 0;
+        final rightValue = right.currentValue ?? right.purchasePrice ?? 0;
+        final valueOrder = rightValue.compareTo(leftValue);
+        return valueOrder == 0 ? left.name.compareTo(right.name) : valueOrder;
+      });
+    final total = valuedItems.fold<double>(
+      0,
+      (sum, item) => sum + (item.currentValue ?? item.purchasePrice ?? 0),
+    );
+    final missingCount = valuedItems
+        .where(
+          (item) => item.currentValue == null && item.purchasePrice == null,
+        )
+        .length;
+    return Column(
+      key: const Key('asset-valuation-view'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 26, 20, 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '资产估值',
+                      style: TextStyle(
+                        color: _ink,
+                        fontSize: 28,
+                        height: 1.1,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -.7,
+                      ),
+                    ),
+                    SizedBox(height: 7),
+                    Text(
+                      '按物品当前估值汇总，缺失时回退到购买价',
+                      style: TextStyle(color: _muted, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton.icon(
+                key: const Key('asset-show-all-items'),
+                onPressed: onShowItems,
+                icon: const Icon(Icons.inventory_2_outlined, size: 18),
+                label: const Text('全部物品'),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: BreezeSurface(
+            color: _mist,
+            radius: 22,
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '家庭物品总估值',
+                        style: TextStyle(color: _muted, fontSize: 13),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        '¥${total.toStringAsFixed(0)}',
+                        key: const Key('asset-total-value'),
+                        style: const TextStyle(
+                          color: _indigo,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _paper,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    '缺失 $missingCount 件',
+                    key: const Key('asset-missing-count'),
+                    style: TextStyle(
+                      color: missingCount == 0 ? _indigo : _amber,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            '物品估值明细',
+            style: TextStyle(
+              color: _ink,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: valuedItems.isEmpty
+              ? Center(
+                  child: EmptyState(
+                    icon: Icons.home_outlined,
+                    text: '还没有物品，添加后即可记录资产价值',
+                  ),
+                )
+              : ListView.separated(
+                  key: const PageStorageKey('asset-valuation-list'),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  itemCount: valuedItems.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final item = valuedItems[index];
+                    final value = item.currentValue ?? item.purchasePrice;
+                    final source = item.currentValue != null
+                        ? '当前估值'
+                        : item.purchasePrice != null
+                        ? '购买价回退'
+                        : '尚未填写估值';
+                    return Material(
+                      key: ValueKey('asset-item-${item.id}'),
+                      color: _paper,
+                      borderRadius: BorderRadius.circular(18),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(18),
+                        onTap: () => Navigator.push<void>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                DetailPage(store: store, item: item),
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(15),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  color: _mist,
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                child: Icon(
+                                  _iconForItem(item),
+                                  color: _indigo,
+                                  size: 23,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: _ink,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      source,
+                                      style: const TextStyle(
+                                        color: _muted,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                value == null
+                                    ? '去补充'
+                                    : '¥${value.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  color: value == null ? _amber : _indigo,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                color: _muted,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InventoryHeader extends StatelessWidget {
+  const _InventoryHeader({required this.onAdd});
+
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 25, 20, 14),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '物品档案',
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 30,
+                  height: 1.05,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -1,
+                ),
+              ),
+              SizedBox(height: 7),
+              Text(
+                '管理物品与保养计划',
+                style: TextStyle(
+                  color: _muted,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Semantics(
+          button: true,
+          label: '添加物品',
+          child: Material(
+            color: _indigo,
+            shape: const CircleBorder(),
+            child: InkWell(
+              key: const Key('inventory-add-item'),
+              onTap: onAdd,
+              customBorder: const CircleBorder(),
+              child: const SizedBox(
+                width: 48,
+                height: 48,
+                child: Icon(Icons.add_rounded, color: Colors.white, size: 30),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _InventoryFilterBar extends StatelessWidget {
+  const _InventoryFilterBar({
+    required this.selected,
+    required this.totalCount,
+    required this.plannedCount,
+    required this.needsSetupCount,
+    required this.onSelected,
+  });
+
+  final _InventoryFilter selected;
+  final int totalCount;
+  final int plannedCount;
+  final int needsSetupCount;
+  final ValueChanged<_InventoryFilter> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = [
+      (_InventoryFilter.all, '全部 $totalCount'),
+      (_InventoryFilter.planned, '已计划 $plannedCount'),
+      (_InventoryFilter.needsSetup, '待设置 $needsSetupCount'),
+    ];
+    return Container(
+      height: 44,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: _paper,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFDCE5DC)),
+      ),
+      child: Row(
+        children: [
+          for (var index = 0; index < entries.length; index++) ...[
+            if (index > 0)
+              const VerticalDivider(
+                width: 1,
+                thickness: 1,
+                color: Color(0xFFDCE5DC),
+              ),
+            Expanded(
+              child: Semantics(
+                button: true,
+                selected: selected == entries[index].$1,
+                child: Material(
+                  color: selected == entries[index].$1
+                      ? _indigo
+                      : Colors.transparent,
+                  child: InkWell(
+                    key: ValueKey('inventory-filter-${entries[index].$1.name}'),
+                    onTap: () => onSelected(entries[index].$1),
+                    child: Center(
+                      child: Text(
+                        entries[index].$2,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: selected == entries[index].$1
+                              ? Colors.white
+                              : _muted,
+                          fontSize: 14,
+                          fontWeight: selected == entries[index].$1
+                              ? FontWeight.w800
+                              : FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InventorySortButton extends StatelessWidget {
+  const _InventorySortButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: '排序方式：$label',
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: const Key('inventory-sort'),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: _muted,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: _muted,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _InventorySortOption extends StatelessWidget {
+  const _InventorySortOption({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: selected ? _mist : Colors.transparent,
+    borderRadius: BorderRadius.circular(16),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        child: Row(
+          children: [
+            Icon(icon, color: _indigo, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: _ink,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check_rounded, color: _indigo, size: 22),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _InventoryEmptyState extends StatelessWidget {
+  const _InventoryEmptyState({required this.hasAnyItems, required this.onAdd});
+
+  final bool hasAnyItems;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            decoration: const BoxDecoration(
+              color: _mist,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              color: _indigo,
+              size: 27,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            hasAnyItems ? '没有符合条件的物品' : '还没有物品',
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            hasAnyItems ? '调整筛选或搜索关键词' : '从第一件需要照料的物品开始',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _muted, fontSize: 13),
+          ),
+          if (!hasAnyItems) ...[
+            const SizedBox(height: 16),
+            TextButton.icon(
+              key: const Key('inventory-empty-add-item'),
+              onPressed: onAdd,
+              icon: const Icon(Icons.add_rounded, size: 19),
+              label: const Text('添加物品'),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
 }
 
 class SchedulePage extends StatefulWidget {
@@ -4009,41 +5672,41 @@ class _SettingsPageState extends State<SettingsPage> {
 }
 
 class ItemCard extends StatelessWidget {
-  const ItemCard({super.key, required this.item, required this.onTap});
+  const ItemCard({
+    super.key,
+    required this.item,
+    required this.onTap,
+    this.onPlanTap,
+    this.locationLabel,
+  });
+
   final CareItem item;
   final VoidCallback onTap;
+  final VoidCallback? onPlanTap;
+  final String? locationLabel;
+
   @override
   Widget build(BuildContext context) {
-    final color = item.isOverdue
-        ? Colors.red
-        : item.isSoon
-        ? Colors.orange
-        : _indigo;
+    final planned = item.nextCareDate != null;
     return RepaintBoundary(
       child: Material(
-        color: Colors.transparent,
+        color: _paper,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(22),
-          child: Ink(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: _paper,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: const Color(0xFFE7ECE5)),
-            ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             child: Row(
               children: [
                 Container(
-                  width: 45,
-                  height: 45,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(16),
+                    color: _mist,
+                    borderRadius: BorderRadius.circular(18),
                   ),
-                  child: Icon(_iconFor(item.category), color: color),
+                  child: Icon(_iconForItem(item), color: _indigo, size: 27),
                 ),
-                const SizedBox(width: 13),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -4055,59 +5718,106 @@ class ItemCard extends StatelessWidget {
                         style: const TextStyle(
                           color: _ink,
                           fontWeight: FontWeight.w800,
-                          fontSize: 15,
+                          fontSize: 17,
+                          letterSpacing: -.2,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 5),
                       Text(
                         [
                           item.category,
-                          item.location,
+                          (locationLabel ?? item.location).isEmpty
+                              ? '未设置空间'
+                              : locationLabel ?? item.location,
                         ].where((e) => e.isNotEmpty).join(' · '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: _muted, fontSize: 12),
+                        style: const TextStyle(color: _muted, fontSize: 13),
                       ),
+                      if (!planned) ...[
+                        const SizedBox(height: 4),
+                        const Text(
+                          '还没有保养提醒',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Color(0xFF8D9A93),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                if (item.nextCareDate == null)
-                  const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 14,
-                    color: _muted,
-                  )
-                else
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: .10),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          item.status,
-                          style: TextStyle(
-                            color: color,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 11,
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 116),
+                  child: planned
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _mist,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                '已计划',
+                                style: TextStyle(
+                                  color: _indigo,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 7),
+                            Text(
+                              '下次 ${_date(item.nextCareDate)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: _muted,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Semantics(
+                          button: true,
+                          label: '为${item.name}设置计划',
+                          child: InkWell(
+                            key: ValueKey('inventory-set-plan-${item.id}'),
+                            onTap: onPlanTap,
+                            borderRadius: BorderRadius.circular(10),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 10,
+                              ),
+                              child: Text(
+                                '设置计划',
+                                maxLines: 1,
+                                style: TextStyle(
+                                  color: Color(0xFFC36F2D),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _date(item.nextCareDate),
-                        style: const TextStyle(fontSize: 10, color: _muted),
-                      ),
-                    ],
-                  ),
+                ),
+                const SizedBox(width: 7),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 15,
+                  color: _muted,
+                ),
               ],
             ),
           ),
@@ -4115,6 +5825,13 @@ class ItemCard extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData _iconForItem(CareItem item) {
+  if (item.name.contains('洗衣机')) {
+    return Icons.local_laundry_service_outlined;
+  }
+  return _iconFor(item.category);
 }
 
 IconData _iconFor(String category) {
@@ -4265,7 +5982,7 @@ class _DetailPageState extends State<DetailPage> {
         _plansSection(),
         _section('物品信息', [
           ('类别', item.category),
-          ('位置', item.location),
+          ('位置', store.locationLabelFor(item)),
           ('品牌', item.brand),
           ('型号', item.model),
           ('购买日期', _date(item.purchaseDate)),
@@ -4691,10 +6408,25 @@ const _itemCatalog = <_ItemCatalogCategory>[
 
 const _commonItemNames = ['冰箱', '空调', '洗衣机', '净水器', '扫地机器人'];
 
+const _legacyItemCategoryAliases = <String, String>{
+  '家具与家居': '家具',
+  '家电': '家用电器',
+  '其他': '其他物品',
+};
+
+String _canonicalItemCategory(String value) =>
+    _legacyItemCategoryAliases[value] ?? value;
+
 class EditorPage extends StatefulWidget {
-  const EditorPage({super.key, required this.store, this.item});
+  const EditorPage({
+    super.key,
+    required this.store,
+    this.item,
+    this.initialSpaceId,
+  });
   final CareStore store;
   final CareItem? item;
+  final String? initialSpaceId;
   @override
   State<EditorPage> createState() => _EditorPageState();
 }
@@ -4723,9 +6455,9 @@ class _EditorPageState extends State<EditorPage> {
   bool _brandModelExpanded = false;
   String? _selectedPresetName;
   IconData _selectedPresetIcon = Icons.inventory_2_outlined;
+  String? _selectedSpaceId;
   late final List<String> categories = _itemCatalog
       .map((entry) => entry.name)
-      .followedBy(const ['家电', '家具与家居', '其他'])
       .toSet()
       .toList();
 
@@ -4736,7 +6468,14 @@ class _EditorPageState extends State<EditorPage> {
     name = TextEditingController(text: x?.name);
     customName = TextEditingController();
     search = TextEditingController();
-    location = TextEditingController(text: x?.location);
+    _selectedSpaceId = x?.spaceId ?? widget.initialSpaceId;
+    location = TextEditingController(
+      text: x == null
+          ? ''
+          : x.spaceId == null
+          ? x.location
+          : x.locationDetail,
+    );
     brand = TextEditingController(text: x?.brand);
     model = TextEditingController(text: x?.model);
     notes = TextEditingController(text: x?.notes);
@@ -4746,7 +6485,7 @@ class _EditorPageState extends State<EditorPage> {
     currentValue = TextEditingController(
       text: x?.currentValue?.toStringAsFixed(0),
     );
-    category = x?.category ?? categories.first;
+    category = _canonicalItemCategory(x?.category ?? categories.first);
     if (!categories.contains(category)) categories.add(category);
     purchase = x?.purchaseDate;
     warranty = x?.warrantyDate;
@@ -4811,7 +6550,9 @@ class _EditorPageState extends State<EditorPage> {
         children: [
           _field(name, '物品名称 *', required: true),
           _category(),
-          _field(location, '存放位置'),
+          _spaceSelectorField(),
+          const SizedBox(height: 12),
+          _field(location, '具体位置（选填）'),
           _field(brand, '品牌'),
           _field(model, '型号'),
           const SizedBox(height: 4),
@@ -5350,7 +7091,14 @@ class _EditorPageState extends State<EditorPage> {
           const Key('custom-item-name'),
         ),
         const Divider(height: 1, color: Color(0xFFE3E9E2)),
-        _inlineField(location, '存放位置', '选择或输入位置', const Key('item-location')),
+        _spaceSelectorRow(),
+        const Divider(height: 1, color: Color(0xFFE3E9E2)),
+        _inlineField(
+          location,
+          '具体位置（选填）',
+          '例如：阳台、电视柜左侧',
+          const Key('item-location'),
+        ),
         const Divider(height: 1, color: Color(0xFFE3E9E2)),
         InkWell(
           key: const Key('toggle-brand-model'),
@@ -5405,6 +7153,89 @@ class _EditorPageState extends State<EditorPage> {
       ],
     ),
   );
+
+  String get _selectedSpaceName =>
+      widget.store.spaceById(_selectedSpaceId)?.name ?? '未设置空间';
+
+  Widget _spaceSelectorField() => Padding(
+    padding: const EdgeInsets.only(bottom: 0),
+    child: Semantics(
+      button: true,
+      label: '选择所在空间',
+      value: _selectedSpaceName,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const Key('item-space-selector'),
+          borderRadius: BorderRadius.circular(4),
+          onTap: _selectSpace,
+          child: InputDecorator(
+            decoration: const InputDecoration(
+              labelText: '所在空间',
+              border: OutlineInputBorder(),
+            ),
+            child: Row(
+              children: [
+                Expanded(child: Text(_selectedSpaceName)),
+                const Icon(
+                  CupertinoIcons.chevron_right,
+                  size: 17,
+                  color: _muted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _spaceSelectorRow() => InkWell(
+    key: const Key('item-space-selector'),
+    onTap: _selectSpace,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 17),
+      child: Row(
+        children: [
+          const Text(
+            '所在空间',
+            style: TextStyle(color: _ink, fontSize: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _selectedSpaceName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: const TextStyle(color: _muted, fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 7),
+          const Icon(CupertinoIcons.chevron_right, color: _muted, size: 16),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _selectSpace() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final selected = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SelectSpacePage(
+          store: widget.store,
+          selectedSpaceId: _selectedSpaceId,
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _selectedSpaceId = selected == _unassignedSpaceSelection
+          ? null
+          : selected;
+    });
+  }
 
   Widget _inlineField(
     TextEditingController controller,
@@ -5603,18 +7434,173 @@ class _EditorPageState extends State<EditorPage> {
   );
   Widget _category() => Padding(
     padding: const EdgeInsets.only(bottom: 12),
-    child: DropdownButtonFormField<String>(
-      initialValue: category,
-      decoration: const InputDecoration(
-        labelText: '类别',
-        border: OutlineInputBorder(),
+    child: Semantics(
+      button: true,
+      label: '选择类别',
+      value: category,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const Key('edit-item-category-field'),
+          borderRadius: BorderRadius.circular(16),
+          onTap: _selectCategory,
+          child: InputDecorator(
+            isEmpty: false,
+            decoration: const InputDecoration(
+              labelText: '类别',
+              border: OutlineInputBorder(),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    category,
+                    key: const Key('edit-item-category-value'),
+                  ),
+                ),
+                const Icon(
+                  CupertinoIcons.chevron_down,
+                  size: 17,
+                  color: _muted,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-      items: categories
-          .map((x) => DropdownMenuItem(value: x, child: Text(x)))
-          .toList(),
-      onChanged: (v) => setState(() => category = v!),
     ),
   );
+
+  Future<void> _selectCategory() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final initialIndex = categories.indexOf(category);
+    var draftCategory = category;
+    final scrollController = FixedExtentScrollController(
+      initialItem: initialIndex < 0 ? 0 : initialIndex,
+    );
+
+    try {
+      final selected = await showCupertinoModalPopup<String>(
+        context: context,
+        barrierColor: Colors.black.withValues(alpha: 0.42),
+        semanticsDismissible: true,
+        builder: (sheetContext) => CupertinoTheme(
+          data: const CupertinoThemeData(
+            brightness: Brightness.light,
+            primaryColor: _indigo,
+            scaffoldBackgroundColor: _paper,
+          ),
+          child: DefaultTextStyle(
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 17,
+              decoration: TextDecoration.none,
+            ),
+            child: Container(
+              key: const Key('edit-item-category-sheet'),
+              height: 356,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.paddingOf(sheetContext).bottom,
+              ),
+              clipBehavior: Clip.antiAlias,
+              decoration: const BoxDecoration(
+                color: _paper,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 9),
+                  Container(
+                    width: 38,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFC9CEC9),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 54,
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 84,
+                          child: CupertinoButton(
+                            key: const Key('cancel-edit-item-category'),
+                            padding: EdgeInsets.zero,
+                            onPressed: () => Navigator.pop(sheetContext),
+                            child: const Text('取消'),
+                          ),
+                        ),
+                        const Expanded(
+                          child: Text(
+                            '选择类别',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: _ink,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 84,
+                          child: CupertinoButton(
+                            key: const Key('confirm-edit-item-category'),
+                            padding: EdgeInsets.zero,
+                            onPressed: () =>
+                                Navigator.pop(sheetContext, draftCategory),
+                            child: const Text(
+                              '完成',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1, color: Color(0xFFE7ECE5)),
+                  Expanded(
+                    child: CupertinoPicker(
+                      key: const Key('edit-item-category-picker'),
+                      scrollController: scrollController,
+                      itemExtent: 46,
+                      diameterRatio: 1.25,
+                      magnification: 1.04,
+                      useMagnifier: true,
+                      backgroundColor: _paper,
+                      onSelectedItemChanged: (index) {
+                        draftCategory = categories[index];
+                      },
+                      children: [
+                        for (final option in categories)
+                          Center(
+                            child: Text(
+                              option,
+                              style: const TextStyle(
+                                color: _ink,
+                                fontSize: 20,
+                                letterSpacing: -0.2,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      if (selected != null && selected != category && mounted) {
+        setState(() => category = selected);
+      }
+    } finally {
+      scrollController.dispose();
+    }
+  }
+
   Widget _photos() => Wrap(
     spacing: 8,
     runSpacing: 8,
@@ -5815,6 +7801,12 @@ class _EditorPageState extends State<EditorPage> {
               ? _selectedPresetName!
               : customName.text.trim())
         : name.text.trim();
+    final selectedSpace = widget.store.spaceById(_selectedSpaceId);
+    final locationDetail = location.text.trim();
+    final locationFallback = [
+      if (selectedSpace != null) selectedSpace.name,
+      if (locationDetail.isNotEmpty) locationDetail,
+    ].join(' · ');
     final item =
         (widget.item ??
                 CareItem(
@@ -5830,7 +7822,10 @@ class _EditorPageState extends State<EditorPage> {
             .copyWith(
               name: resolvedName,
               category: category,
-              location: location.text.trim(),
+              location: locationFallback,
+              spaceId: selectedSpace?.id,
+              clearSpaceId: selectedSpace == null,
+              locationDetail: locationDetail,
               brand: brand.text.trim(),
               model: model.text.trim(),
               notes: notes.text.trim(),

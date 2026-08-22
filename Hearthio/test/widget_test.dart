@@ -8,6 +8,7 @@ import 'dart:async';
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
+import 'package:flutter/cupertino.dart' show CupertinoPicker;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hearthio/main.dart';
@@ -531,7 +532,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('物品档案'), findsOneWidget);
 
-    await tester.tap(find.text('添加物品'));
+    await tester.tap(find.byKey(const Key('inventory-add-item')));
     await tester.pumpAndSettle();
     expect(find.text('选择物品'), findsWidgets);
     expect(find.text('常用物品'), findsOneWidget);
@@ -581,6 +582,33 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('拍照'), findsOneWidget);
     expect(find.text('从相册选择'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('supplement rows align their trailing chevrons', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(home: EditorPage(store: CareStore())),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('common-item-冰箱')));
+    await tester.pumpAndSettle();
+
+    final spaceChevron = find.descendant(
+      of: find.byKey(const Key('item-space-selector')),
+      matching: find.byType(Icon),
+    );
+    final brandChevron = find.descendant(
+      of: find.byKey(const Key('toggle-brand-model')),
+      matching: find.byType(Icon),
+    );
+    expect(spaceChevron, findsOneWidget);
+    expect(brandChevron, findsOneWidget);
+    expect(
+      tester.getTopRight(spaceChevron).dx,
+      closeTo(tester.getTopRight(brandChevron).dx, 0.1),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -869,6 +897,133 @@ void main() {
     expect(find.byKey(const Key('open-item-editor')), findsOneWidget);
     expect(find.text('补充信息'), findsNothing);
     expect(store.items.single.name, '冰箱');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('editing item category uses an iOS bottom picker', (
+    tester,
+  ) async {
+    final item = CareItem(
+      id: 'washer',
+      name: '洗衣机',
+      category: '家用电器',
+      location: '',
+      brand: '',
+      model: '',
+      notes: '',
+      photos: const [],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EditorPage(store: CareStore(), item: item),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('edit-item-category-field')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('edit-item-category-sheet')), findsOneWidget);
+    expect(find.byKey(const Key('edit-item-category-picker')), findsOneWidget);
+    expect(find.text('选择类别'), findsOneWidget);
+    expect(find.text('取消'), findsOneWidget);
+    expect(find.text('完成'), findsOneWidget);
+
+    final picker = tester.widget<CupertinoPicker>(
+      find.byKey(const Key('edit-item-category-picker')),
+    );
+    picker.onSelectedItemChanged!(0);
+    await tester.tap(find.byKey(const Key('confirm-edit-item-category')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('edit-item-category-sheet')), findsNothing);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('edit-item-category-value')))
+          .data,
+      '家具',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('legacy category aliases do not create duplicate picker rows', (
+    tester,
+  ) async {
+    const aliases = <String, String>{'家具与家居': '家具', '家电': '家用电器', '其他': '其他物品'};
+
+    for (final entry in aliases.entries) {
+      final item = CareItem(
+        id: entry.key,
+        name: '旧物品',
+        category: entry.key,
+        location: '',
+        brand: '',
+        model: '',
+        notes: '',
+        photos: const [],
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: EditorPage(
+            key: ValueKey(entry.key),
+            store: CareStore(),
+            item: item,
+          ),
+        ),
+      );
+
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('edit-item-category-value')))
+            .data,
+        entry.value,
+      );
+
+      await tester.tap(find.byKey(const Key('edit-item-category-field')));
+      await tester.pumpAndSettle();
+      final picker = tester.widget<CupertinoPicker>(
+        find.byKey(const Key('edit-item-category-picker')),
+      );
+      final delegate = picker.childDelegate as ListWheelChildListDelegate;
+      final labels = [
+        for (final child in delegate.children)
+          (((child as Center).child as Text).data!),
+      ];
+
+      expect(labels.where((label) => label == entry.value), hasLength(1));
+      expect(labels, isNot(contains(entry.key)));
+      expect(labels.toSet(), hasLength(labels.length));
+
+      await tester.tap(find.byKey(const Key('cancel-edit-item-category')));
+      await tester.pumpAndSettle();
+    }
+
+    const customCategory = '收藏品';
+    final customItem = CareItem(
+      id: 'custom',
+      name: '收藏',
+      category: customCategory,
+      location: '',
+      brand: '',
+      model: '',
+      notes: '',
+      photos: const [],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EditorPage(
+          key: const ValueKey(customCategory),
+          store: CareStore(),
+          item: customItem,
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('edit-item-category-value')))
+          .data,
+      customCategory,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -1413,6 +1568,117 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(MaintenanceExecutionPage), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'inventory archive exposes add, search, status filters, and sorting',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      var addCalls = 0;
+      final store = CareStore()
+        ..items = [
+          CareItem(
+            id: 'washer',
+            name: '洗衣机',
+            category: '家用电器',
+            location: '',
+            brand: '',
+            model: '',
+            notes: '',
+            photos: const [],
+          ),
+          CareItem(
+            id: '003',
+            name: '003',
+            category: '家用电器',
+            location: '卫生间',
+            brand: '',
+            model: '',
+            notes: '',
+            photos: const [],
+            plans: [
+              MaintenancePlan(
+                id: 'washer-care',
+                title: '清洁',
+                intervalDays: 90,
+                dueDate: DateTime(2026, 11, 20),
+              ),
+            ],
+          ),
+        ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: InventoryPage(store: store, onAdd: () => addCalls++),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('管理物品与保养计划'), findsOneWidget);
+      expect(find.text('全部 2'), findsOneWidget);
+      expect(find.text('已计划 1'), findsOneWidget);
+      expect(find.text('待设置 1'), findsOneWidget);
+      expect(find.text('设置计划'), findsOneWidget);
+      expect(find.text('下次 2026年11月20日'), findsOneWidget);
+      expect(
+        tester
+            .getTopLeft(find.byKey(const ValueKey('inventory-item-washer')))
+            .dy,
+        lessThan(
+          tester
+              .getTopLeft(find.byKey(const ValueKey('inventory-item-003')))
+              .dy,
+        ),
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const ValueKey('inventory-filter-planned')));
+      await tester.pumpAndSettle();
+      expect(find.text('已计划物品'), findsOneWidget);
+      expect(find.byKey(const ValueKey('inventory-item-003')), findsOneWidget);
+      expect(find.byKey(const ValueKey('inventory-item-washer')), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey('inventory-filter-needsSetup')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('待设置物品'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('inventory-item-washer')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('inventory-item-003')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('inventory-filter-all')));
+      await tester.enterText(find.byKey(const Key('inventory-search')), '不存在');
+      await tester.pumpAndSettle();
+      expect(find.text('没有符合条件的物品'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('inventory-clear-search')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('inventory-item-003')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('inventory-sort')));
+      await tester.pumpAndSettle();
+      expect(find.text('物品排序'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('inventory-sort-date')));
+      await tester.pumpAndSettle();
+      expect(find.text('按时间'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byKey(const ValueKey('inventory-item-003'))).dy,
+        lessThan(
+          tester
+              .getTopLeft(find.byKey(const ValueKey('inventory-item-washer')))
+              .dy,
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('inventory-add-item')));
+      expect(addCalls, 1);
       expect(tester.takeException(), isNull);
     },
   );

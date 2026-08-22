@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 
 import '../models/care_item.dart';
+import '../models/care_space.dart';
 import 'care_repository.dart';
 
 class CareBackupException implements Exception {
@@ -16,9 +17,14 @@ class CareBackupException implements Exception {
 }
 
 class DecodedCareBackup {
-  const DecodedCareBackup({required this.items, required this.photos});
+  const DecodedCareBackup({
+    required this.items,
+    required this.spaces,
+    required this.photos,
+  });
 
   final List<CareItem> items;
+  final List<CareSpace> spaces;
   final Map<String, Uint8List> photos;
 }
 
@@ -31,6 +37,7 @@ class CareBackupCodec {
 
   static Uint8List encode({
     required List<CareItem> items,
+    List<CareSpace> spaces = const [],
     required Map<String, List<int>> photoBytesByPath,
   }) {
     final archive = Archive();
@@ -61,7 +68,7 @@ class CareBackupCodec {
     final backupItems = items
         .map((item) => _remapItemPhotos(item, archivePaths))
         .toList(growable: false);
-    final data = CareDataEnvelope(items: backupItems).encode();
+    final data = CareDataEnvelope(items: backupItems, spaces: spaces).encode();
     CareDataEnvelope.decode(data);
     if (utf8.encode(data).length > maxDataFileBytes) {
       throw const CareBackupException('备份数据超过大小限制');
@@ -155,7 +162,11 @@ class CareBackupCodec {
       }
       photos[entry.key] = content;
     }
-    return DecodedCareBackup(items: normalizedItems, photos: photos);
+    return DecodedCareBackup(
+      items: normalizedItems,
+      spaces: envelope.spaces,
+      photos: photos,
+    );
   }
 
   static Iterable<String> _allPhotoPaths(List<CareItem> items) sync* {
