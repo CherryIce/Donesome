@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,7 +34,8 @@ CareItem _item({
 void main() {
   test('seeded and reset sample stays linked to the kitchen space', () async {
     SharedPreferences.setMockInitialValues({});
-    final store = CareStore();
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
 
     await store.load();
 
@@ -55,7 +57,16 @@ void main() {
         ],
       });
       SharedPreferences.setMockInitialValues({CareRepository.storageKey: v2});
-      final repository = await CareRepository.open();
+      final directory = await Directory.systemTemp.createTemp(
+        'hearthio-space-migration-',
+      );
+      addTearDown(() async {
+        if (await directory.exists()) await directory.delete(recursive: true);
+      });
+      final snapshot = File(
+        '${directory.path}/${CareRepository.snapshotFileName}',
+      );
+      final repository = await CareRepository.open(snapshotFile: snapshot);
 
       final result = await repository.load(initialItems: const []);
 
@@ -66,10 +77,8 @@ void main() {
       expect(result.items.last.locationDetail, isEmpty);
       expect(result.items.last.spaceId, result.spaces.last.id);
 
-      final preferences = await SharedPreferences.getInstance();
       final persisted =
-          jsonDecode(preferences.getString(CareRepository.storageKey)!)
-              as Map<String, dynamic>;
+          jsonDecode(await snapshot.readAsString()) as Map<String, dynamic>;
       expect(persisted['schemaVersion'], currentCareSchemaVersion);
       expect(persisted['spaces'], hasLength(2));
     },
@@ -104,7 +113,8 @@ void main() {
       SharedPreferences.setMockInitialValues({
         CareRepository.storageKey: const CareDataEnvelope(items: []).encode(),
       });
-      final store = CareStore();
+      final preferences = await SharedPreferences.getInstance();
+      final store = CareStore(repository: CareRepository(preferences));
       await store.load();
       const room = CareSpace(id: 'living-room', type: '客厅', name: '客厅');
       await store.saveSpace(room);
@@ -203,7 +213,8 @@ void main() {
       CareRepository.storageKey: const CareDataEnvelope(items: []).encode(),
     });
     const room = CareSpace(id: 'living-room', type: '客厅', name: '客厅');
-    final store = CareStore();
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
     await store.load();
     await store.saveSpace(room);
 

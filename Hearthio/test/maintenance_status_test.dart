@@ -109,6 +109,29 @@ void main() {
     );
   });
 
+  test('an overdue plan still schedules on its chosen deferral day', () {
+    final source = plan(
+      id: 'filter',
+      dueDate: DateTime(2026, 8, 10),
+      deferredUntil: DateTime(2026, 8, 22),
+    );
+
+    expect(
+      shouldScheduleMaintenanceNotification(
+        source,
+        now: DateTime(2026, 8, 22, 10),
+      ),
+      isTrue,
+    );
+    expect(
+      shouldScheduleMaintenanceNotification(
+        source.copyWith(clearDeferredUntil: true),
+        now: DateTime(2026, 8, 22, 10),
+      ),
+      isFalse,
+    );
+  });
+
   test('task ordering is overdue, today, due soon, then planned', () {
     final now = DateTime(2026, 8, 19);
     final item = CareItem(
@@ -222,7 +245,9 @@ void main() {
           ),
         ],
       );
-      final store = CareStore()..items = [item];
+      final preferences = await SharedPreferences.getInstance();
+      final store = CareStore(repository: CareRepository(preferences))
+        ..items = [item];
       final tomorrow = maintenanceDateOnly(
         DateTime.now().add(const Duration(days: 1)),
       );

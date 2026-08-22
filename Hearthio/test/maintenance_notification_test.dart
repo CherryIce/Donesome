@@ -201,4 +201,50 @@ void main() {
       expect(scheduledNames, ['第一次编辑', '第二次编辑']);
     },
   );
+
+  test(
+    'permission checks and reminder writes share one ordered queue',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final preferences = await SharedPreferences.getInstance();
+      final firstPermissionStarted = Completer<void>();
+      final releaseFirstPermission = Completer<void>();
+      final secondScheduled = Completer<void>();
+      final scheduledNames = <String>[];
+      var permissionCalls = 0;
+      final original = _itemWithPlans([
+        MaintenancePlan(
+          id: 'filter',
+          title: '清洗滤网',
+          intervalDays: 90,
+          dueDate: DateTime(2026, 9, 1),
+        ),
+      ]);
+      final store = CareStore(
+        repository: CareRepository(preferences),
+        notificationAccessResolver: () async {
+          permissionCalls += 1;
+          if (permissionCalls == 1) {
+            firstPermissionStarted.complete();
+            await releaseFirstPermission.future;
+          }
+          return NotificationAccess.enabled;
+        },
+        notificationScheduler: (item, _) async {
+          scheduledNames.add(item.name);
+          if (item.name == '第二次编辑') secondScheduled.complete();
+        },
+      )..items = [original];
+
+      await store.save(original.copyWith(name: '第一次编辑'));
+      await firstPermissionStarted.future;
+      await store.save(original.copyWith(name: '第二次编辑'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(scheduledNames, isEmpty);
+      releaseFirstPermission.complete();
+      await secondScheduled.future;
+      expect(scheduledNames, ['第一次编辑', '第二次编辑']);
+    },
+  );
 }

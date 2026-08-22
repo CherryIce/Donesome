@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 enum AppToastStyle { info, success, error }
 
 /// Window-level feedback that is rendered above the current route and does not
@@ -166,21 +168,21 @@ class _AppToastCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final (background, foreground, border, icon) = switch (style) {
       AppToastStyle.error => (
-        const Color(0xFFFFF2F1),
-        const Color(0xFFB42318),
-        const Color(0x66FF3B30),
+        context.palette.dangerSurface,
+        context.palette.dangerStrong,
+        context.palette.danger.withValues(alpha: 0.4),
         Icons.priority_high_rounded,
       ),
       AppToastStyle.success => (
-        const Color(0xFFF0FAF3),
-        const Color(0xFF277044),
-        const Color(0x5534C759),
+        context.palette.successSurface,
+        context.palette.successStrong,
+        context.palette.success.withValues(alpha: 0.34),
         Icons.check_rounded,
       ),
       AppToastStyle.info => (
-        const Color(0xFFFFFEFA),
-        const Color(0xFF31584B),
-        const Color(0x5531584B),
+        context.palette.paper,
+        context.palette.primary,
+        context.palette.primary.withValues(alpha: 0.34),
         Icons.info_outline_rounded,
       ),
     };
@@ -196,9 +198,9 @@ class _AppToastCard extends StatelessWidget {
             color: background,
             border: Border.all(color: border, width: 0.5),
             borderRadius: BorderRadius.circular(14),
-            boxShadow: const <BoxShadow>[
+            boxShadow: <BoxShadow>[
               BoxShadow(
-                color: Color(0x24000000),
+                color: context.palette.shadow,
                 blurRadius: 14,
                 offset: Offset(0, 5),
               ),
@@ -217,7 +219,11 @@ class _AppToastCard extends StatelessWidget {
                   child: SizedBox(
                     width: 24,
                     height: 24,
-                    child: Icon(icon, color: Colors.white, size: 16),
+                    child: Icon(
+                      icon,
+                      color: context.palette.onPrimary,
+                      size: 16,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 9),

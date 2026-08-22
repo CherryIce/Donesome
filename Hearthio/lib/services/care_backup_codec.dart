@@ -28,6 +28,46 @@ class DecodedCareBackup {
   final Map<String, Uint8List> photos;
 }
 
+class _ExpandedSizeLimitExceeded implements Exception {}
+
+class _BoundedOutputMemoryStream extends OutputMemoryStream {
+  _BoundedOutputMemoryStream(this.maxBytes)
+    : super(
+        size: maxBytes <= 0
+            ? 1
+            : maxBytes < OutputMemoryStream.defaultBufferSize
+            ? maxBytes
+            : OutputMemoryStream.defaultBufferSize,
+      );
+
+  final int maxBytes;
+
+  void _check(int additionalBytes) {
+    if (additionalBytes < 0 || length + additionalBytes > maxBytes) {
+      throw _ExpandedSizeLimitExceeded();
+    }
+  }
+
+  @override
+  void writeByte(int value) {
+    _check(1);
+    super.writeByte(value);
+  }
+
+  @override
+  void writeBytes(List<int> bytes, {int? length}) {
+    final writeLength = length ?? bytes.length;
+    _check(writeLength);
+    super.writeBytes(bytes, length: writeLength);
+  }
+
+  @override
+  void writeStream(InputStream stream) {
+    _check(stream.length);
+    super.writeStream(stream);
+  }
+}
+
 class CareBackupCodec {
   static const maxArchiveBytes = 50 * 1024 * 1024;
   static const maxFiles = 250;
@@ -132,12 +172,13 @@ class CareBackupCodec {
       throw const CareBackupException('备份缺少 data.json');
     }
 
-    final dataBytes = dataFile.readBytes();
-    if (dataBytes == null) throw const CareBackupException('备份数据不可读');
-    if (dataBytes.length != dataFile.size ||
-        dataBytes.length > maxDataFileBytes) {
-      throw const CareBackupException('备份数据大小不一致');
-    }
+    var actualExpandedBytes = 0;
+    final dataBytes = _readFileBytes(
+      dataFile,
+      maxBytes: _smaller(maxDataFileBytes, maxTotalExpandedBytes),
+      expandedLimitMessage: '备份数据解压时超过大小限制',
+    );
+    actualExpandedBytes += dataBytes.length;
     final decoded = jsonDecode(utf8.decode(dataBytes));
     final envelope = decoded is List
         ? CareDataEnvelope.fromLegacyDecoded(decoded)
@@ -156,10 +197,13 @@ class CareBackupCodec {
         .toList(growable: false);
     final photos = <String, Uint8List>{};
     for (final entry in photoFiles.entries) {
-      final content = entry.value.readBytes();
-      if (content == null || content.length != entry.value.size) {
-        throw const CareBackupException('备份照片大小不一致');
-      }
+      final remaining = maxTotalExpandedBytes - actualExpandedBytes;
+      final content = _readFileBytes(
+        entry.value,
+        maxBytes: _smaller(maxSingleFileBytes, remaining),
+        expandedLimitMessage: '备份照片解压时超过大小限制',
+      );
+      actualExpandedBytes += content.length;
       photos[entry.key] = content;
     }
     return DecodedCareBackup(
@@ -182,6 +226,30 @@ class CareBackupCodec {
       }
     }
   }
+
+  static Uint8List _readFileBytes(
+    ArchiveFile file, {
+    required int maxBytes,
+    required String expandedLimitMessage,
+  }) {
+    final output = _BoundedOutputMemoryStream(maxBytes);
+    try {
+      file.decompress(output);
+    } on _ExpandedSizeLimitExceeded {
+      throw CareBackupException(expandedLimitMessage);
+    }
+    final bytes = Uint8List.fromList(output.getBytes());
+    if (bytes.length != file.size) {
+      throw const CareBackupException('备份文件声明大小与实际内容不一致');
+    }
+    final expectedCrc = file.crc32;
+    if (expectedCrc != null && getCrc32(bytes) != expectedCrc) {
+      throw const CareBackupException('备份文件校验失败');
+    }
+    return bytes;
+  }
+
+  static int _smaller(int first, int second) => first < second ? first : second;
 
   static CareItem _remapItemPhotos(
     CareItem item,

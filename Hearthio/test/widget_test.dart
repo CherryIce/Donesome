@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart' show CupertinoPicker;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hearthio/app/locale_controller.dart';
 import 'package:hearthio/main.dart';
 import 'package:hearthio/privacy_policy_page.dart';
 import 'package:image_picker/image_picker.dart';
@@ -22,6 +23,7 @@ class _FakeExecutionController implements MaintenanceExecutionController {
     this.notificationScheduled = false,
     this.completionError,
     this.completionGate,
+    this.importResult,
     List<String> importedPaths = const [],
   }) : importedPaths = [...importedPaths];
 
@@ -29,6 +31,7 @@ class _FakeExecutionController implements MaintenanceExecutionController {
   final bool notificationScheduled;
   final Object? completionError;
   final Completer<void>? completionGate;
+  final Completer<PhotoImportResult>? importResult;
   final List<String> importedPaths;
   final List<String> discardedPaths = [];
   MaintenanceCompletionDraft? lastDraft;
@@ -76,10 +79,19 @@ class _FakeExecutionController implements MaintenanceExecutionController {
   }
 
   @override
-  Future<PhotoImportResult> importPhoto(ImageSource source) async =>
-      importedPaths.isEmpty
-      ? const PhotoImportResult.cancelled()
-      : PhotoImportResult.success(importedPaths.removeAt(0));
+  Future<PhotoImportResult> importPhoto(ImageSource source) async {
+    final pending = importResult;
+    if (pending != null) return pending.future;
+    return importedPaths.isEmpty
+        ? const PhotoImportResult.cancelled()
+        : PhotoImportResult.success(importedPaths.removeAt(0));
+  }
+}
+
+class _ReminderEnabledCareStore extends CareStore {
+  @override
+  Future<NotificationAccess> notificationAccess() async =>
+      NotificationAccess.enabled;
 }
 
 MaintenanceTask _executionTask() {
@@ -217,7 +229,8 @@ void main() {
 
   test('first load seeds one explicitly marked purifier example', () async {
     SharedPreferences.setMockInitialValues({});
-    final store = CareStore();
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
 
     await store.load();
 
@@ -269,7 +282,8 @@ void main() {
           items: [oldSample, userItem],
         ).encode(),
       });
-      final store = CareStore();
+      final preferences = await SharedPreferences.getInstance();
+      final store = CareStore(repository: CareRepository(preferences));
 
       await store.load();
 
@@ -308,7 +322,8 @@ void main() {
         items: [completedSample],
       ).encode(),
     });
-    final store = CareStore();
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
 
     await store.load();
 
@@ -334,7 +349,8 @@ void main() {
         item('user-item', '我的洗衣机'),
       ]),
     });
-    final store = CareStore();
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
 
     await store.load();
 
@@ -345,7 +361,8 @@ void main() {
 
   test('resetting example data preserves user-created items', () async {
     SharedPreferences.setMockInitialValues({});
-    final store = CareStore();
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
     await store.load();
     store.items.add(
       CareItem(
@@ -522,7 +539,10 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({'onboarding_seen': true});
-    await tester.pumpWidget(const HearthioApp());
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
+    await store.load();
+    await tester.pumpWidget(MaterialApp(home: HomePage(store: store)));
     await tester.pumpAndSettle();
 
     expect(find.text('家务志'), findsOneWidget);
@@ -588,9 +608,7 @@ void main() {
   testWidgets('supplement rows align their trailing chevrons', (tester) async {
     await tester.binding.setSurfaceSize(const Size(393, 852));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(
-      MaterialApp(home: EditorPage(store: CareStore())),
-    );
+    await tester.pumpWidget(MaterialApp(home: EditorPage(store: CareStore())));
 
     await tester.tap(find.byKey(const ValueKey('common-item-冰箱')));
     await tester.pumpAndSettle();
@@ -840,7 +858,8 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
-    final store = CareStore();
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
     await tester.pumpWidget(MaterialApp(home: EditorPage(store: store)));
 
     await tester.enterText(find.byKey(const Key('item-search')), '体温计');
@@ -866,7 +885,8 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
-    final store = CareStore();
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
     await tester.pumpWidget(
       MaterialApp(
         home: Builder(
@@ -1041,6 +1061,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('reminder tools use the full bottom-sheet content width', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(402, 874));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(home: SettingsPage(store: _ReminderEnabledCareStore())),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('提醒与测试'));
+    await tester.pumpAndSettle();
+
+    final testButton = find.byKey(const Key('reminder-tools-test'));
+    final settingsButton = find.byKey(const Key('reminder-tools-settings'));
+    expect(testButton, findsOneWidget);
+    expect(settingsButton, findsOneWidget);
+    expect(tester.getSize(testButton).width, closeTo(362, 1));
+    expect(
+      tester.getSize(settingsButton).width,
+      closeTo(tester.getSize(testButton).width, 1),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('privacy page has a local fallback before URL configuration', (
     tester,
   ) async {
@@ -1056,7 +1101,8 @@ void main() {
     'opening home does not mark notification permission as prompted',
     (tester) async {
       SharedPreferences.setMockInitialValues({'onboarding_seen': true});
-      await tester.pumpWidget(const HearthioApp());
+      final store = CareStore()..loaded = true;
+      await tester.pumpWidget(MaterialApp(home: HomePage(store: store)));
       await tester.pumpAndSettle();
 
       final prefs = await SharedPreferences.getInstance();
@@ -1068,7 +1114,13 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(const HearthioApp());
+    await tester.pumpWidget(
+      HearthioApp(
+        localeController: AppLocaleController(
+          initialMode: AppLanguageMode.simplifiedChinese,
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('先给家里的物品建档'), findsOneWidget);
@@ -1085,7 +1137,8 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
-    final store = CareStore();
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
     await tester.pumpWidget(MaterialApp(home: EditorPage(store: store)));
     await tester.ensureVisible(find.byKey(const ValueKey('common-item-净水器')));
     await tester.pumpAndSettle();
@@ -1177,7 +1230,8 @@ void main() {
       photos: const [],
       plans: [plan],
     );
-    final store = CareStore();
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
     await tester.pumpWidget(
       MaterialApp(
         home: EditorPage(store: store, item: item),
@@ -1526,7 +1580,9 @@ void main() {
           ),
         ],
       );
-      final store = CareStore()..items = [item];
+      final preferences = await SharedPreferences.getInstance();
+      final store = CareStore(repository: CareRepository(preferences))
+        ..items = [item];
       await tester.pumpWidget(
         MaterialApp(
           home: AnimatedBuilder(
@@ -1920,6 +1976,39 @@ void main() {
     expect(find.textContaining('数据未更新'), findsOneWidget);
     expect(find.text('完成本次保养'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('photo returned after execution page closes is discarded', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    final task = _executionTask();
+    final importResult = Completer<PhotoImportResult>();
+    final controller = _FakeExecutionController(
+      task: task,
+      importResult: importResult,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MaintenanceExecutionPage(controller: controller, task: task),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('execution-before-photo-entry')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('add-before-maintenance-photo')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('execution-photo-gallery')));
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+    importResult.complete(
+      const PhotoImportResult.success('/tmp/late-import.jpg'),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(controller.discardedPaths, ['/tmp/late-import.jpg']);
+    await tester.binding.setSurfaceSize(null);
   });
 
   testWidgets('execution submit lock ignores consecutive taps', (tester) async {

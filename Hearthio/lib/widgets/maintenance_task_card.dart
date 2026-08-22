@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../models/maintenance_status.dart';
 import '../models/maintenance_task.dart';
+import '../l10n/catalog_l10n.dart';
+import '../l10n/l10n.dart';
+import '../l10n/maintenance_l10n.dart';
+import '../theme/app_theme.dart';
 
 class MaintenanceTaskCard extends StatelessWidget {
   const MaintenanceTaskCard({
@@ -18,7 +22,8 @@ class MaintenanceTaskCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = task.status;
-    final color = _statusColor(status.dueState);
+    final l10n = context.l10n;
+    final color = _statusColor(context, status.dueState);
     return Container(
       key: ValueKey('maintenance-task-${task.item.id}-${task.plan.id}'),
       padding: const EdgeInsets.all(16),
@@ -48,21 +53,25 @@ class MaintenanceTaskCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      task.item.name,
+                      context.l10n.itemNameLabel(
+                        id: task.item.id,
+                        isSample: task.item.isSample,
+                        name: task.item.name,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF263630),
+                      style: TextStyle(
+                        color: context.palette.ink,
                         fontWeight: FontWeight.w800,
                         fontSize: 15,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      task.plan.title,
+                      context.l10n.maintenancePlanTitleLabel(task.plan.title),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Color(0xFF72817A)),
+                      style: TextStyle(color: context.palette.muted),
                     ),
                   ],
                 ),
@@ -74,7 +83,7 @@ class MaintenanceTaskCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text(
-                  status.label,
+                  l10n.maintenanceStateLabel(status.state),
                   style: TextStyle(
                     color: color,
                     fontWeight: FontWeight.w800,
@@ -86,16 +95,22 @@ class MaintenanceTaskCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '原到期日 ${_date(task.dueDate)} · ${status.timingLabel}',
+            l10n.originalDueWithTiming(
+              l10n.formatDate(task.dueDate),
+              l10n.maintenanceTimingLabel(status),
+            ),
             key: ValueKey('maintenance-task-due-${task.id}'),
             style: TextStyle(color: color, fontWeight: FontWeight.w700),
           ),
           if (status.hasActiveDeferral) ...[
             const SizedBox(height: 4),
             Text(
-              '稍后提醒 ${_date(status.deferredUntil!)} · 原状态 ${status.dueStateLabel}',
+              l10n.deferredReminderStatus(
+                l10n.formatDate(status.deferredUntil!),
+                l10n.maintenanceStateLabel(status.dueState),
+              ),
               key: ValueKey('maintenance-task-deferral-${task.id}'),
-              style: const TextStyle(color: Color(0xFF72817A), fontSize: 12),
+              style: TextStyle(color: context.palette.muted, fontSize: 12),
             ),
           ],
           const SizedBox(height: 12),
@@ -105,14 +120,18 @@ class MaintenanceTaskCard extends StatelessWidget {
               TextButton(
                 key: ValueKey('defer-maintenance-task-${task.id}'),
                 onPressed: onDefer,
-                child: Text(status.hasActiveDeferral ? '修改稍后提醒' : '稍后提醒'),
+                child: Text(
+                  status.hasActiveDeferral
+                      ? l10n.editDeferredReminder
+                      : l10n.deferReminder,
+                ),
               ),
               const SizedBox(width: 8),
               FilledButton.icon(
                 key: ValueKey('start-maintenance-task-${task.id}'),
                 onPressed: onStart,
                 icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                label: const Text('开始保养'),
+                label: Text(l10n.startMaintenance),
               ),
             ],
           ),
@@ -122,14 +141,13 @@ class MaintenanceTaskCard extends StatelessWidget {
   }
 }
 
-Color _statusColor(MaintenanceTaskState state) => switch (state) {
-  MaintenanceTaskState.overdue => const Color(0xFFB64B43),
-  MaintenanceTaskState.dueToday => const Color(0xFFC36F2D),
-  MaintenanceTaskState.dueSoon => const Color(0xFF9B7328),
-  MaintenanceTaskState.deferred => const Color(0xFF725E91),
-  MaintenanceTaskState.planned => const Color(0xFF31584B),
-  MaintenanceTaskState.completed => const Color(0xFF3A7D70),
-  MaintenanceTaskState.disabled => const Color(0xFF72817A),
-};
-
-String _date(DateTime value) => '${value.year}年${value.month}月${value.day}日';
+Color _statusColor(BuildContext context, MaintenanceTaskState state) =>
+    switch (state) {
+      MaintenanceTaskState.overdue => context.palette.danger,
+      MaintenanceTaskState.dueToday => context.palette.warning,
+      MaintenanceTaskState.dueSoon => context.palette.warning,
+      MaintenanceTaskState.deferred => context.palette.deferred,
+      MaintenanceTaskState.planned => context.palette.primary,
+      MaintenanceTaskState.completed => context.palette.success,
+      MaintenanceTaskState.disabled => context.palette.muted,
+    };

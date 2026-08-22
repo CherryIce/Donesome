@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 /// The shared back control used by secondary-page app bars.
 ///
 /// App bars can be taller than the default toolbar. Keeping both the painted
@@ -27,8 +29,8 @@ class AppBackButton extends StatelessWidget {
           ),
           padding: EdgeInsets.zero,
           style: IconButton.styleFrom(
-            backgroundColor: const Color(0xFFEAF1E9),
-            foregroundColor: const Color(0xFF31584B),
+            backgroundColor: context.palette.mist,
+            foregroundColor: context.palette.primary,
             minimumSize: const Size.square(dimension),
             maximumSize: const Size.square(dimension),
             shape: const CircleBorder(),

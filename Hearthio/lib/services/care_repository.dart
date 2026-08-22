@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/care_item.dart';
@@ -145,25 +147,55 @@ class CareDataLoadResult {
 }
 
 class CareRepository {
-  CareRepository(this._preferences);
+  @visibleForTesting
+  CareRepository(this._preferences) : _snapshotFile = null;
+
+  CareRepository._file(this._preferences, this._snapshotFile);
 
   static const storageKey = 'care_data_v2';
   static const legacyStorageKey = 'care_items';
+  static const snapshotFileName = 'care-data.json';
+  static const maxSnapshotBytes = 5 * 1024 * 1024;
 
   final SharedPreferences _preferences;
+  final File? _snapshotFile;
 
-  static Future<CareRepository> open() async =>
-      CareRepository(await SharedPreferences.getInstance());
+  static Future<CareRepository> open({File? snapshotFile}) async {
+    final preferences = await SharedPreferences.getInstance();
+    final file =
+        snapshotFile ??
+        File(
+          '${(await getApplicationSupportDirectory()).path}/$snapshotFileName',
+        );
+    return CareRepository._file(preferences, file);
+  }
 
   Future<CareDataLoadResult> load({
     required List<CareItem> initialItems,
   }) async {
-    final current = _preferences.getString(storageKey);
-    if (current != null) {
-      final envelope = CareDataEnvelope.decode(current);
+    final snapshotFile = _snapshotFile;
+    if (snapshotFile != null && await snapshotFile.exists()) {
+      final envelope = CareDataEnvelope.decode(
+        await _readSnapshot(snapshotFile),
+      );
       if (envelope.migratedFromOlderSchema) {
         await _write(envelope.encode());
       }
+      return CareDataLoadResult(
+        items: envelope.items,
+        spaces: envelope.spaces,
+        migratedLegacyData: false,
+        seededInitialData: false,
+      );
+    }
+
+    // These preference keys are migration inputs only. Production writes use
+    // the application-support snapshot file above.
+    final current = _preferences.getString(storageKey);
+    if (current != null) {
+      final envelope = CareDataEnvelope.decode(current);
+      await _write(envelope.encode());
+      await _removeMigratedPreferenceSnapshots();
       return CareDataLoadResult(
         items: envelope.items,
         spaces: envelope.spaces,
@@ -176,6 +208,7 @@ class CareRepository {
     if (legacy != null) {
       final envelope = CareDataEnvelope.fromLegacyDecoded(jsonDecode(legacy));
       await _write(envelope.encode());
+      await _removeMigratedPreferenceSnapshots();
       return CareDataLoadResult(
         items: envelope.items,
         spaces: envelope.spaces,
@@ -216,8 +249,56 @@ class CareRepository {
   }
 
   Future<void> _write(String snapshot) async {
-    final saved = await _preferences.setString(storageKey, snapshot);
-    if (!saved) throw const FileSystemException('Unable to persist care data');
+    final encoded = utf8.encode(snapshot);
+    if (encoded.length > maxSnapshotBytes) {
+      throw const FileSystemException('Care data exceeds the snapshot limit');
+    }
+
+    final snapshotFile = _snapshotFile;
+    if (snapshotFile == null) {
+      // Kept only as a lightweight test seam. CareRepository.open(), used by
+      // the app, always resolves a file in Application Support.
+      final saved = await _preferences.setString(storageKey, snapshot);
+      if (!saved) {
+        throw const FileSystemException('Unable to persist care data');
+      }
+      return;
+    }
+
+    await snapshotFile.parent.create(recursive: true);
+    final temporary = File('${snapshotFile.path}.tmp');
+    try {
+      await temporary.writeAsBytes(encoded, flush: true);
+      if (await temporary.length() != encoded.length) {
+        throw const FileSystemException('Incomplete care data snapshot');
+      }
+      // On iOS/macOS this rename atomically replaces the prior snapshot, so a
+      // crash cannot expose a partially written JSON document.
+      await temporary.rename(snapshotFile.path);
+    } finally {
+      if (await temporary.exists()) {
+        await temporary.delete();
+      }
+    }
+  }
+
+  Future<String> _readSnapshot(File file) async {
+    final length = await file.length();
+    if (length < 0 || length > maxSnapshotBytes) {
+      throw const FileSystemException('Care data snapshot has an invalid size');
+    }
+    return file.readAsString();
+  }
+
+  Future<void> _removeMigratedPreferenceSnapshots() async {
+    if (_snapshotFile == null) return;
+    try {
+      await _preferences.remove(storageKey);
+      await _preferences.remove(legacyStorageKey);
+    } catch (_) {
+      // The durable file is authoritative after migration. A stale preference
+      // value is ignored on every later load and can be cleaned up next time.
+    }
   }
 }
 

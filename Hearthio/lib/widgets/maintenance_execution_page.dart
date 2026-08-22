@@ -4,10 +4,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../l10n/app_localizations.dart';
+import '../l10n/catalog_l10n.dart';
+import '../l10n/l10n.dart';
+import '../l10n/maintenance_l10n.dart';
 import '../models/maintenance_calendar.dart';
 import '../models/maintenance_completion.dart';
 import '../models/maintenance_task.dart';
 import '../services/maintenance_execution_controller.dart';
+import '../theme/app_theme.dart';
 import 'app_back_button.dart';
 import 'app_date_picker.dart';
 import 'app_safe_area.dart';
@@ -65,6 +70,7 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final task = widget.task;
     final plan = task.plan;
     final steps = [...plan.checklist]
@@ -80,7 +86,7 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
       appBar: AppBar(
         centerTitle: true,
         leading: const AppBackButton(),
-        title: const Text('开始保养'),
+        title: Text(l10n.startMaintenance),
       ),
       body: Form(
         key: _form,
@@ -105,19 +111,19 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
                   : null,
             ),
             const SizedBox(height: 18),
-            const Text(
-              '执行步骤',
+            Text(
+              l10n.executionSteps,
               style: TextStyle(
-                color: Color(0xFF31584B),
+                color: context.palette.primary,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 6),
             if (steps.isEmpty)
-              const Text(
-                '此计划没有预设步骤，可直接记录本次结果。',
-                style: TextStyle(color: Color(0xFF72817A)),
+              Text(
+                l10n.executionNoPresetSteps,
+                style: TextStyle(color: context.palette.muted),
               )
             else
               ...List.generate(steps.length, (index) {
@@ -126,8 +132,10 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
                 return _ExecutionTimelineStep(
                   key: ValueKey('execution-step-${step.id}'),
                   number: index + 1,
-                  title: step.title,
-                  description: step.description,
+                  title: context.l10n.maintenanceStepTitleLabel(step.title),
+                  description: context.l10n.maintenanceStepDescriptionLabel(
+                    step.description,
+                  ),
                   completed: completed,
                   current: !completed && index == currentStepIndex,
                   isLast: index == steps.length - 1,
@@ -142,12 +150,12 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
                 );
               }),
             const SizedBox(height: 12),
-            const Divider(color: Color(0xFFE2E9E2)),
+            Divider(color: context.palette.border),
             const SizedBox(height: 12),
-            const Text(
-              '本次记录（可选）',
+            Text(
+              l10n.optionalRecordSection,
               style: TextStyle(
-                color: Color(0xFF31584B),
+                color: context.palette.primary,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
@@ -159,8 +167,11 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
                   child: _RecordShortcut(
                     key: const Key('execution-record-date'),
                     icon: Icons.calendar_today_outlined,
-                    label: '日期',
-                    caption: '${_completedAt.month}月${_completedAt.day}日',
+                    label: l10n.dateLabel,
+                    caption: l10n.dateMonthDay(
+                      _completedAt.month,
+                      _completedAt.day,
+                    ),
                     enabled: !_submitting,
                     onTap: _editCompletionDate,
                   ),
@@ -170,9 +181,9 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
                   child: _RecordShortcut(
                     key: const Key('execution-record-cost'),
                     icon: Icons.currency_yen_rounded,
-                    label: '费用',
+                    label: l10n.costLabel,
                     caption: _cost.text.trim().isEmpty
-                        ? '可留空'
+                        ? l10n.optional
                         : '¥${_cost.text.trim()}',
                     enabled: !_submitting,
                     onTap: _editCost,
@@ -183,8 +194,10 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
                   child: _RecordShortcut(
                     key: const Key('execution-record-material'),
                     icon: Icons.inventory_2_outlined,
-                    label: '耗材',
-                    caption: _material.text.trim().isEmpty ? '型号/名称' : '已填写',
+                    label: l10n.materialLabel,
+                    caption: _material.text.trim().isEmpty
+                        ? l10n.modelOrName
+                        : l10n.completedField,
                     enabled: !_submitting,
                     onTap: _editMaterial,
                   ),
@@ -194,8 +207,10 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
                   child: _RecordShortcut(
                     key: const Key('execution-record-note'),
                     icon: Icons.note_alt_outlined,
-                    label: '备注',
-                    caption: _note.text.trim().isEmpty ? '可留空' : '已填写',
+                    label: l10n.notesLabel,
+                    caption: _note.text.trim().isEmpty
+                        ? l10n.optional
+                        : l10n.completedField,
                     enabled: !_submitting,
                     onTap: _editNote,
                   ),
@@ -248,27 +263,27 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
   }
 
   Future<void> _editCost() => _editTextRecord(
-    title: '记录本次费用',
-    label: '本次费用（元）',
-    helperText: '可留空，按 0 元记录',
+    title: context.l10n.recordCostTitle,
+    label: context.l10n.recordCostLabel,
+    helperText: context.l10n.optionalZeroCostHint,
     fieldKey: const Key('execution-cost'),
     controller: _cost,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-    validator: _completionCostValidator,
+    validator: (value) => _completionCostValidator(context.l10n, value),
   );
 
   Future<void> _editMaterial() => _editTextRecord(
-    title: '记录本次耗材',
-    label: '耗材名称 / 型号',
-    helperText: '例如：PP 棉滤芯 A1',
+    title: context.l10n.recordMaterialTitle,
+    label: context.l10n.materialNameLabel,
+    helperText: context.l10n.materialExample,
     fieldKey: const Key('execution-material'),
     controller: _material,
   );
 
   Future<void> _editNote() => _editTextRecord(
-    title: '添加备注',
-    label: '备注',
-    helperText: '记录异常、观察结果或下次注意事项',
+    title: context.l10n.addNotesTitle,
+    label: context.l10n.notesLabel,
+    helperText: context.l10n.notesHelper,
     fieldKey: const Key('execution-note'),
     controller: _note,
     minLines: 3,
@@ -311,15 +326,15 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
                       Expanded(
                         child: Text(
                           title,
-                          style: const TextStyle(
-                            color: Color(0xFF263630),
+                          style: TextStyle(
+                            color: sheetContext.palette.ink,
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
                       IconButton(
-                        tooltip: '关闭',
+                        tooltip: sheetContext.l10n.commonClose,
                         onPressed: () => Navigator.pop(sheetContext),
                         icon: const Icon(Icons.close_rounded),
                       ),
@@ -347,7 +362,7 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
                       }
                       Navigator.pop(sheetContext);
                     },
-                    child: const Text('完成'),
+                    child: Text(sheetContext.l10n.commonDone),
                   ),
                 ],
               ),
@@ -380,16 +395,18 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
                   children: [
                     Expanded(
                       child: Text(
-                        before ? '保养前留照' : '保养后留照',
-                        style: const TextStyle(
-                          color: Color(0xFF263630),
+                        before
+                            ? sheetContext.l10n.beforePhotoCaptureTitle
+                            : sheetContext.l10n.afterPhotoCaptureTitle,
+                        style: TextStyle(
+                          color: sheetContext.palette.ink,
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
                     IconButton(
-                      tooltip: '关闭',
+                      tooltip: sheetContext.l10n.commonClose,
                       onPressed: () => Navigator.pop(sheetContext),
                       icon: const Icon(Icons.close_rounded),
                     ),
@@ -397,7 +414,9 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
                 ),
                 const SizedBox(height: 14),
                 _PhotoSection(
-                  title: before ? '保养前照片' : '保养后照片',
+                  title: before
+                      ? sheetContext.l10n.beforePhotos
+                      : sheetContext.l10n.afterPhotos,
                   addKey: Key(
                     before
                         ? 'add-before-maintenance-photo'
@@ -417,9 +436,11 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
                 if (!editable) ...[
                   const SizedBox(height: 16),
                   Text(
-                    before ? '执行已经开始，保养前照片已锁定。' : '步骤重新打开，完成后照片暂时不可修改。',
-                    style: const TextStyle(
-                      color: Color(0xFF72817A),
+                    before
+                        ? sheetContext.l10n.beforePhotosLocked
+                        : sheetContext.l10n.afterPhotosTemporarilyLocked,
+                    style: TextStyle(
+                      color: sheetContext.palette.muted,
                       height: 1.4,
                     ),
                   ),
@@ -443,13 +464,13 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
             ListTile(
               key: const Key('execution-photo-camera'),
               leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('拍照'),
+              title: Text(sheet.l10n.takePhoto),
               onTap: () => Navigator.pop(sheet, ImageSource.camera),
             ),
             ListTile(
               key: const Key('execution-photo-gallery'),
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('从相册选择'),
+              title: Text(sheet.l10n.chooseFromPhotos),
               onTap: () => Navigator.pop(sheet, ImageSource.gallery),
             ),
           ],
@@ -458,7 +479,12 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
     );
     if (source == null || !mounted) return;
     final result = await widget.controller.importPhoto(source);
-    if (!mounted) return;
+    if (!mounted) {
+      if (result.path case final path?) {
+        await widget.controller.discardImportedPhoto(path);
+      }
+      return;
+    }
     if (result.path != null) {
       setState(() {
         (before ? _beforePhotos : _afterPhotos).add(result.path!);
@@ -473,8 +499,8 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
       AppToast.show(
         context,
         source == ImageSource.camera
-            ? '无法打开相机，请检查相机权限后重试。'
-            : '无法读取照片，请检查照片权限后重试。',
+            ? context.l10n.cameraOpenFailed
+            : context.l10n.photoReadFailed,
         style: AppToastStyle.error,
       );
     }
@@ -493,7 +519,7 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
     if (!_completedStepIds.containsAll(allStepIds)) {
       return;
     }
-    final costError = _completionCostValidator(_cost.text);
+    final costError = _completionCostValidator(context.l10n, _cost.text);
     if (costError != null) {
       setState(() => _error = costError);
       return;
@@ -532,10 +558,14 @@ class _MaintenanceExecutionPageState extends State<MaintenanceExecutionPage> {
       if (closeExecution == true && mounted) {
         Navigator.pop(context, true);
       }
-    } on MaintenanceCompletionException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+    } on MaintenanceCompletionException {
+      if (mounted) {
+        setState(() => _error = context.l10n.maintenanceCompletionSaveFailed);
+      }
     } catch (_) {
-      if (mounted) setState(() => _error = '本次保养未能保存，请重试。');
+      if (mounted) {
+        setState(() => _error = context.l10n.maintenanceCompletionSaveFailed);
+      }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -548,66 +578,81 @@ class MaintenanceCompletionResultPage extends StatelessWidget {
   final MaintenanceCompletionResult result;
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: false,
-    child: Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('保养完成'),
-      ),
-      body: ListView(
-        padding: appSafeScrollPadding(context, const EdgeInsets.all(24)),
-        children: [
-          const Icon(
-            Icons.task_alt_rounded,
-            size: 72,
-            color: Color(0xFF3A7D70),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            '本次保养已归档',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 24),
-          _ResultRow(label: '完成时间', value: _date(result.record.completedAt)),
-          _ResultRow(label: '本次费用', value: '¥${_money(result.record.cost)}'),
-          _ResultRow(label: '下一次计划', value: _date(result.plan.dueDate!)),
-          _ResultRow(
-            label: '提醒',
-            value: '提前 ${result.plan.reminderLeadDays} 天',
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '继续查看这件物品的生命周期，可核对本次记录、累计费用和下一项任务。',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF72817A), height: 1.45),
-          ),
-          if (!result.notificationScheduled) ...[
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: Text(l10n.maintenanceCompletedTitle),
+        ),
+        body: ListView(
+          padding: appSafeScrollPadding(context, const EdgeInsets.all(24)),
+          children: [
+            Icon(
+              Icons.task_alt_rounded,
+              size: 72,
+              color: context.palette.success,
+            ),
             const SizedBox(height: 16),
-            Container(
-              key: const Key('completion-notification-warning'),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF0E5),
-                borderRadius: BorderRadius.circular(16),
+            Text(
+              l10n.maintenanceArchived,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 24),
+            _ResultRow(
+              label: l10n.completionTime,
+              value: l10n.formatDate(result.record.completedAt),
+            ),
+            _ResultRow(
+              label: l10n.thisCost,
+              value: '¥${_money(result.record.cost)}',
+            ),
+            _ResultRow(
+              label: l10n.nextPlan,
+              value: l10n.formatDate(result.plan.dueDate!),
+            ),
+            _ResultRow(
+              label: l10n.reminder,
+              value: l10n.reminderDaysEarly(result.plan.reminderLeadDays),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.completionLifecycleHint,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.palette.muted, height: 1.45),
+            ),
+            if (!result.notificationScheduled) ...[
+              const SizedBox(height: 16),
+              Container(
+                key: const Key('completion-notification-warning'),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: context.palette.warningSurface,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  l10n.notificationRescheduleFailed,
+                  style: TextStyle(
+                    color: context.palette.warningStrong,
+                    height: 1.45,
+                  ),
+                ),
               ),
-              child: const Text(
-                '记录和下一次日期已保存，但通知未能重新安排。可在“设置”中检查通知状态后重试。',
-                style: TextStyle(color: Color(0xFF8A542E), height: 1.45),
-              ),
+            ],
+            const SizedBox(height: 28),
+            FilledButton(
+              key: const Key('finish-maintenance-result'),
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(l10n.viewLifecycle),
             ),
           ],
-          const SizedBox(height: 28),
-          FilledButton(
-            key: const Key('finish-maintenance-result'),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('查看生命周期'),
-          ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _ExecutionTaskSummary extends StatelessWidget {
@@ -622,7 +667,7 @@ class _ExecutionTaskSummary extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 13),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF1E9),
+        color: context.palette.mist,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -633,12 +678,12 @@ class _ExecutionTaskSummary extends StatelessWidget {
                 ? Image.asset(
                     'assets/home/dashboard-purifier-icon.png',
                     fit: BoxFit.contain,
-                    semanticLabel: '净水器',
+                    semanticLabel: context.l10n.templateSceneWaterPurifier,
                   )
-                : const Icon(
+                : Icon(
                     Icons.home_repair_service_outlined,
                     size: 36,
-                    color: Color(0xFF31584B),
+                    color: context.palette.primary,
                   ),
           ),
           const SizedBox(width: 12),
@@ -647,34 +692,37 @@ class _ExecutionTaskSummary extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  task.item.name,
+                  context.l10n.itemNameLabel(
+                    id: task.item.id,
+                    isSample: task.item.isSample,
+                    name: task.item.name,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF263630),
+                  style: TextStyle(
+                    color: context.palette.ink,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  task.plan.title,
+                  context.l10n.maintenancePlanTitleLabel(task.plan.title),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF31584B),
+                  style: TextStyle(
+                    color: context.palette.primary,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '原计划日期 ${_date(task.dueDate)}',
-                  key: const Key('execution-original-status'),
-                  style: const TextStyle(
-                    color: Color(0xFF72817A),
-                    fontSize: 12,
+                  context.l10n.originalPlanDate(
+                    context.l10n.formatDate(task.dueDate),
                   ),
+                  key: const Key('execution-original-status'),
+                  style: TextStyle(color: context.palette.muted, fontSize: 12),
                 ),
               ],
             ),
@@ -683,13 +731,13 @@ class _ExecutionTaskSummary extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: const Color(0xFFDCEBE1),
+              color: context.palette.successSurface,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              task.status.timingLabel,
-              style: const TextStyle(
-                color: Color(0xFF176B57),
+              context.l10n.maintenanceTimingLabel(task.status),
+              style: TextStyle(
+                color: context.palette.successStrong,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
@@ -718,17 +766,20 @@ class _BeforePhotoRecordCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasPhotos = photos.isNotEmpty;
     final status = hasPhotos
-        ? '已记录 ${photos.length} 张'
+        ? context.l10n.photosRecordedCount(photos.length)
         : executionStarted
-        ? '本次未记录'
-        : '记录当前状态，便于完成后对比';
+        ? context.l10n.noPhotosThisTime
+        : context.l10n.beforePhotoPrompt;
     return Semantics(
       button: onTap != null,
       enabled: onTap != null,
-      label: '保养前留照，可选，$status${executionStarted ? '，执行已开始，前照已锁定' : ''}',
+      label: context.l10n.beforePhotoSemantic(
+        status,
+        executionStarted ? context.l10n.beforePhotoLockedSemanticSuffix : '',
+      ),
       excludeSemantics: true,
       child: Material(
-        color: const Color(0xFFF2F4ED),
+        color: context.palette.softSurface,
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           key: const Key('execution-before-photo-entry'),
@@ -747,10 +798,10 @@ class _BeforePhotoRecordCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        '保养前留照（可选）',
+                      Text(
+                        context.l10n.beforePhotoOptional,
                         style: TextStyle(
-                          color: Color(0xFF263630),
+                          color: context.palette.ink,
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                         ),
@@ -760,8 +811,8 @@ class _BeforePhotoRecordCard extends StatelessWidget {
                         status,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF72817A),
+                        style: TextStyle(
+                          color: context.palette.muted,
                           fontSize: 12,
                         ),
                       ),
@@ -770,20 +821,20 @@ class _BeforePhotoRecordCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 if (editable)
-                  const Icon(
+                  Icon(
                     Icons.add_a_photo_outlined,
-                    color: Color(0xFF176B57),
+                    color: context.palette.successStrong,
                   )
                 else if (hasPhotos)
-                  const Icon(
+                  Icon(
                     Icons.lock_outline_rounded,
-                    color: Color(0xFF72817A),
+                    color: context.palette.muted,
                     size: 21,
                   )
                 else
-                  const Icon(
+                  Icon(
                     Icons.check_rounded,
-                    color: Color(0xFF8A9992),
+                    color: context.palette.subtle,
                     size: 21,
                   ),
               ],
@@ -812,18 +863,21 @@ class _AfterPhotoComparisonCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasAfterPhotos = afterPhotos.isNotEmpty;
     final helper = editable
-        ? '步骤已完成，记录最终状态以便对比'
+        ? context.l10n.afterPhotoReadyHint
         : hasAfterPhotos
-        ? '步骤重新打开，完成后可继续管理照片'
-        : '完成全部步骤后可添加保养后照片';
+        ? context.l10n.afterPhotoReopenedHint
+        : context.l10n.afterPhotoWaitingHint;
     return Semantics(
       button: onTap != null,
       enabled: onTap != null,
-      label:
-          '保养后留照，可选，${afterPhotos.isEmpty ? helper : '已记录 ${afterPhotos.length} 张'}',
+      label: context.l10n.afterPhotoSemantic(
+        afterPhotos.isEmpty
+            ? helper
+            : context.l10n.photosRecordedCount(afterPhotos.length),
+      ),
       excludeSemantics: true,
       child: Material(
-        color: const Color(0xFFFFFEFA),
+        color: context.palette.paper,
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
           key: const Key('execution-after-photo-entry'),
@@ -833,18 +887,18 @@ class _AfterPhotoComparisonCard extends StatelessWidget {
             padding: const EdgeInsets.all(13),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E9E2)),
+              border: Border.all(color: context.palette.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        '保养后留照（可选）',
+                        context.l10n.afterPhotoOptional,
                         style: TextStyle(
-                          color: Color(0xFF31584B),
+                          color: context.palette.primary,
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                         ),
@@ -857,8 +911,8 @@ class _AfterPhotoComparisonCard extends StatelessWidget {
                           ? Icons.lock_outline_rounded
                           : Icons.lock_clock_outlined,
                       color: editable
-                          ? const Color(0xFF176B57)
-                          : const Color(0xFF8A9992),
+                          ? context.palette.successStrong
+                          : context.palette.subtle,
                       size: 22,
                     ),
                   ],
@@ -866,34 +920,33 @@ class _AfterPhotoComparisonCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   helper,
-                  style: const TextStyle(
-                    color: Color(0xFF72817A),
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: context.palette.muted, fontSize: 12),
                 ),
                 const SizedBox(height: 11),
                 Row(
                   children: [
                     Expanded(
                       child: _PhotoComparisonSlot(
-                        title: '保养前',
+                        title: context.l10n.beforeLabel,
                         photos: beforePhotos,
-                        emptyLabel: '未记录',
+                        emptyLabel: context.l10n.notRecorded,
                       ),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 7),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 7),
                       child: Icon(
                         Icons.arrow_forward_rounded,
-                        color: Color(0xFF8EB6A7),
+                        color: context.palette.success,
                         size: 20,
                       ),
                     ),
                     Expanded(
                       child: _PhotoComparisonSlot(
-                        title: '保养后',
+                        title: context.l10n.afterLabel,
                         photos: afterPhotos,
-                        emptyLabel: editable ? '点击添加' : '等待完成',
+                        emptyLabel: editable
+                            ? context.l10n.tapToAdd
+                            : context.l10n.waitingForCompletion,
                         emphasized: editable,
                       ),
                     ),
@@ -926,7 +979,7 @@ class _PhotoComparisonSlot extends StatelessWidget {
     height: 68,
     padding: const EdgeInsets.all(8),
     decoration: BoxDecoration(
-      color: emphasized ? const Color(0xFFEAF1E9) : const Color(0xFFF2F4ED),
+      color: emphasized ? context.palette.mist : context.palette.softSurface,
       borderRadius: BorderRadius.circular(14),
     ),
     child: Row(
@@ -945,18 +998,20 @@ class _PhotoComparisonSlot extends StatelessWidget {
               Text(
                 title,
                 maxLines: 1,
-                style: const TextStyle(
-                  color: Color(0xFF263630),
+                style: TextStyle(
+                  color: context.palette.ink,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
-                photos.isEmpty ? emptyLabel : '${photos.length} 张',
+                photos.isEmpty
+                    ? emptyLabel
+                    : context.l10n.photoCount(photos.length),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFF72817A), fontSize: 10),
+                style: TextStyle(color: context.palette.muted, fontSize: 10),
               ),
             ],
           ),
@@ -984,10 +1039,10 @@ class _PhotoStateThumbnail extends StatelessWidget {
         width: size,
         height: size,
         decoration: BoxDecoration(
-          color: const Color(0xFFEAF1E9),
+          color: context.palette.mist,
           borderRadius: BorderRadius.circular(13),
         ),
-        child: Icon(icon, color: const Color(0xFF31584B), size: size * .5),
+        child: Icon(icon, color: context.palette.primary, size: size * .5),
       );
     }
     return ClipRRect(
@@ -1000,8 +1055,8 @@ class _PhotoStateThumbnail extends StatelessWidget {
         errorBuilder: (_, __, ___) => Container(
           width: size,
           height: size,
-          color: const Color(0xFFEAF1E9),
-          child: const Icon(Icons.image_outlined, color: Color(0xFF31584B)),
+          color: context.palette.mist,
+          child: Icon(Icons.image_outlined, color: context.palette.primary),
         ),
       ),
     );
@@ -1034,24 +1089,28 @@ class _ExecutionTimelineStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasDescription = description.trim().isNotEmpty;
     final circleColor = completed
-        ? const Color(0xFF3A7D70)
+        ? context.palette.success
         : current
-        ? const Color(0xFFEAF1E9)
+        ? context.palette.mist
         : Colors.transparent;
     final borderColor = current || completed
-        ? const Color(0xFF176B57)
-        : const Color(0xFF8A9992);
+        ? context.palette.successStrong
+        : context.palette.subtle;
     return Semantics(
       button: true,
       enabled: enabled,
       toggled: completed,
       excludeSemantics: true,
-      label:
-          '步骤 $number：$title${hasDescription ? '，$description' : ''}${current
-              ? '，当前步骤'
-              : completed
-              ? '，已完成'
-              : ''}',
+      label: context.l10n.stepSemantic(
+        number,
+        title,
+        hasDescription ? context.l10n.stepDescriptionSemantic(description) : '',
+        current
+            ? context.l10n.currentStepSemantic
+            : completed
+            ? context.l10n.completedStepSemantic
+            : '',
+      ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -1074,8 +1133,8 @@ class _ExecutionTimelineStep extends StatelessWidget {
                           child: Container(
                             width: 1.5,
                             color: completed
-                                ? const Color(0xFF8EB6A7)
-                                : const Color(0xFFCAD4CE),
+                                ? context.palette.success
+                                : context.palette.border,
                           ),
                         ),
                       AnimatedContainer(
@@ -1090,9 +1149,11 @@ class _ExecutionTimelineStep extends StatelessWidget {
                             width: current ? 2.4 : 1.8,
                           ),
                           boxShadow: current
-                              ? const [
+                              ? <BoxShadow>[
                                   BoxShadow(
-                                    color: Color(0x333A7D70),
+                                    color: context.palette.success.withValues(
+                                      alpha: 0.20,
+                                    ),
                                     blurRadius: 0,
                                     spreadRadius: 8,
                                   ),
@@ -1100,9 +1161,9 @@ class _ExecutionTimelineStep extends StatelessWidget {
                               : null,
                         ),
                         child: completed
-                            ? const Icon(
+                            ? Icon(
                                 Icons.check_rounded,
-                                color: Colors.white,
+                                color: context.palette.onPrimary,
                                 size: 28,
                               )
                             : Center(
@@ -1110,8 +1171,8 @@ class _ExecutionTimelineStep extends StatelessWidget {
                                   '$number',
                                   style: TextStyle(
                                     color: current
-                                        ? const Color(0xFF176B57)
-                                        : const Color(0xFF50615A),
+                                        ? context.palette.successStrong
+                                        : context.palette.muted,
                                     fontSize: 20,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -1119,11 +1180,11 @@ class _ExecutionTimelineStep extends StatelessWidget {
                               ),
                       ),
                       if (current)
-                        const Positioned(
+                        Positioned(
                           right: 0,
                           child: Icon(
                             Icons.arrow_right_rounded,
-                            color: Color(0xFF8EB6A7),
+                            color: context.palette.success,
                             size: 28,
                           ),
                         ),
@@ -1142,14 +1203,14 @@ class _ExecutionTimelineStep extends StatelessWidget {
                           title,
                           style: TextStyle(
                             color: completed
-                                ? const Color(0xFF31584B)
-                                : const Color(0xFF263630),
+                                ? context.palette.primary
+                                : context.palette.ink,
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                             decoration: completed
                                 ? TextDecoration.lineThrough
                                 : null,
-                            decorationColor: const Color(0xFF8A9992),
+                            decorationColor: context.palette.subtle,
                           ),
                         ),
                         if (hasDescription) ...[
@@ -1158,8 +1219,8 @@ class _ExecutionTimelineStep extends StatelessWidget {
                             description,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF72817A),
+                            style: TextStyle(
+                              color: context.palette.muted,
                               fontSize: 13,
                               height: 1.25,
                             ),
@@ -1196,7 +1257,7 @@ class _RecordShortcut extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: const Color(0xFFF2F4ED),
+    color: context.palette.softSurface,
     borderRadius: BorderRadius.circular(16),
     child: InkWell(
       borderRadius: BorderRadius.circular(16),
@@ -1205,13 +1266,13 @@ class _RecordShortcut extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 10),
         child: Column(
           children: [
-            Icon(icon, color: const Color(0xFF31584B), size: 24),
+            Icon(icon, color: context.palette.primary, size: 24),
             const SizedBox(height: 5),
             Text(
               label,
               maxLines: 1,
-              style: const TextStyle(
-                color: Color(0xFF263630),
+              style: TextStyle(
+                color: context.palette.ink,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -1222,7 +1283,7 @@ class _RecordShortcut extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF72817A), fontSize: 9),
+              style: TextStyle(color: context.palette.muted, fontSize: 9),
             ),
           ],
         ),
@@ -1279,7 +1340,11 @@ class _CompletionActionBar extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.task_alt_rounded),
-              label: Text(submitting ? '正在保存…' : '完成本次保养'),
+              label: Text(
+                submitting
+                    ? context.l10n.saving
+                    : context.l10n.completeMaintenance,
+              ),
             ),
           ),
         ],
@@ -1316,12 +1381,15 @@ class _PhotoSection extends StatelessWidget {
             key: addKey,
             onPressed: enabled ? onAdd : null,
             icon: const Icon(Icons.add_a_photo_outlined),
-            label: const Text('添加'),
+            label: Text(context.l10n.commonAdd),
           ),
         ],
       ),
       if (photos.isEmpty)
-        const Text('可选', style: TextStyle(color: Color(0xFF72817A)))
+        Text(
+          context.l10n.optional,
+          style: TextStyle(color: context.palette.muted),
+        )
       else
         Wrap(
           spacing: 8,
@@ -1340,7 +1408,7 @@ class _PhotoSection extends StatelessWidget {
                         errorBuilder: (_, __, ___) => Container(
                           width: 92,
                           height: 72,
-                          color: const Color(0xFFEAF1E9),
+                          color: context.palette.mist,
                           child: const Icon(Icons.image_outlined),
                         ),
                       ),
@@ -1386,7 +1454,7 @@ class _ResultRow extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 10),
     child: Row(
       children: [
-        Text(label, style: const TextStyle(color: Color(0xFF72817A))),
+        Text(label, style: TextStyle(color: context.palette.muted)),
         const SizedBox(width: 18),
         Expanded(
           child: Text(
@@ -1400,12 +1468,12 @@ class _ResultRow extends StatelessWidget {
   );
 }
 
-String? _completionCostValidator(String? value) {
+String? _completionCostValidator(AppLocalizations l10n, String? value) {
   final text = value?.trim() ?? '';
   if (text.isEmpty) return null;
   final amount = double.tryParse(text);
   if (amount == null || !amount.isFinite || amount < 0) {
-    return '请输入大于或等于 0 的有限金额';
+    return l10n.validationFiniteNonNegativeAmount;
   }
   return null;
 }
@@ -1413,6 +1481,3 @@ String? _completionCostValidator(String? value) {
 String _money(double value) => value == value.roundToDouble()
     ? value.toStringAsFixed(0)
     : value.toStringAsFixed(2);
-
-String _date(DateTime value) =>
-    '${value.year} 年 ${value.month} 月 ${value.day} 日';

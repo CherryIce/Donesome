@@ -7,15 +7,12 @@ import '../models/maintenance_lifecycle.dart';
 import '../models/maintenance_plan.dart';
 import '../models/maintenance_record.dart';
 import '../services/maintenance_history_controller.dart';
+import '../theme/app_theme.dart';
+import '../l10n/l10n.dart';
+import '../l10n/maintenance_l10n.dart';
 import 'app_alert.dart';
 import 'app_toast.dart';
 import 'maintenance_record_editor.dart';
-
-const _lifecycleInk = Color(0xFF263630);
-const _lifecycleMuted = Color(0xFF72817A);
-const _lifecycleIndigo = Color(0xFF31584B);
-const _lifecycleMist = Color(0xFFEAF1E9);
-const _lifecyclePaper = Color(0xFFFFFEFA);
 
 class MaintenanceLifecycleOverview extends StatelessWidget {
   const MaintenanceLifecycleOverview({super.key, required this.item});
@@ -32,8 +29,8 @@ class MaintenanceLifecycleOverview extends StatelessWidget {
         key: const Key('maintenance-lifecycle-overview'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '生命周期概览',
+          Text(
+            context.l10n.lifecycleOverviewTitle,
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
           ),
           const SizedBox(height: 8),
@@ -42,12 +39,12 @@ class MaintenanceLifecycleOverview extends StatelessWidget {
               Expanded(
                 child: _MetricCard(
                   key: const Key('lifecycle-usage-days'),
-                  label: '使用时长',
+                  label: context.l10n.lifecycleUsageDuration,
                   value: item.purchaseDate == null
-                      ? '未填写购买日期'
+                      ? context.l10n.lifecyclePurchaseDateMissing
                       : snapshot.usageDays == null
-                      ? '购买日期晚于今天'
-                      : '${snapshot.usageDays} 天',
+                      ? context.l10n.lifecyclePurchaseDateFuture
+                      : context.l10n.lifecycleUsageDays(snapshot.usageDays!),
                   icon: Icons.timelapse_rounded,
                 ),
               ),
@@ -55,8 +52,10 @@ class MaintenanceLifecycleOverview extends StatelessWidget {
               Expanded(
                 child: _MetricCard(
                   key: const Key('lifecycle-completion-count'),
-                  label: '累计保养',
-                  value: '${snapshot.completionCount} 次',
+                  label: context.l10n.lifecycleMaintenanceTotal,
+                  value: context.l10n.lifecycleCompletionCount(
+                    snapshot.completionCount,
+                  ),
                   icon: Icons.task_alt_rounded,
                 ),
               ),
@@ -68,7 +67,7 @@ class MaintenanceLifecycleOverview extends StatelessWidget {
               Expanded(
                 child: _MetricCard(
                   key: const Key('lifecycle-total-cost'),
-                  label: '实际费用',
+                  label: context.l10n.lifecycleActualCost,
                   value: '¥${_money(snapshot.totalCost)}',
                   icon: Icons.payments_outlined,
                 ),
@@ -77,8 +76,10 @@ class MaintenanceLifecycleOverview extends StatelessWidget {
               Expanded(
                 child: _MetricCard(
                   key: const Key('lifecycle-overdue-count'),
-                  label: '当前逾期',
-                  value: '${snapshot.overdueCount} 项',
+                  label: context.l10n.lifecycleCurrentOverdue,
+                  value: context.l10n.lifecycleOverdueCount(
+                    snapshot.overdueCount,
+                  ),
                   icon: Icons.warning_amber_rounded,
                   alert: snapshot.overdueCount > 0,
                 ),
@@ -88,10 +89,14 @@ class MaintenanceLifecycleOverview extends StatelessWidget {
           const SizedBox(height: 10),
           _MetricCard(
             key: const Key('lifecycle-next-task'),
-            label: '下一项任务',
+            label: context.l10n.lifecycleNextTask,
             value: task == null
-                ? '暂无已启用且设有日期的计划'
-                : '${task.plan.title} · ${_date(task.dueDate)} · ${task.status.timingLabel}',
+                ? context.l10n.lifecycleNoNextTask
+                : context.l10n.lifecycleNextTaskSummary(
+                    context.l10n.maintenancePlanTitleLabel(task.plan.title),
+                    _date(context, task.dueDate),
+                    context.l10n.maintenanceTimingLabel(task.status),
+                  ),
             icon: Icons.event_available_outlined,
             fullWidth: true,
           ),
@@ -123,10 +128,12 @@ class _MetricCard extends StatelessWidget {
     constraints: const BoxConstraints(minHeight: 92),
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: alert ? const Color(0xFFFFF0E5) : _lifecyclePaper,
+      color: alert ? context.palette.warningSurface : context.palette.paper,
       borderRadius: BorderRadius.circular(19),
       border: Border.all(
-        color: alert ? const Color(0xFFF1C8A9) : const Color(0xFFE3E9E2),
+        color: alert
+            ? context.palette.warning.withValues(alpha: 0.55)
+            : context.palette.border,
       ),
     ),
     child: Row(
@@ -134,7 +141,9 @@ class _MetricCard extends StatelessWidget {
       children: [
         Icon(
           icon,
-          color: alert ? const Color(0xFFB46532) : _lifecycleIndigo,
+          color: alert
+              ? context.palette.warningStrong
+              : context.palette.primary,
           size: 21,
         ),
         const SizedBox(width: 10),
@@ -144,13 +153,13 @@ class _MetricCard extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(color: _lifecycleMuted, fontSize: 12),
+                style: TextStyle(color: context.palette.muted, fontSize: 12),
               ),
               const SizedBox(height: 4),
               Text(
                 value,
-                style: const TextStyle(
-                  color: _lifecycleInk,
+                style: TextStyle(
+                  color: context.palette.ink,
                   fontWeight: FontWeight.w800,
                   height: 1.35,
                 ),
@@ -191,14 +200,14 @@ class _MaintenanceLifecycleTimelineState
         key: const Key('maintenance-lifecycle-timeline'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '生命周期时间线',
+          Text(
+            context.l10n.lifecycleTimelineTitle,
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
           ),
           const SizedBox(height: 5),
-          const Text(
-            '仅汇总你填写的购买日期和真实维护记录，按日期倒序排列。',
-            style: TextStyle(color: _lifecycleMuted, height: 1.4),
+          Text(
+            context.l10n.lifecycleTimelineSubtitle,
+            style: TextStyle(color: context.palette.muted, height: 1.4),
           ),
           const SizedBox(height: 10),
           if (entries.isEmpty)
@@ -207,13 +216,13 @@ class _MaintenanceLifecycleTimelineState
               width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: _lifecyclePaper,
+                color: context.palette.paper,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE3E9E2)),
+                border: Border.all(color: context.palette.border),
               ),
-              child: const Text(
-                '还没有生命周期事件。填写购买日期或完成一次保养后，这里会显示可追溯记录。',
-                style: TextStyle(color: _lifecycleMuted, height: 1.45),
+              child: Text(
+                context.l10n.lifecycleTimelineEmpty,
+                style: TextStyle(color: context.palette.muted, height: 1.45),
               ),
             )
           else
@@ -257,14 +266,16 @@ class _MaintenanceLifecycleTimelineState
     final plan = _planFor(widget.item, record.planId);
     final confirmed = await showAppAlert<bool>(
       context,
-      title: '删除这条维护记录？',
+      title: context.l10n.deleteRecordTitle,
       message: plan == null
-          ? '删除后无法恢复。记录中的照片也会从本机移除。'
-          : '删除后无法恢复，并会按“${plan.title}”剩余记录重新计算上次完成日和下一次日期。记录照片也会从本机移除。',
-      actions: const [
-        AppAlertAction(label: '取消', result: false),
+          ? context.l10n.deleteRecordMessageNoPlan
+          : context.l10n.deleteRecordMessageWithPlan(
+              context.l10n.maintenancePlanTitleLabel(plan.title),
+            ),
+      actions: [
+        AppAlertAction(label: context.l10n.commonCancel, result: false),
         AppAlertAction(
-          label: '确认删除',
+          label: context.l10n.confirmDelete,
           result: true,
           key: Key('confirm-delete-maintenance-record'),
           tone: AppAlertActionTone.destructive,
@@ -278,13 +289,21 @@ class _MaintenanceLifecycleTimelineState
         widget.item.id,
         record.id,
       );
-    } on MaintenanceHistoryException catch (error) {
+    } on MaintenanceHistoryException {
       if (mounted) {
-        AppToast.show(context, error.message, style: AppToastStyle.error);
+        AppToast.show(
+          context,
+          context.l10n.deleteRecordFailed,
+          style: AppToastStyle.error,
+        );
       }
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, '维护记录未能删除，请重试。', style: AppToastStyle.error);
+        AppToast.show(
+          context,
+          context.l10n.deleteRecordFailed,
+          style: AppToastStyle.error,
+        );
       }
     } finally {
       if (mounted) setState(() => _busyRecordIds.remove(record.id));
@@ -303,13 +322,13 @@ class _TimelineNode extends StatelessWidget {
     clipBehavior: Clip.none,
     children: [
       if (!isLast)
-        const Positioned(
+        Positioned(
           left: 13,
           top: 26,
           bottom: -12,
           child: SizedBox(
             width: 2,
-            child: ColoredBox(color: Color(0xFFDCE5DC)),
+            child: ColoredBox(color: context.palette.border),
           ),
         ),
       Row(
@@ -321,8 +340,8 @@ class _TimelineNode extends StatelessWidget {
               width: 12,
               height: 12,
               margin: const EdgeInsets.only(top: 20, left: 8, right: 8),
-              decoration: const BoxDecoration(
-                color: _lifecycleIndigo,
+              decoration: BoxDecoration(
+                color: context.palette.primary,
                 shape: BoxShape.circle,
               ),
             ),
@@ -349,22 +368,28 @@ class _PurchaseTimelineCard extends StatelessWidget {
     key: const Key('maintenance-purchase-timeline-entry'),
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: _lifecycleMist,
+      color: context.palette.mist,
       borderRadius: BorderRadius.circular(18),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '购买起点',
-          style: TextStyle(color: _lifecycleInk, fontWeight: FontWeight.w800),
+        Text(
+          context.l10n.purchaseStartingPoint,
+          style: TextStyle(
+            color: context.palette.ink,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const SizedBox(height: 4),
-        Text(_date(date), style: const TextStyle(color: _lifecycleIndigo)),
+        Text(
+          _date(context, date),
+          style: TextStyle(color: context.palette.primary),
+        ),
         const SizedBox(height: 4),
-        const Text(
-          '来自你在物品信息中填写的购买日期。',
-          style: TextStyle(color: _lifecycleMuted, height: 1.4),
+        Text(
+          context.l10n.purchaseStartingPointDescription,
+          style: TextStyle(color: context.palette.muted, height: 1.4),
         ),
       ],
     ),
@@ -394,13 +419,18 @@ class _RecordTimelineCard extends StatelessWidget {
           captureMaintenanceStepSnapshots(plan, record.completedStepIds)),
     ]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     final completedKnown = checklist.where((step) => step.completed).length;
+    final planState = record.planId == null
+        ? context.l10n.recordPlanUnlinked
+        : plan == null
+        ? context.l10n.recordPlanUnavailable
+        : null;
     return Container(
       key: ValueKey('maintenance-record-${record.id}'),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _lifecyclePaper,
+        color: context.palette.paper,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE3E9E2)),
+        border: Border.all(color: context.palette.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,23 +443,26 @@ class _RecordTimelineCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${record.kind}${record.planId == null
-                          ? ' · 未关联计划'
-                          : plan == null
-                          ? ' · 原计划不可用'
-                          : ''}',
+                      planState == null
+                          ? context.l10n.maintenancePlanTitleLabel(record.kind)
+                          : context.l10n.recordTitleWithPlanState(
+                              context.l10n.maintenancePlanTitleLabel(
+                                record.kind,
+                              ),
+                              planState,
+                            ),
                       key: ValueKey('record-plan-${record.id}'),
-                      style: const TextStyle(
-                        color: _lifecycleInk,
+                      style: TextStyle(
+                        color: context.palette.ink,
                         fontWeight: FontWeight.w800,
                         fontSize: 16,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      _date(record.completedAt),
-                      style: const TextStyle(
-                        color: _lifecycleIndigo,
+                      _date(context, record.completedAt),
+                      style: TextStyle(
+                        color: context.palette.primary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -438,46 +471,54 @@ class _RecordTimelineCard extends StatelessWidget {
               ),
               IconButton(
                 key: ValueKey('edit-maintenance-record-${record.id}'),
-                tooltip: '编辑记录',
+                tooltip: context.l10n.editRecordTooltip,
                 onPressed: busy ? null : onEdit,
                 icon: const Icon(Icons.edit_outlined),
               ),
               IconButton(
                 key: ValueKey('delete-maintenance-record-${record.id}'),
-                tooltip: '删除记录',
+                tooltip: context.l10n.deleteRecordTooltip,
                 onPressed: busy ? null : onDelete,
                 icon: busy
                     ? const SizedBox.square(
                         dimension: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.delete_outline, color: Colors.redAccent),
+                    : Icon(Icons.delete_outline, color: context.palette.danger),
               ),
             ],
           ),
-          const Divider(height: 20, color: Color(0xFFE8EDE7)),
-          _FactRow(label: '费用', value: '¥${_money(record.cost)}'),
+          Divider(height: 20, color: context.palette.divider),
           _FactRow(
-            label: '耗材',
-            value: record.materialName.isEmpty ? '未记录' : record.materialName,
+            label: context.l10n.recordExpense,
+            value: '¥${_money(record.cost)}',
           ),
           _FactRow(
-            label: '备注',
-            value: record.note.isEmpty ? '未记录' : record.note,
+            label: context.l10n.recordMaterial,
+            value: record.materialName.isEmpty
+                ? context.l10n.notRecorded
+                : record.materialName,
+          ),
+          _FactRow(
+            label: context.l10n.recordNotes,
+            value: record.note.isEmpty ? context.l10n.notRecorded : record.note,
           ),
           const SizedBox(height: 8),
           if (checklist.isEmpty)
             Text(
-              '步骤：未记录',
+              context.l10n.recordStepsMissing,
               key: ValueKey('record-steps-${record.id}'),
-              style: const TextStyle(color: _lifecycleMuted),
+              style: TextStyle(color: context.palette.muted),
             )
           else ...[
             Text(
-              '步骤：已完成 $completedKnown / ${checklist.length}',
+              context.l10n.recordStepsProgress(
+                completedKnown,
+                checklist.length,
+              ),
               key: ValueKey('record-steps-${record.id}'),
-              style: const TextStyle(
-                color: _lifecycleInk,
+              style: TextStyle(
+                color: context.palette.ink,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -487,22 +528,33 @@ class _RecordTimelineCard extends StatelessWidget {
               runSpacing: 6,
               children: checklist
                   .map(
-                    (step) =>
-                        _StepChip(title: step.title, completed: step.completed),
+                    (step) => _StepChip(
+                      title: context.l10n.maintenanceStepTitleLabel(step.title),
+                      completed: step.completed,
+                    ),
                   )
                   .toList(growable: false),
             ),
           ],
           const SizedBox(height: 12),
           if (record.beforePhotos.isEmpty && record.afterPhotos.isEmpty)
-            const Text('照片：未记录', style: TextStyle(color: _lifecycleMuted))
+            Text(
+              context.l10n.recordPhotosMissing,
+              style: TextStyle(color: context.palette.muted),
+            )
           else ...[
             if (record.beforePhotos.isNotEmpty)
-              _RecordPhotoStrip(title: '保养前', photos: record.beforePhotos),
+              _RecordPhotoStrip(
+                title: context.l10n.beforeLabel,
+                photos: record.beforePhotos,
+              ),
             if (record.beforePhotos.isNotEmpty && record.afterPhotos.isNotEmpty)
               const SizedBox(height: 10),
             if (record.afterPhotos.isNotEmpty)
-              _RecordPhotoStrip(title: '保养后', photos: record.afterPhotos),
+              _RecordPhotoStrip(
+                title: context.l10n.afterLabel,
+                photos: record.afterPhotos,
+              ),
           ],
         ],
       ),
@@ -526,13 +578,13 @@ class _FactRow extends StatelessWidget {
           width: 45,
           child: Text(
             label,
-            style: const TextStyle(color: _lifecycleMuted, fontSize: 13),
+            style: TextStyle(color: context.palette.muted, fontSize: 13),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(color: _lifecycleInk, height: 1.4),
+            style: TextStyle(color: context.palette.ink, height: 1.4),
           ),
         ),
       ],
@@ -551,7 +603,7 @@ class _StepChip extends StatelessWidget {
     constraints: const BoxConstraints(maxWidth: 240),
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
     decoration: BoxDecoration(
-      color: completed ? _lifecycleMist : const Color(0xFFF2F3EF),
+      color: completed ? context.palette.mist : context.palette.softSurface,
       borderRadius: BorderRadius.circular(99),
     ),
     child: Row(
@@ -560,14 +612,16 @@ class _StepChip extends StatelessWidget {
         Icon(
           completed ? Icons.check_circle_rounded : Icons.circle_outlined,
           size: 15,
-          color: completed ? _lifecycleIndigo : _lifecycleMuted,
+          color: completed ? context.palette.primary : context.palette.muted,
         ),
         const SizedBox(width: 4),
         Flexible(
           child: Text(
             title,
             style: TextStyle(
-              color: completed ? _lifecycleIndigo : _lifecycleMuted,
+              color: completed
+                  ? context.palette.primary
+                  : context.palette.muted,
               fontSize: 12,
             ),
           ),
@@ -588,9 +642,9 @@ class _RecordPhotoStrip extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(
-        '$title照片 · ${photos.length} 张',
-        style: const TextStyle(
-          color: _lifecycleInk,
+        context.l10n.recordPhotoGroup(title, photos.length),
+        style: TextStyle(
+          color: context.palette.ink,
           fontWeight: FontWeight.w700,
           fontSize: 13,
         ),
@@ -612,7 +666,7 @@ class _RecordPhotoStrip extends StatelessWidget {
               errorBuilder: (_, __, ___) => Container(
                 width: 92,
                 height: 78,
-                color: _lifecycleMist,
+                color: context.palette.mist,
                 child: const Icon(Icons.broken_image_outlined),
               ),
             ),
@@ -631,7 +685,8 @@ MaintenancePlan? _planFor(CareItem item, String? planId) {
   return null;
 }
 
-String _date(DateTime date) => '${date.year}年${date.month}月${date.day}日';
+String _date(BuildContext context, DateTime date) =>
+    context.l10n.dateYmd(date.year, date.month, date.day);
 
 String _money(double value) => value == value.roundToDouble()
     ? value.toStringAsFixed(0)

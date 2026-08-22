@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 
-const _alertPaper = Color(0xFFFFFEFA);
-const _alertInk = Color(0xFF263630);
-const _alertGreen = Color(0xFF137B67);
-const _alertRed = Color(0xFFB42318);
-const _alertDivider = Color(0xFFE2E9E2);
-const _alertScrim = Color(0x990F1714);
+import '../theme/app_theme.dart';
 
 enum AppAlertActionTone { standard, destructive }
 
@@ -36,7 +31,7 @@ Future<T?> showAppAlert<T>(
   assert(actions.isNotEmpty, 'An alert needs at least one action.');
   return showDialog<T>(
     context: context,
-    barrierColor: _alertScrim,
+    barrierColor: context.palette.scrim,
     barrierDismissible: barrierDismissible,
     builder: (dialogContext) => AppAlertDialog<T>(
       key: key,
@@ -72,9 +67,9 @@ class AppAlertDialog<T> extends StatelessWidget {
       explicitChildNodes: true,
       label: title,
       child: Dialog(
-        backgroundColor: _alertPaper,
+        backgroundColor: context.palette.paper,
         surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.black.withValues(alpha: 0.18),
+        shadowColor: context.palette.shadow,
         elevation: 14,
         insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
         clipBehavior: Clip.antiAlias,
@@ -100,8 +95,8 @@ class AppAlertDialog<T> extends StatelessWidget {
                       Text(
                         title,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: _alertInk,
+                        style: TextStyle(
+                          color: context.palette.ink,
                           fontSize: 20,
                           height: 1.25,
                           fontWeight: FontWeight.w700,
@@ -111,8 +106,8 @@ class AppAlertDialog<T> extends StatelessWidget {
                       Text(
                         message,
                         textAlign: messageAlign,
-                        style: const TextStyle(
-                          color: _alertInk,
+                        style: TextStyle(
+                          color: context.palette.ink,
                           fontSize: 16,
                           height: 1.5,
                           fontWeight: FontWeight.w400,
@@ -140,8 +135,8 @@ class _AppAlertActions<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     if (actions.length == 1) {
       return DecoratedBox(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: _alertDivider)),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: context.palette.divider)),
         ),
         child: _AppAlertActionButton<T>(action: actions.single),
       );
@@ -149,15 +144,18 @@ class _AppAlertActions<T> extends StatelessWidget {
 
     if (actions.length == 2) {
       return DecoratedBox(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: _alertDivider)),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: context.palette.divider)),
         ),
         child: IntrinsicHeight(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(child: _AppAlertActionButton<T>(action: actions[0])),
-              const SizedBox(width: 1, child: ColoredBox(color: _alertDivider)),
+              SizedBox(
+                width: 1,
+                child: ColoredBox(color: context.palette.divider),
+              ),
               Expanded(child: _AppAlertActionButton<T>(action: actions[1])),
             ],
           ),
@@ -171,8 +169,8 @@ class _AppAlertActions<T> extends StatelessWidget {
       children: [
         for (final action in actions)
           DecoratedBox(
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: _alertDivider)),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: context.palette.divider)),
             ),
             child: _AppAlertActionButton<T>(action: action),
           ),
@@ -189,8 +187,8 @@ class _AppAlertActionButton<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foreground = action.tone == AppAlertActionTone.destructive
-        ? _alertRed
-        : _alertGreen;
+        ? context.palette.dangerStrong
+        : context.palette.action;
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 60),
       child: TextButton(

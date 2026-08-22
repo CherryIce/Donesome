@@ -1,0 +1,4 @@
+"CFBundleDisplayName" = "Hearthio";
+"NSCameraUsageDescription" = "Use the camera to photograph items, manuals, warranty cards, and maintenance records.";
+"NSPhotoLibraryUsageDescription" = "Choose item, manual, warranty, or maintenance photos from your library.";
+"NSPhotoLibraryAddUsageDescription" = "Save and manage item and maintenance photos when you choose to do so.";

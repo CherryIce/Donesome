@@ -4,10 +4,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../l10n/app_localizations.dart';
+import '../l10n/l10n.dart';
+import '../l10n/maintenance_l10n.dart';
 import '../models/maintenance_calendar.dart';
 import '../models/maintenance_plan.dart';
 import '../models/maintenance_record.dart';
 import '../services/maintenance_history_controller.dart';
+import '../theme/app_theme.dart';
 import 'app_back_button.dart';
 import 'app_date_picker.dart';
 import 'app_safe_area.dart';
@@ -78,6 +82,7 @@ class _MaintenanceRecordEditorPageState
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final checklist = [
       ...(widget.record.stepSnapshots ??
           captureMaintenanceStepSnapshots(
@@ -88,7 +93,7 @@ class _MaintenanceRecordEditorPageState
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
-        title: const Text('编辑维护记录'),
+        title: Text(l10n.editMaintenanceRecord),
       ),
       body: Form(
         key: _form,
@@ -102,29 +107,32 @@ class _MaintenanceRecordEditorPageState
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFEAF1E9),
+                color: context.palette.mist,
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    '所属计划',
-                    style: TextStyle(color: Color(0xFF72817A)),
+                  Text(
+                    l10n.linkedPlan,
+                    style: TextStyle(color: context.palette.muted),
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '${widget.record.kind}${widget.plan == null && widget.record.planId != null ? '（原计划不可用）' : ''}',
+                    '${l10n.maintenancePlanTitleLabel(widget.record.kind)}${widget.plan == null && widget.record.planId != null ? l10n.originalPlanUnavailableSuffix : ''}',
                     key: const Key('record-editor-plan'),
-                    style: const TextStyle(
-                      color: Color(0xFF263630),
+                    style: TextStyle(
+                      color: context.palette.ink,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 5),
-                  const Text(
-                    '记录与原计划的关联不会在编辑时改变。',
-                    style: TextStyle(color: Color(0xFF72817A), fontSize: 12),
+                  Text(
+                    l10n.recordPlanLinkImmutable,
+                    style: TextStyle(
+                      color: context.palette.muted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -142,10 +150,10 @@ class _MaintenanceRecordEditorPageState
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              validator: _costValidator,
-              decoration: const InputDecoration(
-                labelText: '本次费用（元）',
-                helperText: '可留空，按 0 元记录',
+              validator: (value) => _costValidator(l10n, value),
+              decoration: InputDecoration(
+                labelText: l10n.recordCostLabel,
+                helperText: l10n.optionalZeroCostHint,
               ),
             ),
             const SizedBox(height: 12),
@@ -153,7 +161,7 @@ class _MaintenanceRecordEditorPageState
               key: const Key('record-editor-material'),
               controller: _material,
               enabled: !_saving,
-              decoration: const InputDecoration(labelText: '耗材名称 / 型号'),
+              decoration: InputDecoration(labelText: l10n.materialNameLabel),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -162,20 +170,20 @@ class _MaintenanceRecordEditorPageState
               enabled: !_saving,
               minLines: 3,
               maxLines: 8,
-              decoration: const InputDecoration(labelText: '备注'),
+              decoration: InputDecoration(labelText: l10n.notesLabel),
             ),
             const SizedBox(height: 20),
-            const Text(
-              '执行步骤',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            Text(
+              l10n.executionSteps,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
             if (checklist.isEmpty)
               Text(
                 _completedStepIds.isEmpty
-                    ? '这条记录没有步骤数据。'
-                    : '已保留 ${_completedStepIds.length} 个历史步骤标识；原步骤内容不可用。',
-                style: const TextStyle(color: Color(0xFF72817A)),
+                    ? l10n.recordHasNoSteps
+                    : l10n.historicalStepIdsOnly(_completedStepIds.length),
+                style: TextStyle(color: context.palette.muted),
               )
             else
               ...checklist.map(
@@ -184,7 +192,7 @@ class _MaintenanceRecordEditorPageState
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
                   value: _completedStepIds.contains(step.id),
-                  title: Text(step.title),
+                  title: Text(l10n.maintenanceStepTitleLabel(step.title)),
                   onChanged: _saving
                       ? null
                       : (selected) => setState(() {
@@ -198,7 +206,7 @@ class _MaintenanceRecordEditorPageState
               ),
             const SizedBox(height: 18),
             _EditableRecordPhotos(
-              title: '保养前照片',
+              title: l10n.beforePhotos,
               addKey: const Key('record-editor-add-before-photo'),
               photos: _beforePhotos,
               enabled: !_saving,
@@ -207,7 +215,7 @@ class _MaintenanceRecordEditorPageState
             ),
             const SizedBox(height: 18),
             _EditableRecordPhotos(
-              title: '保养后照片',
+              title: l10n.afterPhotos,
               addKey: const Key('record-editor-add-after-photo'),
               photos: _afterPhotos,
               enabled: !_saving,
@@ -235,7 +243,7 @@ class _MaintenanceRecordEditorPageState
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.save_outlined),
-              label: Text(_saving ? '正在保存…' : '保存记录'),
+              label: Text(_saving ? l10n.saving : l10n.saveRecord),
             ),
           ],
         ),
@@ -253,13 +261,13 @@ class _MaintenanceRecordEditorPageState
             ListTile(
               key: const Key('record-editor-photo-camera'),
               leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('拍照'),
+              title: Text(sheet.l10n.takePhoto),
               onTap: () => Navigator.pop(sheet, ImageSource.camera),
             ),
             ListTile(
               key: const Key('record-editor-photo-gallery'),
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('从相册选择'),
+              title: Text(sheet.l10n.chooseFromPhotos),
               onTap: () => Navigator.pop(sheet, ImageSource.gallery),
             ),
           ],
@@ -268,7 +276,12 @@ class _MaintenanceRecordEditorPageState
     );
     if (source == null || !mounted) return;
     final result = await widget.controller.importPhoto(source);
-    if (!mounted) return;
+    if (!mounted) {
+      if (result.path case final path?) {
+        await widget.controller.discardImportedPhoto(path);
+      }
+      return;
+    }
     final path = result.path;
     if (path != null) {
       setState(() {
@@ -285,8 +298,8 @@ class _MaintenanceRecordEditorPageState
       AppToast.show(
         context,
         source == ImageSource.camera
-            ? '无法打开相机，请检查相机权限后重试。'
-            : '无法读取照片，请检查照片权限后重试。',
+            ? context.l10n.cameraOpenFailed
+            : context.l10n.photoReadFailed,
         style: AppToastStyle.error,
       );
     }
@@ -332,10 +345,14 @@ class _MaintenanceRecordEditorPageState
       );
       _saved = true;
       if (mounted) Navigator.pop(context, true);
-    } on MaintenanceHistoryException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+    } on MaintenanceHistoryException {
+      if (mounted) {
+        setState(() => _error = context.l10n.maintenanceRecordSaveFailed);
+      }
     } catch (_) {
-      if (mounted) setState(() => _error = '维护记录未能保存，请重试。');
+      if (mounted) {
+        setState(() => _error = context.l10n.maintenanceRecordSaveFailed);
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -353,11 +370,11 @@ class _RecordDateField extends StatelessWidget {
     key: const Key('record-editor-date'),
     contentPadding: const EdgeInsets.symmetric(horizontal: 14),
     shape: RoundedRectangleBorder(
-      side: const BorderSide(color: Color(0xFFE2E9E2)),
+      side: BorderSide(color: context.palette.border),
       borderRadius: BorderRadius.circular(16),
     ),
-    title: const Text('实际完成日期'),
-    subtitle: Text(_date(value)),
+    title: Text(context.l10n.actualCompletionDate),
+    subtitle: Text(context.l10n.formatDate(value)),
     trailing: const Icon(Icons.calendar_today_outlined),
     onTap: () async {
       final today = maintenanceDateOnly(DateTime.now());
@@ -406,12 +423,15 @@ class _EditableRecordPhotos extends StatelessWidget {
             key: addKey,
             onPressed: enabled ? onAdd : null,
             icon: const Icon(Icons.add_a_photo_outlined),
-            label: const Text('添加'),
+            label: Text(context.l10n.commonAdd),
           ),
         ],
       ),
       if (photos.isEmpty)
-        const Text('未添加照片', style: TextStyle(color: Color(0xFF72817A)))
+        Text(
+          context.l10n.noPhotosAdded,
+          style: TextStyle(color: context.palette.muted),
+        )
       else
         SizedBox(
           height: 92,
@@ -433,7 +453,7 @@ class _EditableRecordPhotos extends StatelessWidget {
                       errorBuilder: (_, __, ___) => Container(
                         width: 104,
                         height: 92,
-                        color: const Color(0xFFEAF1E9),
+                        color: context.palette.mist,
                         child: const Icon(Icons.broken_image_outlined),
                       ),
                     ),
@@ -443,7 +463,7 @@ class _EditableRecordPhotos extends StatelessWidget {
                     right: 3,
                     child: IconButton.filled(
                       visualDensity: VisualDensity.compact,
-                      tooltip: '移除照片',
+                      tooltip: context.l10n.removePhoto,
                       onPressed: enabled ? () => onRemove(path) : null,
                       icon: const Icon(Icons.close_rounded, size: 16),
                     ),
@@ -457,17 +477,15 @@ class _EditableRecordPhotos extends StatelessWidget {
   );
 }
 
-String? _costValidator(String? value) {
+String? _costValidator(AppLocalizations l10n, String? value) {
   final text = value?.trim() ?? '';
   if (text.isEmpty) return null;
   final number = double.tryParse(text);
   if (number == null || !number.isFinite || number < 0) {
-    return '请输入大于或等于 0 的金额';
+    return l10n.validationNonNegativeAmount;
   }
   return null;
 }
-
-String _date(DateTime date) => '${date.year}年${date.month}月${date.day}日';
 
 String _money(double value) => value == value.roundToDouble()
     ? value.toStringAsFixed(0)

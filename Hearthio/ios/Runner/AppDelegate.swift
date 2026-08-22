@@ -4,20 +4,26 @@ import Photos
 import UIKit
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterPluginRegistrant {
   private var systemPermissionService: SystemPermissionService?
 
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    GeneratedPluginRegistrant.register(with: self)
-    if let registrar = registrar(forPlugin: "HearthioSystemPermissionService") {
+    pluginRegistrant = self
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  func register(with registry: FlutterPluginRegistry) {
+    GeneratedPluginRegistrant.register(with: registry)
+    if let registrar = registry.registrar(
+      forPlugin: "HearthioSystemPermissionService"
+    ) {
       systemPermissionService = SystemPermissionService(
         messenger: registrar.messenger()
       )
     }
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
 

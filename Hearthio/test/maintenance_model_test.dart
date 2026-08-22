@@ -338,7 +338,9 @@ void main() {
       photos: const [],
       plans: [filter, deepClean],
     );
-    final store = CareStore()..items = [item];
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences))
+      ..items = [item];
 
     await store.addRecord(
       item,
@@ -384,7 +386,9 @@ void main() {
         ),
       ],
     );
-    final store = CareStore()..items = [item];
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences))
+      ..items = [item];
 
     await store.addRecord(
       item,

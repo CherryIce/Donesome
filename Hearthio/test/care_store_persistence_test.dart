@@ -34,6 +34,35 @@ class _BlockingCareRepository extends CareRepository {
   }
 }
 
+class _BlockingLoadCareRepository extends CareRepository {
+  _BlockingLoadCareRepository(super.preferences, this.loadedItem);
+
+  final CareItem loadedItem;
+  final loadStarted = Completer<void>();
+  final releaseLoad = Completer<void>();
+  final snapshots = <String>[];
+
+  @override
+  Future<CareDataLoadResult> load({
+    required List<CareItem> initialItems,
+  }) async {
+    loadStarted.complete();
+    await releaseLoad.future;
+    return CareDataLoadResult(
+      items: [loadedItem],
+      spaces: const [],
+      migratedLegacyData: false,
+      seededInitialData: false,
+    );
+  }
+
+  @override
+  Future<void> writeEncodedSnapshot(String snapshot) async {
+    CareDataEnvelope.decode(snapshot);
+    snapshots.add(snapshot);
+  }
+}
+
 CareItem _item({
   String id = 'purifier',
   String name = '净水器',
@@ -62,6 +91,41 @@ CareItem _item({
 );
 
 void main() {
+  test('startup load and edits share the same data mutation queue', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final repository = _BlockingLoadCareRepository(
+      preferences,
+      _item(id: 'from-disk', name: '已有物品'),
+    );
+    final store = CareStore(
+      repository: repository,
+      notificationScheduler: (_, __) async {},
+    );
+
+    final load = store.load();
+    await repository.loadStarted.future;
+    var saveCompleted = false;
+    final save = store
+        .save(_item(id: 'during-load', name: '加载时新增'))
+        .then((_) => saveCompleted = true);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(saveCompleted, isFalse);
+    repository.releaseLoad.complete();
+    await Future.wait([load, save]);
+
+    expect(
+      store.items.map((item) => item.id),
+      unorderedEquals(['from-disk', 'during-load']),
+    );
+    final persisted = CareDataEnvelope.decode(repository.snapshots.last);
+    expect(
+      persisted.items.map((item) => item.id),
+      unorderedEquals(['from-disk', 'during-load']),
+    );
+  });
+
   test(
     'ordinary save publishes and cleans photos only after persistence',
     () async {

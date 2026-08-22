@@ -247,7 +247,7 @@ void main() {
       findsNothing,
     );
     expect(find.text('物品明细'), findsOneWidget);
-    expect(find.text('家电'), findsNothing);
+    expect(find.text('家用电器'), findsNothing);
 
     await tester.tap(
       find.byKey(const Key('maintenance-report-group-by-category')),
@@ -263,7 +263,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('类别汇总'), findsOneWidget);
-    expect(find.text('家电'), findsOneWidget);
+    expect(find.text('家用电器'), findsOneWidget);
     expect(find.text('厨卫'), findsOneWidget);
     expect(find.text('客厅空调'), findsNothing);
     expect(find.text('厨房净水器'), findsNothing);

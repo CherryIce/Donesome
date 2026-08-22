@@ -31,6 +31,25 @@ DateTime? maintenanceReminderDateForPlan(
       addMaintenanceDays(dueDate, -plan.reminderLeadDays);
 }
 
+bool shouldScheduleMaintenanceNotification(
+  MaintenancePlan plan, {
+  DateTime? now,
+}) {
+  final dueDate = plan.dueDate;
+  if (dueDate == null ||
+      maintenanceReminderDateForPlan(plan, now: now) == null) {
+    return false;
+  }
+  final today = maintenanceDateOnly(now ?? DateTime.now());
+  final dueDay = maintenanceDateOnly(dueDate);
+  if (!dueDay.isBefore(today)) return true;
+
+  // An overdue plan normally should not create a fresh notification on every
+  // app launch. A still-active one-off deferral is different: when its chosen
+  // day arrives, it must be delivered even though the original due date passed.
+  return validMaintenanceDeferralDate(plan.deferredUntil, now: today) != null;
+}
+
 MaintenancePlan clearExpiredMaintenanceDeferral(
   MaintenancePlan plan, {
   DateTime? now,

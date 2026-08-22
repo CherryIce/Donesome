@@ -21,6 +21,11 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:url_launcher/url_launcher.dart';
 
+import 'app/locale_controller.dart';
+import 'l10n/app_localizations.dart';
+import 'l10n/catalog_l10n.dart';
+import 'l10n/l10n.dart';
+import 'l10n/maintenance_l10n.dart';
 import 'models/care_item.dart';
 import 'models/care_space.dart';
 import 'models/maintenance_completion.dart';
@@ -38,6 +43,7 @@ import 'services/care_repository.dart';
 import 'services/maintenance_execution_controller.dart';
 import 'services/maintenance_history_controller.dart';
 import 'services/system_permission_service.dart';
+import 'theme/app_theme.dart';
 import 'widgets/app_alert.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/app_date_picker.dart';
@@ -78,14 +84,6 @@ export 'widgets/maintenance_record_editor.dart';
 export 'widgets/maintenance_report_page.dart';
 export 'widgets/maintenance_task_card.dart';
 
-const _indigo = Color(0xFF31584B);
-const _amber = Color(0xFFE59A72);
-const _canvas = Color(0xFFF7F8F3);
-const _paper = Color(0xFFFFFEFA);
-const _mist = Color(0xFFEAF1E9);
-const _ink = Color(0xFF263630);
-const _muted = Color(0xFF72817A);
-
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const HearthioApp());
@@ -111,100 +109,69 @@ Future<void> _refreshDeviceTimeZone() {
   return refresh;
 }
 
-class HearthioApp extends StatelessWidget {
-  const HearthioApp({super.key});
+class HearthioApp extends StatefulWidget {
+  const HearthioApp({super.key, this.localeController});
+
+  final AppLocaleController? localeController;
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: '家务志 · Hearthio',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: _indigo,
-        brightness: Brightness.light,
-        surface: _paper,
-      ),
-      scaffoldBackgroundColor: _canvas,
-      appBarTheme: const AppBarTheme(
-        centerTitle: false,
-        backgroundColor: _canvas,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        titleTextStyle: TextStyle(
-          color: _ink,
-          fontSize: 20,
-          fontWeight: FontWeight.w800,
-        ),
-        iconTheme: IconThemeData(color: _ink),
-      ),
-      cardTheme: const CardThemeData(
-        color: Colors.transparent,
-        elevation: 0,
-        margin: EdgeInsets.zero,
-        surfaceTintColor: Colors.transparent,
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: _paper,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
-        ),
-        labelStyle: const TextStyle(color: _muted),
-        hintStyle: const TextStyle(color: Color(0xFF9AA6A0)),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: Color(0xFFE6EBE4)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: _indigo, width: 1.4),
-        ),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: _indigo,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+  State<HearthioApp> createState() => _HearthioAppState();
+}
+
+class _HearthioAppState extends State<HearthioApp> {
+  late AppLocaleController _localeController;
+  late bool _ownsLocaleController;
+
+  @override
+  void initState() {
+    super.initState();
+    _setLocaleController(widget.localeController);
+  }
+
+  @override
+  void didUpdateWidget(HearthioApp oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.localeController == widget.localeController) return;
+    if (_ownsLocaleController) _localeController.dispose();
+    _setLocaleController(widget.localeController);
+  }
+
+  void _setLocaleController(AppLocaleController? controller) {
+    _ownsLocaleController = controller == null;
+    _localeController = controller ?? AppLocaleController();
+    if (_ownsLocaleController) unawaited(_localeController.load());
+  }
+
+  @override
+  void dispose() {
+    if (_ownsLocaleController) _localeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _localeController,
+    builder: (context, _) => MaterialApp(
+      debugShowCheckedModeBanner: false,
+      locale: _localeController.locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localeResolutionCallback: (preferred, _) =>
+          resolveSupportedAppLocale(preferred),
+      onGenerateTitle: (context) => context.l10n.appTitle,
+      theme: HearthioTheme.light,
+      darkTheme: HearthioTheme.dark,
+      themeMode: ThemeMode.system,
+      builder: (context, child) => AppLocaleScope(
+        controller: _localeController,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+          child: child ?? const SizedBox.shrink(),
         ),
       ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          side: const BorderSide(color: Color(0xFFDCE5DC)),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-        ),
-      ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: _paper,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-      ),
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: _paper,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-      ),
+      home: const AppEntry(),
     ),
-    builder: (context, child) => GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: child ?? const SizedBox.shrink(),
-    ),
-    home: const AppEntry(),
   );
 }
 
@@ -247,7 +214,7 @@ class _AppEntryState extends State<AppEntry> {
   @override
   Widget build(BuildContext context) {
     if (_onboardingSeen == null) {
-      return const Scaffold(backgroundColor: _canvas);
+      return Scaffold(backgroundColor: context.palette.canvas);
     }
     return _onboardingSeen!
         ? const HomePage()
@@ -266,22 +233,10 @@ class OnboardingPage extends StatefulWidget {
 class _OnboardingPageState extends State<OnboardingPage> {
   final _controller = PageController();
   int _page = 0;
-  static const _pages = [
-    (
-      image: 'assets/onboarding/archive.png',
-      title: '先给家里的物品建档',
-      body: '添加名称、位置和保养周期，随时找到每一件物品。',
-    ),
-    (
-      image: 'assets/onboarding/proof.png',
-      title: '拍下凭证，留住细节',
-      body: '拍摄或选择说明书、保修卡和维修照片，都只保存在本机。',
-    ),
-    (
-      image: 'assets/onboarding/calendar.png',
-      title: '日历提醒，按时照料',
-      body: '在保养日程中查看待办，到期前可收到本机提醒。',
-    ),
+  static const _images = [
+    'assets/onboarding/archive.png',
+    'assets/onboarding/proof.png',
+    'assets/onboarding/calendar.png',
   ];
 
   @override
@@ -291,7 +246,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   Future<void> _next() async {
-    if (_page == _pages.length - 1) {
+    if (_page == _images.length - 1) {
       await widget.onFinished();
     } else {
       await _controller.nextPage(
@@ -302,100 +257,115 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: _canvas,
-    body: SafeArea(
-      child: Column(
-        children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: widget.onFinished,
-              child: const Text('跳过', style: TextStyle(color: _muted)),
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final pages = [
+      (title: l10n.onboardingArchiveTitle, body: l10n.onboardingArchiveBody),
+      (title: l10n.onboardingEvidenceTitle, body: l10n.onboardingEvidenceBody),
+      (title: l10n.onboardingReminderTitle, body: l10n.onboardingReminderBody),
+    ];
+    return Scaffold(
+      backgroundColor: context.palette.canvas,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: widget.onFinished,
+                child: Text(
+                  l10n.onboardingSkip,
+                  style: TextStyle(color: context.palette.muted),
+                ),
+              ),
             ),
-          ),
-          Expanded(
-            child: PageView.builder(
-              controller: _controller,
-              itemCount: _pages.length,
-              onPageChanged: (index) => setState(() => _page = index),
-              itemBuilder: (context, index) {
-                final page = _pages[index];
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(28, 4, 28, 12),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: RepaintBoundary(
-                          child: Image.asset(
-                            page.image,
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.low,
-                            cacheWidth: 1000,
+            Expanded(
+              child: PageView.builder(
+                controller: _controller,
+                itemCount: pages.length,
+                onPageChanged: (index) => setState(() => _page = index),
+                itemBuilder: (context, index) {
+                  final page = pages[index];
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(28, 4, 28, 12),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: RepaintBoundary(
+                            child: Image.asset(
+                              _images[index],
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.low,
+                              cacheWidth: 1000,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        page.title,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: _ink,
-                          fontSize: 26,
-                          letterSpacing: -.5,
-                          fontWeight: FontWeight.w800,
+                        const SizedBox(height: 20),
+                        Text(
+                          page.title,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: context.palette.ink,
+                            fontSize: 26,
+                            letterSpacing: -.5,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        page.body,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: _muted,
-                          height: 1.5,
-                          fontSize: 15,
+                        const SizedBox(height: 10),
+                        Text(
+                          page.body,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: context.palette.muted,
+                            height: 1.5,
+                            fontSize: 15,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                );
-              },
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(28, 4, 28, 28),
-            child: Row(
-              children: [
-                Row(
-                  children: List.generate(
-                    _pages.length,
-                    (index) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      width: _page == index ? 23 : 7,
-                      height: 7,
-                      margin: const EdgeInsets.only(right: 6),
-                      decoration: BoxDecoration(
-                        color: _page == index
-                            ? _indigo
-                            : const Color(0xFFC9D4CB),
-                        borderRadius: BorderRadius.circular(8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(28, 4, 28, 28),
+              child: Row(
+                children: [
+                  Row(
+                    children: List.generate(
+                      pages.length,
+                      (index) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: _page == index ? 23 : 7,
+                        height: 7,
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(
+                          color: _page == index
+                              ? context.palette.primary
+                              : context.palette.disabled,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: _next,
-                  child: Text(_page == _pages.length - 1 ? '开始整理' : '下一步'),
-                ),
-              ],
+                  const Spacer(),
+                  FilledButton(
+                    onPressed: _next,
+                    child: Text(
+                      _page == pages.length - 1
+                          ? l10n.onboardingStart
+                          : l10n.onboardingNext,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class BreezeSurface extends StatelessWidget {
@@ -416,9 +386,9 @@ class BreezeSurface extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: padding,
     decoration: BoxDecoration(
-      color: color ?? _paper,
+      color: color ?? context.palette.paper,
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: const Color(0xFFE7ECE5)),
+      border: Border.all(color: context.palette.border),
     ),
     child: child,
   );
@@ -447,8 +417,8 @@ class BreezeHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: _ink,
+                style: TextStyle(
+                  color: context.palette.ink,
                   fontSize: 28,
                   height: 1.1,
                   fontWeight: FontWeight.w800,
@@ -458,7 +428,7 @@ class BreezeHeader extends StatelessWidget {
               const SizedBox(height: 7),
               Text(
                 subtitle,
-                style: const TextStyle(color: _muted, fontSize: 13),
+                style: TextStyle(color: context.palette.muted, fontSize: 13),
               ),
             ],
           ),
@@ -477,73 +447,91 @@ class AppBottomDock extends StatelessWidget {
   });
   final int selected;
   final ValueChanged<int> onSelect;
-  static const _items = [
-    (Icons.home_outlined, Icons.home_rounded, '首页'),
-    (Icons.grid_view_rounded, Icons.inventory_2_rounded, '物品'),
-    (Icons.calendar_month_outlined, Icons.calendar_month_rounded, '日程'),
-    (Icons.auto_graph_rounded, Icons.auto_graph_rounded, '报告'),
-    (Icons.tune_rounded, Icons.tune_rounded, '设置'),
-  ];
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
-    minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-    child: Container(
-      height: 66,
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
-      decoration: BoxDecoration(
-        color: _paper,
-        borderRadius: BorderRadius.circular(23),
-        border: Border.all(color: const Color(0xFFE2E9E1)),
+  Widget build(BuildContext context) {
+    final items = [
+      (Icons.home_outlined, Icons.home_rounded, context.l10n.homeTab),
+      (
+        Icons.grid_view_rounded,
+        Icons.inventory_2_rounded,
+        context.l10n.itemsTab,
       ),
-      child: Row(
-        children: List.generate(_items.length, (index) {
-          final item = _items[index];
-          final active = selected == index;
-          return Expanded(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                key: ValueKey('bottom-tab-$index'),
-                borderRadius: BorderRadius.circular(17),
-                onTap: () => onSelect(index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  decoration: BoxDecoration(
-                    color: active ? _mist : Colors.transparent,
-                    borderRadius: BorderRadius.circular(17),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        active ? item.$2 : item.$1,
-                        size: 20,
-                        color: active ? _indigo : _muted,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.$3,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: active
-                              ? FontWeight.w800
-                              : FontWeight.w500,
-                          color: active ? _indigo : _muted,
+      (
+        Icons.calendar_month_outlined,
+        Icons.calendar_month_rounded,
+        context.l10n.scheduleTab,
+      ),
+      (
+        Icons.auto_graph_rounded,
+        Icons.auto_graph_rounded,
+        context.l10n.reportTab,
+      ),
+      (Icons.tune_rounded, Icons.tune_rounded, context.l10n.settingsTab),
+    ];
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Container(
+        height: 66,
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+        decoration: BoxDecoration(
+          color: context.palette.paper,
+          borderRadius: BorderRadius.circular(23),
+          border: Border.all(color: context.palette.border),
+        ),
+        child: Row(
+          children: List.generate(items.length, (index) {
+            final item = items[index];
+            final active = selected == index;
+            return Expanded(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  key: ValueKey('bottom-tab-$index'),
+                  borderRadius: BorderRadius.circular(17),
+                  onTap: () => onSelect(index),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    decoration: BoxDecoration(
+                      color: active ? context.palette.mist : Colors.transparent,
+                      borderRadius: BorderRadius.circular(17),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          active ? item.$2 : item.$1,
+                          size: 20,
+                          color: active
+                              ? context.palette.primary
+                              : context.palette.muted,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 3),
+                        Text(
+                          item.$3,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: active
+                                ? FontWeight.w800
+                                : FontWeight.w500,
+                            color: active
+                                ? context.palette.primary
+                                : context.palette.muted,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class AddItemButton extends StatelessWidget {
@@ -559,18 +547,18 @@ class AddItemButton extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         decoration: BoxDecoration(
-          color: _indigo,
+          color: context.palette.primary,
           borderRadius: BorderRadius.circular(22),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.add_rounded, color: Colors.white),
-            SizedBox(width: 7),
+            Icon(Icons.add_rounded, color: context.palette.onPrimary),
+            const SizedBox(width: 7),
             Text(
-              '添加物品',
+              context.l10n.addItem,
               style: TextStyle(
-                color: Colors.white,
+                color: context.palette.onPrimary,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -588,18 +576,20 @@ class SettingRow extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.tone = _indigo,
+    this.tone,
   });
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
-  final Color tone;
+  final Color? tone;
 
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null;
-    final effectiveTone = enabled ? tone : _muted;
+    final effectiveTone = enabled
+        ? tone ?? context.palette.primary
+        : context.palette.muted;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -626,21 +616,28 @@ class SettingRow extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        color: enabled ? _ink : _muted,
+                        color: enabled
+                            ? context.palette.ink
+                            : context.palette.muted,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       subtitle,
-                      style: const TextStyle(color: _muted, fontSize: 12),
+                      style: TextStyle(
+                        color: context.palette.muted,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: enabled ? _muted : _muted.withValues(alpha: .45),
+                color: enabled
+                    ? context.palette.muted
+                    : context.palette.muted.withValues(alpha: .45),
               ),
             ],
           ),
@@ -677,10 +674,10 @@ class PhotoSourceRow extends StatelessWidget {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: _mist,
+                color: context.palette.mist,
                 borderRadius: BorderRadius.circular(15),
               ),
-              child: Icon(icon, color: _indigo),
+              child: Icon(icon, color: context.palette.primary),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -689,22 +686,25 @@ class PhotoSourceRow extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: _ink,
+                    style: TextStyle(
+                      color: context.palette.ink,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: _muted, fontSize: 12),
+                    style: TextStyle(
+                      color: context.palette.muted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.arrow_forward_ios_rounded,
-              color: _muted,
+              color: context.palette.muted,
               size: 15,
             ),
           ],
@@ -718,6 +718,7 @@ enum NotificationAccess { notDetermined, enabled, denied, unavailable }
 
 typedef CareNotificationScheduler =
     Future<void> Function(CareItem item, CareItem? previous);
+typedef CareNotificationAccessResolver = Future<NotificationAccess> Function();
 typedef CareBackupPicker = Future<String?> Function();
 typedef CareDocumentsDirectoryProvider = Future<Directory> Function();
 typedef CareImagePicker = Future<XFile?> Function(ImageSource source);
@@ -769,25 +770,29 @@ NotificationAccess notificationAccessFrom({
 Future<bool> _showNotificationPrimer(BuildContext context) async =>
     await showAppAlert<bool>(
       context,
-      title: '开启保养提醒？',
-      message:
-          '开启后，家务志会按每个计划设置的提前天数发送本地通知。\n\n不授权不会影响物品和保养计划保存，你也可以稍后在“设置”中开启。',
-      actions: const [
-        AppAlertAction(label: '暂不开启', result: false),
-        AppAlertAction(label: '开启通知', result: true, isDefaultAction: true),
+      title: context.l10n.notificationPrimerTitle,
+      message: context.l10n.notificationPrimerMessage,
+      actions: [
+        AppAlertAction(label: context.l10n.notificationNotNow, result: false),
+        AppAlertAction(
+          label: context.l10n.notificationEnable,
+          result: true,
+          isDefaultAction: true,
+        ),
       ],
     ) ??
     false;
 
-String _date(DateTime? date) =>
-    date == null ? '未设置' : '${date.year}年${date.month}月${date.day}日';
+String _localizedDate(BuildContext context, DateTime? date) => date == null
+    ? context.l10n.dateNotSet
+    : context.l10n.dateYmd(date.year, date.month, date.day);
 
-String? _nonNegativeNumber(String? value) {
+String? _nonNegativeNumber(BuildContext context, String? value) {
   final text = value?.trim() ?? '';
   if (text.isEmpty) return null;
   final number = double.tryParse(text);
   if (number == null || !number.isFinite || number < 0) {
-    return '请输入大于或等于 0 的金额';
+    return context.l10n.validationNonNegativeAmount;
   }
   return null;
 }
@@ -809,41 +814,45 @@ Future<void> _deferMaintenanceTask(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '稍后提醒',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          Text(
+            sheet.l10n.deferTitle,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 5),
           Text(
-            '${task.item.name} · ${task.plan.title}\n原到期日 ${_date(task.dueDate)}，稍后提醒不会改变真实到期状态。',
-            style: const TextStyle(color: _muted, height: 1.45),
+            sheet.l10n.deferTaskDescription(
+              _itemDisplayName(sheet, task.item),
+              sheet.l10n.maintenancePlanTitleLabel(task.plan.title),
+              _localizedDate(sheet, task.dueDate),
+            ),
+            style: TextStyle(color: sheet.palette.muted, height: 1.45),
           ),
           const SizedBox(height: 12),
           ListTile(
             key: const Key('defer-until-tomorrow'),
             leading: const Icon(Icons.wb_sunny_outlined),
-            title: const Text('明天'),
-            subtitle: Text(_date(tomorrow)),
+            title: Text(sheet.l10n.tomorrow),
+            subtitle: Text(_localizedDate(sheet, tomorrow)),
             onTap: () => Navigator.pop(sheet, tomorrow),
           ),
           ListTile(
             key: const Key('defer-until-three-days'),
             leading: const Icon(Icons.calendar_view_day_outlined),
-            title: const Text('3 天后'),
-            subtitle: Text(_date(addMaintenanceDays(today, 3))),
+            title: Text(sheet.l10n.inThreeDays),
+            subtitle: Text(_localizedDate(sheet, addMaintenanceDays(today, 3))),
             onTap: () => Navigator.pop(sheet, addMaintenanceDays(today, 3)),
           ),
           ListTile(
             key: const Key('defer-until-next-week'),
             leading: const Icon(Icons.date_range_outlined),
-            title: const Text('下周'),
-            subtitle: Text(_date(addMaintenanceDays(today, 7))),
+            title: Text(sheet.l10n.nextWeek),
+            subtitle: Text(_localizedDate(sheet, addMaintenanceDays(today, 7))),
             onTap: () => Navigator.pop(sheet, addMaintenanceDays(today, 7)),
           ),
           ListTile(
             key: const Key('defer-until-custom'),
             leading: const Icon(Icons.edit_calendar_outlined),
-            title: const Text('自定义日期'),
+            title: Text(sheet.l10n.customDate),
             onTap: () async {
               final selected = await showAppDatePicker(
                 context: sheet,
@@ -865,7 +874,11 @@ Future<void> _deferMaintenanceTask(
     await store.deferPlan(task.item, task.plan.id, deferredUntil);
   } catch (_) {
     if (context.mounted) {
-      AppToast.show(context, '稍后提醒设置失败，请重试。', style: AppToastStyle.error);
+      AppToast.show(
+        context,
+        context.l10n.deferFailed,
+        style: AppToastStyle.error,
+      );
     }
   }
 }
@@ -914,12 +927,14 @@ class CareStore extends ChangeNotifier
   CareStore({
     CareRepository? repository,
     CareNotificationScheduler? notificationScheduler,
+    CareNotificationAccessResolver? notificationAccessResolver,
     CareBackupPicker? backupPicker,
     CareDocumentsDirectoryProvider? documentsDirectoryProvider,
     SystemPermissionGuard? systemPermissions,
     CareImagePicker? imagePicker,
   }) : _repository = repository,
        _notificationScheduler = notificationScheduler,
+       _notificationAccessResolver = notificationAccessResolver,
        _backupPicker = backupPicker ?? _pickCareBackup,
        _documentsDirectoryProvider =
            documentsDirectoryProvider ?? getApplicationDocumentsDirectory,
@@ -929,11 +944,13 @@ class CareStore extends ChangeNotifier
        _imagePicker = imagePicker ?? _pickCareImage;
 
   final _notifications = FlutterLocalNotificationsPlugin();
+  AppLocalizations _localizations = lookupAppLocalizations(const Locale('zh'));
   Future<void>? _notificationsReady;
   Future<void> _notificationMutationTail = Future.value();
   Future<void> _persistenceTail = Future.value();
   CareRepository? _repository;
   final CareNotificationScheduler? _notificationScheduler;
+  final CareNotificationAccessResolver? _notificationAccessResolver;
   final CareBackupPicker _backupPicker;
   final CareDocumentsDirectoryProvider _documentsDirectoryProvider;
   final SystemPermissionGuard _systemPermissions;
@@ -952,6 +969,12 @@ class CareStore extends ChangeNotifier
   bool get isDataReadOnly => _writesBlocked;
   bool get isRestoringBackup => _restoreOperation != null;
 
+  void updateLocalizations(AppLocalizations value) {
+    if (_localizations.localeName == value.localeName) return;
+    _localizations = value;
+    if (loaded) unawaited(_rescheduleRemindersIfAuthorized());
+  }
+
   CareSpace? spaceById(String? id) {
     if (id == null) return null;
     for (final space in spaces) {
@@ -962,12 +985,14 @@ class CareStore extends ChangeNotifier
 
   String? spaceNameFor(CareItem item) => spaceById(item.spaceId)?.name;
 
-  String locationLabelFor(CareItem item) {
+  String locationLabelFor(CareItem item, [AppLocalizations? localizations]) {
     final room = spaceNameFor(item)?.trim() ?? '';
     final detail = item.locationDetail.trim();
     if (room.isNotEmpty && detail.isNotEmpty) return '$room · $detail';
     if (room.isNotEmpty) return room;
-    if (detail.isNotEmpty) return '未设置空间 · $detail';
+    if (detail.isNotEmpty) {
+      return '${localizations?.unassignedSpace ?? _localizations.unassignedSpace} · $detail';
+    }
     return item.location.trim();
   }
 
@@ -1006,7 +1031,9 @@ class CareStore extends ChangeNotifier
   Future<void> _ensureNotificationsReady() =>
       _notificationsReady ??= _initializeNotifications().catchError((_) {});
 
-  Future<void> load() async {
+  Future<void> load() => _serializeDataMutation(_load);
+
+  Future<void> _load() async {
     try {
       final repository = await _openRepository();
       final result = await repository.load(initialItems: [_newExampleItem()]);
@@ -1530,14 +1557,15 @@ class CareStore extends ChangeNotifier
     CareItem? previous,
   }) async {
     try {
-      if (_notificationScheduler == null &&
-          await notificationAccess() != NotificationAccess.enabled) {
-        return false;
-      }
-      await _serializeNotificationMutation(
-        () => _scheduleItem(item, previous: previous),
-      );
-      return true;
+      return await _serializeNotificationMutation(() async {
+        if ((_notificationScheduler == null ||
+                _notificationAccessResolver != null) &&
+            await notificationAccess() != NotificationAccess.enabled) {
+          return false;
+        }
+        await _scheduleItem(item, previous: previous);
+        return true;
+      });
     } catch (_) {
       return false;
     }
@@ -1608,28 +1636,51 @@ class CareStore extends ChangeNotifier
   Future<void> discardImportedPhoto(String path) => _deletePhoto(path);
 
   Future<void> exportCSV(BuildContext context) async {
+    final l10n = context.l10n;
     String cell(String text) => '"${text.replaceAll('"', '""')}"';
     final rows = <String>[
-      '名称,类别,位置,品牌,型号,购买日期,保修截止,下次保养,购买价,当前估值,维护记录数,累计维护费用,备注',
+      [
+        l10n.csvHeaderName,
+        l10n.csvHeaderCategory,
+        l10n.csvHeaderLocation,
+        l10n.csvHeaderBrand,
+        l10n.csvHeaderModel,
+        l10n.csvHeaderPurchaseDate,
+        l10n.csvHeaderWarrantyEnd,
+        l10n.csvHeaderNextMaintenance,
+        l10n.csvHeaderPurchasePrice,
+        l10n.csvHeaderCurrentValue,
+        l10n.csvHeaderMaintenanceRecords,
+        l10n.csvHeaderTotalMaintenanceCost,
+        l10n.csvHeaderNotes,
+      ].map(cell).join(','),
     ];
     for (final item in items) {
       rows.add(
         [
-          item.name,
-          item.category,
-          locationLabelFor(item),
+          l10n.itemNameLabel(
+            id: item.id,
+            isSample: item.isSample,
+            name: item.name,
+          ),
+          l10n.itemCategoryLabel(item.category),
+          locationLabelFor(item, l10n),
           item.brand,
           item.model,
-          _date(item.purchaseDate),
-          _date(item.warrantyDate),
-          _date(item.nextCareDate),
+          item.purchaseDate == null ? '' : l10n.formatDate(item.purchaseDate!),
+          item.warrantyDate == null ? '' : l10n.formatDate(item.warrantyDate!),
+          item.nextCareDate == null ? '' : l10n.formatDate(item.nextCareDate!),
           item.purchasePrice?.toStringAsFixed(2) ?? '',
           item.currentValue?.toStringAsFixed(2) ?? '',
           item.records.length.toString(),
           item.records
               .fold<double>(0, (sum, record) => sum + record.cost)
               .toStringAsFixed(2),
-          item.notes,
+          l10n.itemNotesLabel(
+            id: item.id,
+            isSample: item.isSample,
+            notes: item.notes,
+          ),
         ].map(cell).join(','),
       );
     }
@@ -1643,7 +1694,7 @@ class CareStore extends ChangeNotifier
     await file.writeAsString('\uFEFF${rows.join('\n')}');
     if (context.mounted) {
       await SharePlus.instance.share(
-        ShareParams(files: [XFile(file.path)], title: '家庭物品保养册数据导出'),
+        ShareParams(files: [XFile(file.path)], title: l10n.csvExportShareTitle),
       );
     }
   }
@@ -1669,11 +1720,11 @@ class CareStore extends ChangeNotifier
           ShareParams(files: [XFile(file.path)], title: 'Hearthio backup'),
         );
       }
-    } on CareBackupException catch (error) {
+    } on CareBackupException {
       if (context.mounted) {
         AppToast.show(
           context,
-          '完整备份未导出：${error.message}',
+          context.l10n.backupExportFailed,
           style: AppToastStyle.error,
         );
       }
@@ -1681,7 +1732,7 @@ class CareStore extends ChangeNotifier
       if (context.mounted) {
         AppToast.show(
           context,
-          '完整备份未导出，请检查设备存储后重试。',
+          context.l10n.backupExportFailed,
           style: AppToastStyle.error,
         );
       }
@@ -1810,6 +1861,8 @@ class CareStore extends ChangeNotifier
   }
 
   Future<NotificationAccess> notificationAccess() async {
+    final override = _notificationAccessResolver;
+    if (override != null) return override();
     try {
       await _ensureNotificationsReady();
       final prefs = await SharedPreferences.getInstance();
@@ -1928,20 +1981,20 @@ class CareStore extends ChangeNotifier
       await _ensureDeviceTimeZone();
       await _notifications.zonedSchedule(
         id: 900001,
-        title: '家务志提醒已开启',
-        body: '这是一条测试提醒。之后会按每个计划设置的提前天数通知你。',
+        title: _localizations.testNotificationTitle,
+        body: _localizations.testNotificationBody,
         scheduledDate: tz.TZDateTime.now(
           tz.local,
         ).add(const Duration(seconds: 5)),
-        notificationDetails: const NotificationDetails(
-          iOS: DarwinNotificationDetails(
+        notificationDetails: NotificationDetails(
+          iOS: const DarwinNotificationDetails(
             presentAlert: true,
             presentSound: true,
           ),
           android: AndroidNotificationDetails(
             'care_reminders',
-            '保养提醒',
-            channelDescription: '家庭物品保养提醒',
+            _localizations.notificationChannelName,
+            channelDescription: _localizations.notificationChannelDescription,
             importance: Importance.defaultImportance,
           ),
         ),
@@ -2014,9 +2067,7 @@ class CareStore extends ChangeNotifier
     final reminderDate = maintenanceReminderDateForPlan(plan);
     if (due == null || reminderDate == null) return;
     final now = tz.TZDateTime.now(tz.local);
-    final today = DateUtils.dateOnly(DateTime.now());
-    if (DateUtils.dateOnly(due).isBefore(today) &&
-        !DateUtils.dateOnly(reminderDate).isAfter(today)) {
+    if (!shouldScheduleMaintenanceNotification(plan, now: now)) {
       return;
     }
 
@@ -2031,19 +2082,29 @@ class CareStore extends ChangeNotifier
         : now.add(const Duration(seconds: 5));
     await _notifications.zonedSchedule(
       id: notificationIdForPlan(item.id, plan.id),
-      title: plan.title,
-      body: '${item.name} · ${_date(due)} 到期，记得安排处理。',
+      title: _localizations.maintenancePlanTitleLabel(plan.title),
+      body: _localizations.maintenanceNotificationBody(
+        _localizations.itemNameLabel(
+          id: item.id,
+          isSample: item.isSample,
+          name: item.name,
+        ),
+        _localizations.formatDate(due),
+      ),
       payload: MaintenanceNotificationPayload(
         itemId: item.id,
         planId: plan.id,
       ).encode(),
       scheduledDate: scheduled,
-      notificationDetails: const NotificationDetails(
-        iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
+      notificationDetails: NotificationDetails(
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentSound: true,
+        ),
         android: AndroidNotificationDetails(
           'care_reminders',
-          '保养提醒',
-          channelDescription: '家庭物品保养提醒',
+          _localizations.notificationChannelName,
+          channelDescription: _localizations.notificationChannelDescription,
           importance: Importance.defaultImportance,
         ),
       ),
@@ -2053,21 +2114,20 @@ class CareStore extends ChangeNotifier
 
   Future<void> _scheduleSafely(CareItem item, {CareItem? previous}) async {
     try {
-      if (_notificationScheduler == null &&
-          await notificationAccess() != NotificationAccess.enabled) {
-        return;
-      }
-      await _serializeNotificationMutation(
-        () => _scheduleItem(item, previous: previous),
-      );
+      await _serializeNotificationMutation(() async {
+        if ((_notificationScheduler == null ||
+                _notificationAccessResolver != null) &&
+            await notificationAccess() != NotificationAccess.enabled) {
+          return;
+        }
+        await _scheduleItem(item, previous: previous);
+      });
     } catch (_) {
       /* saving remains available offline */
     }
   }
 
-  Future<void> _serializeNotificationMutation(
-    Future<void> Function() operation,
-  ) {
+  Future<T> _serializeNotificationMutation<T>(Future<T> Function() operation) {
     final result = _notificationMutationTail.then((_) => operation());
     _notificationMutationTail = result.then<void>(
       (_) {},
@@ -2349,11 +2409,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       setState(() => tab = 2);
       final message = switch (resolution.type) {
         MaintenanceNotificationResolutionType.itemUnavailable =>
-          '提醒对应的物品已删除，已返回待保养列表。',
+          context.l10n.notificationItemUnavailable,
         MaintenanceNotificationResolutionType.planUnavailable =>
-          '提醒对应的保养计划已删除或停用，已返回待保养列表。',
+          context.l10n.notificationPlanUnavailable,
         MaintenanceNotificationResolutionType.malformed =>
-          '这条保养提醒已失效，已返回待保养列表。',
+          context.l10n.notificationMalformed,
         MaintenanceNotificationResolutionType.ready => '',
       };
       AppToast.show(context, message);
@@ -2367,6 +2427,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: store,
     builder: (context, _) {
+      store.updateLocalizations(context.l10n);
+      if (!store.loaded) {
+        return const Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(key: Key('care-data-loading')),
+          ),
+        );
+      }
       _scheduleNotificationNavigation();
       void openItemEditor() {
         Navigator.push<void>(
@@ -2446,17 +2514,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           bottom: false,
           child: Column(
             children: [
-              if (store.loadError case final message?)
+              if (store.loadError != null)
                 MaterialBanner(
-                  content: Text(message),
-                  leading: const Icon(
+                  content: Text(context.l10n.archiveLoadFailed),
+                  leading: Icon(
                     Icons.warning_amber_rounded,
-                    color: Colors.deepOrange,
+                    color: context.palette.warning,
                   ),
                   actions: [
                     TextButton(
                       onPressed: store.dismissLoadError,
-                      child: const Text('知道了'),
+                      child: Text(context.l10n.gotIt),
                     ),
                   ],
                 ),
@@ -2549,7 +2617,9 @@ class Dashboard extends StatelessWidget {
                     onOpenSchedule: onOpenSchedule,
                   ),
                   const SizedBox(height: 20),
-                  const _DashboardSectionTitle(title: '下一项保养'),
+                  _DashboardSectionTitle(
+                    title: context.l10n.dashboardNextMaintenance,
+                  ),
                   const SizedBox(height: 4),
                   if (nextTask == null)
                     MaintenanceTaskEmptyState(onCreate: openAddFlow)
@@ -2562,10 +2632,10 @@ class Dashboard extends StatelessWidget {
                           _deferMaintenanceTask(context, store, nextTask),
                     ),
                   const SizedBox(height: 6),
-                  const Text(
-                    '家庭概览',
+                  Text(
+                    context.l10n.dashboardHouseholdOverview,
                     style: TextStyle(
-                      color: _ink,
+                      color: context.palette.ink,
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -.2,
@@ -2606,10 +2676,10 @@ class _DashboardHeader extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '家务志',
+            Text(
+              context.l10n.dashboardTitle,
               style: TextStyle(
-                color: _ink,
+                color: context.palette.ink,
                 fontSize: 30,
                 height: 1.05,
                 fontWeight: FontWeight.w800,
@@ -2618,9 +2688,9 @@ class _DashboardHeader extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             Text(
-              _dashboardDate(today),
-              style: const TextStyle(
-                color: _muted,
+              _dashboardDate(context, today),
+              style: TextStyle(
+                color: context.palette.muted,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
                 letterSpacing: .2,
@@ -2631,18 +2701,22 @@ class _DashboardHeader extends StatelessWidget {
       ),
       Semantics(
         button: true,
-        label: '添加物品',
+        label: context.l10n.addItem,
         child: Material(
-          color: _mist,
+          color: context.palette.mist,
           shape: const CircleBorder(),
           child: InkWell(
             key: const Key('dashboard-add-item'),
             onTap: onAdd,
             customBorder: const CircleBorder(),
-            child: const SizedBox(
+            child: SizedBox(
               width: 48,
               height: 48,
-              child: Icon(Icons.add_rounded, color: _indigo, size: 28),
+              child: Icon(
+                Icons.add_rounded,
+                color: context.palette.primary,
+                size: 28,
+              ),
             ),
           ),
         ),
@@ -2663,18 +2737,18 @@ class _DashboardTodayHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = attentionCount == 0
-        ? '没有到期任务'
-        : attentionCount == 1
-        ? '1 项任务需要关注'
-        : '$attentionCount 项任务需要关注';
-    final subtitle = attentionCount == 0 ? '家里一切按计划进行' : '先从最紧要的一项开始';
+        ? context.l10n.dashboardNoDueTasks
+        : context.l10n.dashboardAttentionCount(attentionCount);
+    final subtitle = attentionCount == 0
+        ? context.l10n.dashboardAllOnTrack
+        : context.l10n.dashboardStartWithUrgent;
     return Container(
       key: const Key('dashboard-today-hero'),
       width: double.infinity,
       height: 172,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: _indigo,
+        color: context.palette.primary,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Stack(
@@ -2691,7 +2765,7 @@ class _DashboardTodayHero extends StatelessWidget {
                   'assets/home/dashboard-room-line.png',
                   fit: BoxFit.contain,
                   alignment: Alignment.bottomRight,
-                  color: const Color(0xFFD7E6DA),
+                  color: context.palette.mist,
                   colorBlendMode: BlendMode.srcIn,
                 ),
               ),
@@ -2703,18 +2777,18 @@ class _DashboardTodayHero extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       Icon(
                         Icons.calendar_today_outlined,
-                        color: Color(0xFFECF3ED),
+                        color: context.palette.softSurface,
                         size: 17,
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
-                        '今日',
+                        context.l10n.dashboardToday,
                         style: TextStyle(
-                          color: Color(0xFFECF3ED),
+                          color: context.palette.softSurface,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -2728,8 +2802,8 @@ class _DashboardTodayHero extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: context.palette.onPrimary,
                         fontSize: 25,
                         height: 1.1,
                         fontWeight: FontWeight.w800,
@@ -2740,24 +2814,21 @@ class _DashboardTodayHero extends StatelessWidget {
                   const SizedBox(height: 7),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFFD7E6DA),
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: context.palette.mist, fontSize: 14),
                   ),
                   const Spacer(),
                   TextButton.icon(
                     key: const Key('dashboard-open-schedule'),
                     onPressed: onOpenSchedule,
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.white,
+                      foregroundColor: context.palette.onPrimary,
                       padding: EdgeInsets.zero,
                       minimumSize: const Size(0, 36),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    label: const Text(
-                      '查看日程',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    label: Text(
+                      context.l10n.dashboardViewSchedule,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     iconAlignment: IconAlignment.end,
                     icon: const Icon(Icons.chevron_right_rounded, size: 18),
@@ -2783,15 +2854,15 @@ class _DashboardSectionTitle extends StatelessWidget {
     children: [
       Text(
         title,
-        style: const TextStyle(
-          color: _ink,
+        style: TextStyle(
+          color: context.palette.ink,
           fontSize: 20,
           fontWeight: FontWeight.w800,
           letterSpacing: -.2,
         ),
       ),
       const SizedBox(height: 10),
-      const Divider(height: 1, color: Color(0xFFDCE4DD)),
+      Divider(height: 1, color: context.palette.border),
     ],
   );
 }
@@ -2810,7 +2881,7 @@ class _DashboardNextTask extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = task.status;
-    final tone = _dashboardTaskTone(status.dueState);
+    final tone = _dashboardTaskTone(context, status.dueState);
     return Container(
       key: ValueKey('maintenance-task-${task.item.id}-${task.plan.id}'),
       constraints: const BoxConstraints(minHeight: 206),
@@ -2833,19 +2904,19 @@ class _DashboardNextTask extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 5),
-                  const Expanded(
+                  Expanded(
                     child: VerticalDivider(
                       width: 1,
                       thickness: 1,
-                      color: Color(0xFFD8E1D9),
+                      color: context.palette.border,
                     ),
                   ),
                   const SizedBox(height: 5),
                   Container(
                     width: 8,
                     height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFC9D8C9),
+                    decoration: BoxDecoration(
+                      color: context.palette.handle,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -2859,7 +2930,7 @@ class _DashboardNextTask extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _dashboardTaskTiming(status),
+                  _dashboardTaskTiming(context, status),
                   style: TextStyle(
                     color: tone,
                     fontSize: 14,
@@ -2874,10 +2945,10 @@ class _DashboardNextTask extends StatelessWidget {
                       width: 58,
                       height: 58,
                       decoration: BoxDecoration(
-                        color: _mist,
+                        color: context.palette.mist,
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: _dashboardTaskIcon(task),
+                      child: _dashboardTaskIcon(context, task),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -2885,43 +2956,50 @@ class _DashboardNextTask extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            task.item.name,
+                            _itemDisplayName(context, task.item),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _ink,
+                            style: TextStyle(
+                              color: context.palette.ink,
                               fontSize: 17,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            task.plan.title,
+                            context.l10n.maintenancePlanTitleLabel(
+                              task.plan.title,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: _muted, fontSize: 14),
+                            style: TextStyle(
+                              color: context.palette.muted,
+                              fontSize: 14,
+                            ),
                           ),
                           const SizedBox(height: 9),
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.event_outlined,
-                                color: _indigo,
+                                color: context.palette.primary,
                                 size: 16,
                               ),
                               const SizedBox(width: 5),
                               Expanded(
                                 child: Text(
                                   status.hasActiveDeferral
-                                      ? '原到期日 ${_date(task.dueDate)}'
-                                      : _date(task.dueDate),
+                                      ? context.l10n.dashboardOriginalDueDate(
+                                          _localizedDate(context, task.dueDate),
+                                        )
+                                      : _localizedDate(context, task.dueDate),
                                   key: ValueKey(
                                     'maintenance-task-due-${task.id}',
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: _indigo,
+                                  style: TextStyle(
+                                    color: context.palette.primary,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -2932,14 +3010,19 @@ class _DashboardNextTask extends StatelessWidget {
                           if (status.hasActiveDeferral) ...[
                             const SizedBox(height: 4),
                             Text(
-                              '稍后提醒 ${_date(status.deferredUntil)} · 原状态 ${status.dueStateLabel}',
+                              context.l10n.dashboardDeferredStatus(
+                                _localizedDate(context, status.deferredUntil),
+                                context.l10n.maintenanceStateLabel(
+                                  status.dueState,
+                                ),
+                              ),
                               key: ValueKey(
                                 'maintenance-task-deferral-${task.id}',
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _muted,
+                              style: TextStyle(
+                                color: context.palette.muted,
                                 fontSize: 10,
                               ),
                             ),
@@ -2951,13 +3034,13 @@ class _DashboardNextTask extends StatelessWidget {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: _mist,
+                              color: context.palette.mist,
                               borderRadius: BorderRadius.circular(99),
                             ),
                             child: Text(
-                              status.label,
-                              style: const TextStyle(
-                                color: _indigo,
+                              context.l10n.maintenanceStateLabel(status.state),
+                              style: TextStyle(
+                                color: context.palette.primary,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -2988,19 +3071,23 @@ class _DashboardNextTask extends StatelessWidget {
                           ),
                         ),
                         icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                        label: const Text('开始保养'),
+                        label: Text(context.l10n.startMaintenance),
                       ),
                       const SizedBox(height: 1),
                       TextButton(
                         key: ValueKey('defer-maintenance-task-${task.id}'),
                         onPressed: onDefer,
                         style: TextButton.styleFrom(
-                          foregroundColor: _indigo,
+                          foregroundColor: context.palette.primary,
                           minimumSize: const Size(0, 36),
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: Text(status.hasActiveDeferral ? '修改提醒' : '稍后提醒'),
+                        child: Text(
+                          status.hasActiveDeferral
+                              ? context.l10n.editDeferredReminder
+                              : context.l10n.deferReminder,
+                        ),
                       ),
                     ],
                   ),
@@ -3042,33 +3129,37 @@ class _DashboardHouseholdOverview extends StatelessWidget {
       _DashboardFact(
         key: const Key('dashboard-fact-items'),
         icon: Icons.inventory_2_outlined,
-        label: '物品',
+        label: context.l10n.dashboardItems,
         value: '$itemCount',
-        semanticsLabel: '物品，$itemCount件，查看全部物品',
+        semanticsLabel: context.l10n.dashboardItemsSemantic(itemCount),
         onTap: onOpenItems,
       ),
       _DashboardFact(
         key: const Key('dashboard-fact-spaces'),
         icon: Icons.chair_outlined,
-        label: '空间',
+        label: context.l10n.dashboardSpaces,
         value: '$roomCount',
-        semanticsLabel: '空间，$roomCount个，查看家庭空间',
+        semanticsLabel: context.l10n.dashboardSpacesSemantic(roomCount),
         onTap: onOpenSpaces,
       ),
       _DashboardFact(
         key: const Key('dashboard-fact-annual-cost'),
         icon: Icons.paid_outlined,
-        label: '今年维护',
+        label: context.l10n.dashboardThisYearMaintenance,
         value: '¥${annualCost.toStringAsFixed(0)}',
-        semanticsLabel: '今年维护，${annualCost.toStringAsFixed(0)}元，查看本年维护报告',
+        semanticsLabel: context.l10n.dashboardAnnualCostSemantic(
+          annualCost.toStringAsFixed(0),
+        ),
         onTap: onOpenAnnualCost,
       ),
       _DashboardFact(
         key: const Key('dashboard-fact-assets'),
         icon: Icons.home_outlined,
-        label: '资产',
+        label: context.l10n.dashboardAssets,
         value: '¥${assetValue.toStringAsFixed(0)}',
-        semanticsLabel: '资产，${assetValue.toStringAsFixed(0)}元，查看资产估值',
+        semanticsLabel: context.l10n.dashboardAssetsSemantic(
+          assetValue.toStringAsFixed(0),
+        ),
         onTap: onOpenAssets,
       ),
     ];
@@ -3084,15 +3175,15 @@ class _DashboardHouseholdOverview extends StatelessWidget {
       constraints: BoxConstraints(minHeight: largeText ? 178 : 96),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 9),
       decoration: BoxDecoration(
-        color: _paper,
+        color: context.palette.paper,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFDCE4DD)),
+        border: Border.all(color: context.palette.border),
       ),
       child: largeText
           ? Column(
               children: [
                 factRow(0),
-                const Divider(height: 1, color: Color(0xFFE2E8E2)),
+                Divider(height: 1, color: context.palette.divider),
                 factRow(2),
               ],
             )
@@ -3139,28 +3230,32 @@ class _DashboardFact extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: _muted, size: 20),
+              Icon(icon, color: context.palette.muted, size: 20),
               const SizedBox(height: 5),
               Text(
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: _muted, fontSize: 10),
+                style: TextStyle(color: context.palette.muted, fontSize: 10),
               ),
               const SizedBox(height: 2),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
                   value,
-                  style: const TextStyle(
-                    color: _ink,
+                  style: TextStyle(
+                    color: context.palette.ink,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
               const SizedBox(height: 1),
-              const Icon(Icons.chevron_right_rounded, color: _muted, size: 13),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: context.palette.muted,
+                size: 13,
+              ),
             ],
           ),
         ),
@@ -3173,38 +3268,56 @@ class _DashboardFactDivider extends StatelessWidget {
   const _DashboardFactDivider();
 
   @override
-  Widget build(BuildContext context) => const SizedBox(
+  Widget build(BuildContext context) => SizedBox(
     height: 58,
-    child: VerticalDivider(width: 1, color: Color(0xFFE2E8E2)),
+    child: VerticalDivider(width: 1, color: context.palette.divider),
   );
 }
 
-String _dashboardDate(DateTime value) {
-  const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-  return '${value.month}月${value.day}日 · ${weekdays[value.weekday - 1]}';
+String _dashboardDate(BuildContext context, DateTime value) {
+  final weekdays = [
+    context.l10n.weekdayMonday,
+    context.l10n.weekdayTuesday,
+    context.l10n.weekdayWednesday,
+    context.l10n.weekdayThursday,
+    context.l10n.weekdayFriday,
+    context.l10n.weekdaySaturday,
+    context.l10n.weekdaySunday,
+  ];
+  return context.l10n.dashboardDate(
+    context.l10n.dateMonthDay(value.month, value.day),
+    weekdays[value.weekday - 1],
+  );
 }
 
-String _dashboardTaskTiming(MaintenancePlanStatus status) {
+String _dashboardTaskTiming(
+  BuildContext context,
+  MaintenancePlanStatus status,
+) {
   final days = status.daysUntilDue;
-  if (days == null) return '尚未设置日期';
-  if (days < 0) return '已逾期 ${-days} 天';
-  if (days == 0) return '今天到期';
-  return '$days 天后';
+  if (days == null) return context.l10n.dashboardTimingDateUnset;
+  if (days < 0) return context.l10n.dashboardTimingOverdue(-days);
+  if (days == 0) return context.l10n.dashboardTimingDueToday;
+  return context.l10n.dashboardTimingDueInDays(days);
 }
 
-Color _dashboardTaskTone(MaintenanceTaskState state) => switch (state) {
-  MaintenanceTaskState.overdue => const Color(0xFFB64B43),
-  MaintenanceTaskState.dueToday => const Color(0xFFC36F2D),
-  MaintenanceTaskState.dueSoon => const Color(0xFFE18455),
-  MaintenanceTaskState.deferred => const Color(0xFF725E91),
-  MaintenanceTaskState.planned => const Color(0xFFE18455),
-  MaintenanceTaskState.completed => const Color(0xFF3A7D70),
-  MaintenanceTaskState.disabled => _muted,
-};
+Color _dashboardTaskTone(BuildContext context, MaintenanceTaskState state) =>
+    switch (state) {
+      MaintenanceTaskState.overdue => context.palette.danger,
+      MaintenanceTaskState.dueToday => context.palette.warning,
+      MaintenanceTaskState.dueSoon => context.palette.accent,
+      MaintenanceTaskState.deferred => context.palette.deferred,
+      MaintenanceTaskState.planned => context.palette.accent,
+      MaintenanceTaskState.completed => context.palette.success,
+      MaintenanceTaskState.disabled => context.palette.muted,
+    };
 
-Widget _dashboardTaskIcon(MaintenanceTask task) {
+Widget _dashboardTaskIcon(BuildContext context, MaintenanceTask task) {
   final searchable = '${task.item.name}${task.item.category}${task.plan.title}';
-  if (searchable.contains('净水') || searchable.contains('滤芯')) {
+  if (searchable.contains('净水') ||
+      searchable.contains('滤芯') ||
+      searchable.toLowerCase().contains('water purifier') ||
+      searchable.toLowerCase().contains('filter')) {
     return Padding(
       padding: const EdgeInsets.all(10),
       child: Image.asset(
@@ -3214,9 +3327,9 @@ Widget _dashboardTaskIcon(MaintenanceTask task) {
       ),
     );
   }
-  return const Icon(
+  return Icon(
     Icons.home_repair_service_outlined,
-    color: _indigo,
+    color: context.palette.primary,
     size: 27,
   );
 }
@@ -3232,9 +3345,9 @@ class MaintenanceTaskEmptyState extends StatelessWidget {
     width: double.infinity,
     padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
     decoration: BoxDecoration(
-      color: _paper,
+      color: context.palette.paper,
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFDCE4DD)),
+      border: Border.all(color: context.palette.border),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3246,17 +3359,17 @@ class MaintenanceTaskEmptyState extends StatelessWidget {
               width: 54,
               height: 54,
               decoration: BoxDecoration(
-                color: _mist,
+                color: context.palette.mist,
                 borderRadius: BorderRadius.circular(17),
               ),
-              child: const Stack(
+              child: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   Center(
                     child: Icon(
                       Icons.calendar_month_outlined,
                       size: 27,
-                      color: _indigo,
+                      color: context.palette.primary,
                     ),
                   ),
                   Positioned(
@@ -3265,30 +3378,34 @@ class MaintenanceTaskEmptyState extends StatelessWidget {
                     child: Icon(
                       Icons.auto_awesome_rounded,
                       size: 12,
-                      color: _amber,
+                      color: context.palette.accent,
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 14),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '从第一个计划开始',
+                    context.l10n.emptyMaintenanceTitle,
                     style: TextStyle(
-                      color: _ink,
+                      color: context.palette.ink,
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -.2,
                     ),
                   ),
-                  SizedBox(height: 5),
+                  const SizedBox(height: 5),
                   Text(
-                    '添加物品并设置保养周期，到期前会提醒你。',
-                    style: TextStyle(color: _muted, fontSize: 12, height: 1.45),
+                    context.l10n.emptyMaintenanceSubtitle,
+                    style: TextStyle(
+                      color: context.palette.muted,
+                      fontSize: 12,
+                      height: 1.45,
+                    ),
                   ),
                 ],
               ),
@@ -3309,9 +3426,9 @@ class MaintenanceTaskEmptyState extends StatelessWidget {
               ),
             ),
             icon: const Icon(Icons.add_rounded, size: 19),
-            label: const Text(
-              '创建保养计划',
-              style: TextStyle(fontWeight: FontWeight.w700),
+            label: Text(
+              context.l10n.createMaintenancePlan,
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ),
@@ -3335,14 +3452,14 @@ class SpacePage extends StatelessWidget {
       return Scaffold(
         appBar: AppBar(
           toolbarHeight: 72,
-          title: const Text('家庭空间'),
+          title: Text(context.l10n.spacesTitle),
           leading: AppBackButton(onPressed: () => Navigator.pop(context)),
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: 14),
               child: IconButton.filledTonal(
                 key: const Key('add-space'),
-                tooltip: '添加空间',
+                tooltip: context.l10n.addSpace,
                 onPressed: () => _openSpaceEditor(context, store),
                 icon: const Icon(Icons.add_rounded),
               ),
@@ -3358,12 +3475,12 @@ class SpacePage extends StatelessWidget {
                   const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 ),
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(4, 0, 4, 14),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 14),
                     child: Text(
-                      '按实际房间管理物品位置；房间内的具体位置仍由你补充。',
+                      context.l10n.spacesDescription,
                       style: TextStyle(
-                        color: _muted,
+                        color: context.palette.muted,
                         fontSize: 13,
                         height: 1.45,
                       ),
@@ -3420,33 +3537,37 @@ class _SpaceEmptyState extends StatelessWidget {
           Container(
             width: 72,
             height: 72,
-            decoration: const BoxDecoration(
-              color: _mist,
+            decoration: BoxDecoration(
+              color: context.palette.mist,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.chair_outlined, color: _indigo, size: 34),
+            child: Icon(
+              Icons.chair_outlined,
+              color: context.palette.primary,
+              size: 34,
+            ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            '还没有家庭空间',
+          Text(
+            context.l10n.spacesEmptyTitle,
             style: TextStyle(
-              color: _ink,
+              color: context.palette.ink,
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 7),
-          const Text(
-            '添加客厅、卧室或厨房等实际房间，之后编辑物品时就可以直接选择。',
+          Text(
+            context.l10n.spacesEmptySubtitle,
             textAlign: TextAlign.center,
-            style: TextStyle(color: _muted, height: 1.45),
+            style: TextStyle(color: context.palette.muted, height: 1.45),
           ),
           const SizedBox(height: 18),
           FilledButton.icon(
             key: const Key('add-first-space'),
             onPressed: onAdd,
             icon: const Icon(Icons.add_rounded),
-            label: const Text('添加空间'),
+            label: Text(context.l10n.addSpace),
           ),
         ],
       ),
@@ -3472,11 +3593,13 @@ class _SpaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = space?.name ?? '未设置空间';
-    final type = space?.type ?? '等待归类';
+    final name = space?.name ?? context.l10n.unassignedSpace;
+    final type = space == null
+        ? context.l10n.awaitingClassification
+        : context.l10n.spaceTypeLabel(space!.type);
     return Material(
       key: space == null ? null : ValueKey('space-${space!.id}'),
-      color: _paper,
+      color: context.palette.paper,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
@@ -3484,7 +3607,7 @@ class _SpaceCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE0E7E0)),
+            border: Border.all(color: context.palette.border),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -3493,12 +3616,12 @@ class _SpaceCard extends StatelessWidget {
                 width: 54,
                 height: 54,
                 decoration: BoxDecoration(
-                  color: _mist,
+                  color: context.palette.mist,
                   borderRadius: BorderRadius.circular(17),
                 ),
                 child: Icon(
                   _iconForSpaceType(space?.type),
-                  color: _indigo,
+                  color: context.palette.primary,
                   size: 27,
                 ),
               ),
@@ -3509,34 +3632,43 @@ class _SpaceCard extends StatelessWidget {
                   children: [
                     Text(
                       name,
-                      style: const TextStyle(
-                        color: _ink,
+                      style: TextStyle(
+                        color: context.palette.ink,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '$type · $itemCount 件物品',
-                      style: const TextStyle(color: _muted, fontSize: 13),
+                      context.l10n.spaceItemCount(type, itemCount),
+                      style: TextStyle(
+                        color: context.palette.muted,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
               ),
               if (space != null)
                 PopupMenuButton<String>(
-                  tooltip: '管理空间',
+                  tooltip: context.l10n.manageSpace,
                   onSelected: (value) {
                     if (value == 'edit') onEdit?.call();
                     if (value == 'delete') onDelete?.call();
                   },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'edit', child: Text('重命名空间')),
-                    PopupMenuItem(value: 'delete', child: Text('删除空间')),
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text(context.l10n.renameSpace),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text(context.l10n.deleteSpace),
+                    ),
                   ],
                 )
               else
-                const Icon(Icons.chevron_right_rounded, color: _muted),
+                Icon(Icons.chevron_right_rounded, color: context.palette.muted),
             ],
           ),
         ),
@@ -3562,7 +3694,9 @@ class SpaceDetailPage extends StatelessWidget {
     animation: store,
     builder: (context, _) {
       final space = store.spaceById(spaceId);
-      final title = unassigned ? '未设置空间' : space?.name ?? '空间已删除';
+      final title = unassigned
+          ? context.l10n.unassignedSpace
+          : space?.name ?? context.l10n.spaceDeleted;
       final items = store.itemsInSpace(unassigned ? null : spaceId);
       return Scaffold(
         appBar: AppBar(
@@ -3575,7 +3709,7 @@ class SpaceDetailPage extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 14),
                 child: IconButton.filledTonal(
                   key: const Key('add-item-from-space'),
-                  tooltip: '在此空间添加物品',
+                  tooltip: context.l10n.addItemToSpace,
                   onPressed: () => Navigator.push<void>(
                     context,
                     MaterialPageRoute(
@@ -3594,7 +3728,9 @@ class SpaceDetailPage extends StatelessWidget {
             ? Center(
                 child: EmptyState(
                   icon: Icons.inventory_2_outlined,
-                  text: unassigned ? '没有未归类的物品' : '这个空间里还没有物品',
+                  text: unassigned
+                      ? context.l10n.noUnassignedItems
+                      : context.l10n.spaceHasNoItems,
                 ),
               )
             : ListView.separated(
@@ -3613,7 +3749,7 @@ class SpaceDetailPage extends StatelessWidget {
                     child: ItemCard(
                       key: ValueKey('space-item-${item.id}'),
                       item: item,
-                      locationLabel: store.locationLabelFor(item),
+                      locationLabel: store.locationLabelFor(item, context.l10n),
                       onTap: () => Navigator.push<void>(
                         context,
                         MaterialPageRoute(
@@ -3642,9 +3778,19 @@ class AddSpacePage extends StatefulWidget {
 class _AddSpacePageState extends State<AddSpacePage> {
   late String type = widget.existing?.type ?? careSpaceTypeTemplates.first;
   late final TextEditingController name = TextEditingController(
-    text: widget.existing?.name ?? careSpaceTypeTemplates.first,
+    text: widget.existing?.name ?? '',
   );
   bool saving = false;
+  bool _defaultNameInitialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_defaultNameInitialized && widget.existing == null) {
+      name.text = context.l10n.spaceTypeLabel(type);
+      _defaultNameInitialized = true;
+    }
+  }
 
   @override
   void dispose() {
@@ -3656,16 +3802,20 @@ class _AddSpacePageState extends State<AddSpacePage> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       toolbarHeight: 72,
-      title: Text(widget.existing == null ? '添加空间' : '编辑空间'),
+      title: Text(
+        widget.existing == null
+            ? context.l10n.addSpace
+            : context.l10n.editSpace,
+      ),
       leading: AppBackButton(onPressed: () => Navigator.pop(context)),
     ),
     body: ListView(
       padding: appSafeScrollPadding(context, const EdgeInsets.all(20)),
       children: [
-        const Text(
-          '空间类型',
+        Text(
+          context.l10n.spaceType,
           style: TextStyle(
-            color: _ink,
+            color: context.palette.ink,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -3678,14 +3828,17 @@ class _AddSpacePageState extends State<AddSpacePage> {
             for (final option in careSpaceTypeTemplates)
               ChoiceChip(
                 key: ValueKey('space-type-$option'),
-                label: Text(option),
+                label: Text(context.l10n.spaceTypeLabel(option)),
                 avatar: Icon(_iconForSpaceType(option), size: 18),
                 selected: type == option,
                 onSelected: (_) => setState(() {
                   final oldType = type;
                   type = option;
-                  if (name.text.trim().isEmpty || name.text.trim() == oldType) {
-                    name.text = option;
+                  if (name.text.trim().isEmpty ||
+                      name.text.trim() == oldType ||
+                      name.text.trim() ==
+                          context.l10n.spaceTypeLabel(oldType)) {
+                    name.text = context.l10n.spaceTypeLabel(option);
                   }
                 }),
               ),
@@ -3697,22 +3850,26 @@ class _AddSpacePageState extends State<AddSpacePage> {
           controller: name,
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => _save(),
-          decoration: const InputDecoration(
-            labelText: '实际名称',
-            hintText: '例如：主卧、次卧、儿童房',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: context.l10n.spaceActualName,
+            hintText: context.l10n.spaceNameHint,
+            border: const OutlineInputBorder(),
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          '类型用于归类，实际名称用于物品位置显示。',
-          style: TextStyle(color: _muted, fontSize: 12),
+        Text(
+          context.l10n.spaceNameHelper,
+          style: TextStyle(color: context.palette.muted, fontSize: 12),
         ),
         const SizedBox(height: 24),
         FilledButton(
           key: const Key('save-space'),
           onPressed: saving ? null : _save,
-          child: Text(widget.existing == null ? '添加空间' : '保存修改'),
+          child: Text(
+            widget.existing == null
+                ? context.l10n.addSpace
+                : context.l10n.saveChanges,
+          ),
         ),
       ],
     ),
@@ -3722,7 +3879,11 @@ class _AddSpacePageState extends State<AddSpacePage> {
     final normalized = name.text.trim();
     if (normalized.isEmpty || saving) {
       if (normalized.isEmpty) {
-        AppToast.show(context, '请填写空间名称', style: AppToastStyle.error);
+        AppToast.show(
+          context,
+          context.l10n.spaceNameRequired,
+          style: AppToastStyle.error,
+        );
       }
       return;
     }
@@ -3738,11 +3899,11 @@ class _AddSpacePageState extends State<AddSpacePage> {
         ),
       );
       if (mounted) Navigator.pop(context, saved);
-    } catch (error) {
+    } catch (_) {
       if (mounted) {
         AppToast.show(
           context,
-          error is FormatException ? error.message.toString() : '空间保存失败，请重试。',
+          context.l10n.spaceSaveFailed,
           style: AppToastStyle.error,
         );
         setState(() => saving = false);
@@ -3765,14 +3926,14 @@ class SelectSpacePage extends StatelessWidget {
     builder: (context, _) => Scaffold(
       appBar: AppBar(
         toolbarHeight: 72,
-        title: const Text('选择所在空间'),
+        title: Text(context.l10n.selectSpace),
         leading: AppBackButton(onPressed: () => Navigator.pop(context)),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 14),
             child: IconButton.filledTonal(
               key: const Key('add-space-from-selector'),
-              tooltip: '添加空间',
+              tooltip: context.l10n.addSpace,
               onPressed: () async {
                 final created = await _openSpaceEditor(context, store);
                 if (created != null && context.mounted) {
@@ -3790,8 +3951,8 @@ class SelectSpacePage extends StatelessWidget {
           _SpaceSelectionTile(
             key: const Key('select-unassigned-space'),
             icon: Icons.not_listed_location_outlined,
-            name: '未设置空间',
-            subtitle: '稍后再整理',
+            name: context.l10n.unassignedSpace,
+            subtitle: context.l10n.organizeLater,
             selected: selectedSpaceId == null,
             onTap: () => Navigator.pop(context, _unassignedSpaceSelection),
           ),
@@ -3801,8 +3962,10 @@ class SelectSpacePage extends StatelessWidget {
               key: ValueKey('select-space-${space.id}'),
               icon: _iconForSpaceType(space.type),
               name: space.name,
-              subtitle:
-                  '${space.type} · ${store.itemsInSpace(space.id).length} 件物品',
+              subtitle: context.l10n.spaceItemCount(
+                context.l10n.spaceTypeLabel(space.type),
+                store.itemsInSpace(space.id).length,
+              ),
               selected: selectedSpaceId == space.id,
               onTap: () => Navigator.pop(context, space.id),
             ),
@@ -3832,7 +3995,7 @@ class _SpaceSelectionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: selected ? _mist : _paper,
+    color: selected ? context.palette.mist : context.palette.paper,
     borderRadius: BorderRadius.circular(18),
     child: InkWell(
       onTap: onTap,
@@ -3841,13 +4004,13 @@ class _SpaceSelectionTile extends StatelessWidget {
         padding: const EdgeInsets.all(15),
         decoration: BoxDecoration(
           border: Border.all(
-            color: selected ? _indigo : const Color(0xFFE0E7E0),
+            color: selected ? context.palette.primary : context.palette.border,
           ),
           borderRadius: BorderRadius.circular(18),
         ),
         child: Row(
           children: [
-            Icon(icon, color: _indigo),
+            Icon(icon, color: context.palette.primary),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -3855,23 +4018,26 @@ class _SpaceSelectionTile extends StatelessWidget {
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(
-                      color: _ink,
+                    style: TextStyle(
+                      color: context.palette.ink,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: const TextStyle(color: _muted, fontSize: 12),
+                    style: TextStyle(
+                      color: context.palette.muted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
             ),
             if (selected)
-              const Icon(Icons.check_circle_rounded, color: _indigo)
+              Icon(Icons.check_circle_rounded, color: context.palette.primary)
             else
-              const Icon(Icons.chevron_right_rounded, color: _muted),
+              Icon(Icons.chevron_right_rounded, color: context.palette.muted),
           ],
         ),
       ),
@@ -3901,16 +4067,16 @@ Future<void> _deleteSpace(
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('删除空间？'),
-        content: Text('“${space.name}”中没有物品，可以直接删除。'),
+        title: Text(context.l10n.deleteSpaceTitle),
+        content: Text(context.l10n.deleteEmptySpaceMessage(space.name)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
+            child: Text(context.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('删除'),
+            child: Text(context.l10n.commonDelete),
           ),
         ],
       ),
@@ -3929,22 +4095,25 @@ Future<void> _deleteSpace(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '先安置 ${affected.length} 件物品',
-                style: const TextStyle(
-                  color: _ink,
+                sheetContext.l10n.relocateSpaceItemsTitle(affected.length),
+                style: TextStyle(
+                  color: sheetContext.palette.ink,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 5),
               Text(
-                '删除“${space.name}”后，这些物品需要移到其他空间或设为未设置。',
-                style: const TextStyle(color: _muted, fontSize: 13),
+                sheetContext.l10n.relocateSpaceItemsMessage(space.name),
+                style: TextStyle(
+                  color: sheetContext.palette.muted,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 12),
               ListTile(
                 leading: const Icon(Icons.not_listed_location_outlined),
-                title: const Text('设为未设置空间'),
+                title: Text(sheetContext.l10n.setUnassignedSpace),
                 onTap: () =>
                     Navigator.pop(sheetContext, _unassignedSpaceSelection),
               ),
@@ -3953,7 +4122,7 @@ Future<void> _deleteSpace(
               ))
                 ListTile(
                   leading: Icon(_iconForSpaceType(target.type)),
-                  title: Text('移到 ${target.name}'),
+                  title: Text(sheetContext.l10n.moveToSpace(target.name)),
                   onTap: () => Navigator.pop(sheetContext, target.id),
                 ),
             ],
@@ -3968,7 +4137,11 @@ Future<void> _deleteSpace(
     await store.removeSpace(space.id, replacementSpaceId: replacement);
   } catch (_) {
     if (context.mounted) {
-      AppToast.show(context, '空间删除失败，原数据未改变。', style: AppToastStyle.error);
+      AppToast.show(
+        context,
+        context.l10n.spaceDeleteFailed,
+        style: AppToastStyle.error,
+      );
     }
   }
 }
@@ -4050,8 +4223,13 @@ class _InventoryPageState extends State<InventoryPage> {
             .where(
               (item) =>
                   (item.name.contains(query) ||
+                      _itemDisplayName(context, item).contains(query) ||
                       widget.store.locationLabelFor(item).contains(query) ||
-                      item.category.contains(query)) &&
+                      item.category.contains(query) ||
+                      context.l10n
+                          .itemCategoryLabel(item.category)
+                          .toLowerCase()
+                          .contains(query.toLowerCase())) &&
                   switch (filter) {
                     _InventoryFilter.all => true,
                     _InventoryFilter.planned => _hasPlan(item),
@@ -4072,27 +4250,27 @@ class _InventoryPageState extends State<InventoryPage> {
               key: const Key('inventory-search'),
               controller: searchController,
               onChanged: (value) => setState(() => query = value.trim()),
-              style: const TextStyle(color: _ink, fontSize: 16),
+              style: TextStyle(color: context.palette.ink, fontSize: 16),
               decoration: InputDecoration(
-                prefixIcon: const Icon(
+                prefixIcon: Icon(
                   Icons.search_rounded,
-                  color: _indigo,
+                  color: context.palette.primary,
                   size: 25,
                 ),
-                hintText: '搜索物品、空间或类别',
+                hintText: context.l10n.inventorySearchHint,
                 suffixIcon: query.isEmpty
                     ? null
                     : IconButton(
                         key: const Key('inventory-clear-search'),
-                        tooltip: '清除搜索',
+                        tooltip: context.l10n.clearSearch,
                         onPressed: () {
                           searchController.clear();
                           setState(() => query = '');
                           FocusManager.instance.primaryFocus?.unfocus();
                         },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.cancel_rounded,
-                          color: _muted,
+                          color: context.palette.muted,
                           size: 19,
                         ),
                       ),
@@ -4119,12 +4297,14 @@ class _InventoryPageState extends State<InventoryPage> {
               Expanded(
                 child: Text(
                   switch (filter) {
-                    _InventoryFilter.all => '全部物品',
-                    _InventoryFilter.planned => '已计划物品',
-                    _InventoryFilter.needsSetup => '待设置物品',
+                    _InventoryFilter.all => context.l10n.inventoryAllItems,
+                    _InventoryFilter.planned =>
+                      context.l10n.inventoryPlannedItems,
+                    _InventoryFilter.needsSetup =>
+                      context.l10n.inventoryNeedsSetupItems,
                   },
-                  style: const TextStyle(
-                    color: _ink,
+                  style: TextStyle(
+                    color: context.palette.ink,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -.2,
@@ -4132,7 +4312,9 @@ class _InventoryPageState extends State<InventoryPage> {
                 ),
               ),
               _InventorySortButton(
-                label: sort == _InventorySort.name ? '按名称' : '按时间',
+                label: sort == _InventorySort.name
+                    ? context.l10n.sortByName
+                    : context.l10n.sortByTime,
                 onTap: _selectSort,
               ),
             ],
@@ -4145,9 +4327,9 @@ class _InventoryPageState extends State<InventoryPage> {
             child: Container(
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                color: _paper,
+                color: context.palette.paper,
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFE2E9E1)),
+                border: Border.all(color: context.palette.border),
               ),
               child: filtered.isEmpty
                   ? _InventoryEmptyState(
@@ -4160,11 +4342,11 @@ class _InventoryPageState extends State<InventoryPage> {
                           ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: EdgeInsets.zero,
                       itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const Divider(
+                      separatorBuilder: (_, __) => Divider(
                         height: 1,
                         indent: 16,
                         endIndent: 16,
-                        color: Color(0xFFE2E9E1),
+                        color: context.palette.border,
                       ),
                       itemBuilder: (context, index) {
                         final item = filtered[index];
@@ -4189,7 +4371,7 @@ class _InventoryPageState extends State<InventoryPage> {
                               if (context.mounted) {
                                 AppToast.show(
                                   context,
-                                  '物品删除失败，原数据未改变，请重试。',
+                                  context.l10n.itemDeleteFailed,
                                   style: AppToastStyle.error,
                                 );
                               }
@@ -4199,16 +4381,19 @@ class _InventoryPageState extends State<InventoryPage> {
                           background: Container(
                             alignment: Alignment.centerRight,
                             padding: const EdgeInsets.only(right: 22),
-                            color: Colors.red.shade400,
-                            child: const Icon(
+                            color: context.palette.danger,
+                            child: Icon(
                               Icons.delete,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onError,
                             ),
                           ),
                           child: ItemCard(
                             key: ValueKey('inventory-item-${item.id}'),
                             item: item,
-                            locationLabel: widget.store.locationLabelFor(item),
+                            locationLabel: widget.store.locationLabelFor(
+                              item,
+                              context.l10n,
+                            ),
                             onTap: openItem,
                             onPlanTap: _hasPlan(item) ? null : openItem,
                           ),
@@ -4262,7 +4447,7 @@ class _InventoryPageState extends State<InventoryPage> {
     final selected = await showModalBottomSheet<_InventorySort>(
       context: context,
       showDragHandle: true,
-      builder: (context) => SafeArea(
+      builder: (sheet) => SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 2, 20, 20),
@@ -4270,10 +4455,10 @@ class _InventoryPageState extends State<InventoryPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                '物品排序',
+              Text(
+                sheet.l10n.itemSortTitle,
                 style: TextStyle(
-                  color: _ink,
+                  color: sheet.palette.ink,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                 ),
@@ -4282,17 +4467,16 @@ class _InventoryPageState extends State<InventoryPage> {
               _InventorySortOption(
                 key: const Key('inventory-sort-name'),
                 icon: Icons.sort_by_alpha_rounded,
-                label: '按名称',
+                label: sheet.l10n.sortByName,
                 selected: sort == _InventorySort.name,
-                onTap: () => Navigator.pop(context, _InventorySort.name),
+                onTap: () => Navigator.pop(sheet, _InventorySort.name),
               ),
               _InventorySortOption(
                 key: const Key('inventory-sort-date'),
                 icon: Icons.event_rounded,
-                label: '按下次保养时间',
+                label: sheet.l10n.sortByNextMaintenance,
                 selected: sort == _InventorySort.nextCareDate,
-                onTap: () =>
-                    Navigator.pop(context, _InventorySort.nextCareDate),
+                onTap: () => Navigator.pop(sheet, _InventorySort.nextCareDate),
               ),
             ],
           ),
@@ -4305,12 +4489,14 @@ class _InventoryPageState extends State<InventoryPage> {
   Future<bool> _confirmDelete(BuildContext context, CareItem item) async =>
       await showAppAlert<bool>(
         context,
-        title: '删除物品？',
-        message: '将删除“${item.name}”以及已保存的凭证照片。',
-        actions: const [
-          AppAlertAction(label: '取消', result: false),
+        title: context.l10n.deleteItemTitle,
+        message: context.l10n.deleteItemMessage(
+          _itemDisplayName(context, item),
+        ),
+        actions: [
+          AppAlertAction(label: context.l10n.commonCancel, result: false),
           AppAlertAction(
-            label: '删除',
+            label: context.l10n.commonDelete,
             result: true,
             tone: AppAlertActionTone.destructive,
           ),
@@ -4352,24 +4538,27 @@ class _AssetValuationView extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '资产估值',
+                      context.l10n.assetValuationTitle,
                       style: TextStyle(
-                        color: _ink,
+                        color: context.palette.ink,
                         fontSize: 28,
                         height: 1.1,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -.7,
                       ),
                     ),
-                    SizedBox(height: 7),
+                    const SizedBox(height: 7),
                     Text(
-                      '按物品当前估值汇总，缺失时回退到购买价',
-                      style: TextStyle(color: _muted, fontSize: 13),
+                      context.l10n.assetValuationSubtitle,
+                      style: TextStyle(
+                        color: context.palette.muted,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -4378,7 +4567,7 @@ class _AssetValuationView extends StatelessWidget {
                 key: const Key('asset-show-all-items'),
                 onPressed: onShowItems,
                 icon: const Icon(Icons.inventory_2_outlined, size: 18),
-                label: const Text('全部物品'),
+                label: Text(context.l10n.allItems),
               ),
             ],
           ),
@@ -4386,7 +4575,7 @@ class _AssetValuationView extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: BreezeSurface(
-            color: _mist,
+            color: context.palette.mist,
             radius: 22,
             padding: const EdgeInsets.all(18),
             child: Row(
@@ -4395,16 +4584,19 @@ class _AssetValuationView extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        '家庭物品总估值',
-                        style: TextStyle(color: _muted, fontSize: 13),
+                      Text(
+                        context.l10n.householdTotalValuation,
+                        style: TextStyle(
+                          color: context.palette.muted,
+                          fontSize: 13,
+                        ),
                       ),
                       const SizedBox(height: 5),
                       Text(
                         '¥${total.toStringAsFixed(0)}',
                         key: const Key('asset-total-value'),
-                        style: const TextStyle(
-                          color: _indigo,
+                        style: TextStyle(
+                          color: context.palette.primary,
                           fontSize: 30,
                           fontWeight: FontWeight.w800,
                         ),
@@ -4418,14 +4610,16 @@ class _AssetValuationView extends StatelessWidget {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: _paper,
+                    color: context.palette.paper,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
-                    '缺失 $missingCount 件',
+                    context.l10n.assetMissingCount(missingCount),
                     key: const Key('asset-missing-count'),
                     style: TextStyle(
-                      color: missingCount == 0 ? _indigo : _amber,
+                      color: missingCount == 0
+                          ? context.palette.primary
+                          : context.palette.accent,
                       fontWeight: FontWeight.w800,
                       fontSize: 12,
                     ),
@@ -4436,12 +4630,12 @@ class _AssetValuationView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 18),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
-            '物品估值明细',
+            context.l10n.itemValuationDetails,
             style: TextStyle(
-              color: _ink,
+              color: context.palette.ink,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -4453,7 +4647,7 @@ class _AssetValuationView extends StatelessWidget {
               ? Center(
                   child: EmptyState(
                     icon: Icons.home_outlined,
-                    text: '还没有物品，添加后即可记录资产价值',
+                    text: context.l10n.assetNoItems,
                   ),
                 )
               : ListView.separated(
@@ -4465,13 +4659,13 @@ class _AssetValuationView extends StatelessWidget {
                     final item = valuedItems[index];
                     final value = item.currentValue ?? item.purchasePrice;
                     final source = item.currentValue != null
-                        ? '当前估值'
+                        ? context.l10n.assetCurrentValue
                         : item.purchasePrice != null
-                        ? '购买价回退'
-                        : '尚未填写估值';
+                        ? context.l10n.assetPurchasePriceFallback
+                        : context.l10n.assetValueMissing;
                     return Material(
                       key: ValueKey('asset-item-${item.id}'),
-                      color: _paper,
+                      color: context.palette.paper,
                       borderRadius: BorderRadius.circular(18),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(18),
@@ -4490,12 +4684,12 @@ class _AssetValuationView extends StatelessWidget {
                                 width: 46,
                                 height: 46,
                                 decoration: BoxDecoration(
-                                  color: _mist,
+                                  color: context.palette.mist,
                                   borderRadius: BorderRadius.circular(15),
                                 ),
                                 child: Icon(
                                   _iconForItem(item),
-                                  color: _indigo,
+                                  color: context.palette.primary,
                                   size: 23,
                                 ),
                               ),
@@ -4505,19 +4699,19 @@ class _AssetValuationView extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      item.name,
+                                      _itemDisplayName(context, item),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: _ink,
+                                      style: TextStyle(
+                                        color: context.palette.ink,
                                         fontWeight: FontWeight.w800,
                                       ),
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
                                       source,
-                                      style: const TextStyle(
-                                        color: _muted,
+                                      style: TextStyle(
+                                        color: context.palette.muted,
                                         fontSize: 12,
                                       ),
                                     ),
@@ -4526,16 +4720,18 @@ class _AssetValuationView extends StatelessWidget {
                               ),
                               Text(
                                 value == null
-                                    ? '去补充'
+                                    ? context.l10n.assetAddValue
                                     : '¥${value.toStringAsFixed(0)}',
                                 style: TextStyle(
-                                  color: value == null ? _amber : _indigo,
+                                  color: value == null
+                                      ? context.palette.accent
+                                      : context.palette.primary,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
-                              const Icon(
+                              Icon(
                                 Icons.chevron_right_rounded,
-                                color: _muted,
+                                color: context.palette.muted,
                               ),
                             ],
                           ),
@@ -4561,25 +4757,25 @@ class _InventoryHeader extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '物品档案',
+                context.l10n.inventoryTitle,
                 style: TextStyle(
-                  color: _ink,
+                  color: context.palette.ink,
                   fontSize: 30,
                   height: 1.05,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -1,
                 ),
               ),
-              SizedBox(height: 7),
+              const SizedBox(height: 7),
               Text(
-                '管理物品与保养计划',
+                context.l10n.inventorySubtitle,
                 style: TextStyle(
-                  color: _muted,
+                  color: context.palette.muted,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -4589,18 +4785,22 @@ class _InventoryHeader extends StatelessWidget {
         ),
         Semantics(
           button: true,
-          label: '添加物品',
+          label: context.l10n.addItem,
           child: Material(
-            color: _indigo,
+            color: context.palette.primary,
             shape: const CircleBorder(),
             child: InkWell(
               key: const Key('inventory-add-item'),
               onTap: onAdd,
               customBorder: const CircleBorder(),
-              child: const SizedBox(
+              child: SizedBox(
                 width: 48,
                 height: 48,
-                child: Icon(Icons.add_rounded, color: Colors.white, size: 30),
+                child: Icon(
+                  Icons.add_rounded,
+                  color: context.palette.onPrimary,
+                  size: 30,
+                ),
               ),
             ),
           ),
@@ -4628,26 +4828,32 @@ class _InventoryFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entries = [
-      (_InventoryFilter.all, '全部 $totalCount'),
-      (_InventoryFilter.planned, '已计划 $plannedCount'),
-      (_InventoryFilter.needsSetup, '待设置 $needsSetupCount'),
+      (_InventoryFilter.all, context.l10n.inventoryFilterAll(totalCount)),
+      (
+        _InventoryFilter.planned,
+        context.l10n.inventoryFilterPlanned(plannedCount),
+      ),
+      (
+        _InventoryFilter.needsSetup,
+        context.l10n.inventoryFilterNeedsSetup(needsSetupCount),
+      ),
     ];
     return Container(
       height: 44,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: _paper,
+        color: context.palette.paper,
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: const Color(0xFFDCE5DC)),
+        border: Border.all(color: context.palette.border),
       ),
       child: Row(
         children: [
           for (var index = 0; index < entries.length; index++) ...[
             if (index > 0)
-              const VerticalDivider(
+              VerticalDivider(
                 width: 1,
                 thickness: 1,
-                color: Color(0xFFDCE5DC),
+                color: context.palette.border,
               ),
             Expanded(
               child: Semantics(
@@ -4655,7 +4861,7 @@ class _InventoryFilterBar extends StatelessWidget {
                 selected: selected == entries[index].$1,
                 child: Material(
                   color: selected == entries[index].$1
-                      ? _indigo
+                      ? context.palette.primary
                       : Colors.transparent,
                   child: InkWell(
                     key: ValueKey('inventory-filter-${entries[index].$1.name}'),
@@ -4666,8 +4872,8 @@ class _InventoryFilterBar extends StatelessWidget {
                         maxLines: 1,
                         style: TextStyle(
                           color: selected == entries[index].$1
-                              ? Colors.white
-                              : _muted,
+                              ? context.palette.onPrimary
+                              : context.palette.muted,
                           fontSize: 14,
                           fontWeight: selected == entries[index].$1
                               ? FontWeight.w800
@@ -4695,7 +4901,7 @@ class _InventorySortButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
-    label: '排序方式：$label',
+    label: context.l10n.sortMethodSemantic(label),
     child: Material(
       color: Colors.transparent,
       child: InkWell(
@@ -4709,16 +4915,16 @@ class _InventorySortButton extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  color: _muted,
+                style: TextStyle(
+                  color: context.palette.muted,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(width: 4),
-              const Icon(
+              Icon(
                 Icons.keyboard_arrow_down_rounded,
-                color: _muted,
+                color: context.palette.muted,
                 size: 20,
               ),
             ],
@@ -4745,7 +4951,7 @@ class _InventorySortOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: selected ? _mist : Colors.transparent,
+    color: selected ? context.palette.mist : Colors.transparent,
     borderRadius: BorderRadius.circular(16),
     child: InkWell(
       onTap: onTap,
@@ -4754,20 +4960,24 @@ class _InventorySortOption extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         child: Row(
           children: [
-            Icon(icon, color: _indigo, size: 22),
+            Icon(icon, color: context.palette.primary, size: 22),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
-                  color: _ink,
+                style: TextStyle(
+                  color: context.palette.ink,
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
             if (selected)
-              const Icon(Icons.check_rounded, color: _indigo, size: 22),
+              Icon(
+                Icons.check_rounded,
+                color: context.palette.primary,
+                size: 22,
+              ),
           ],
         ),
       ),
@@ -4791,30 +5001,34 @@ class _InventoryEmptyState extends StatelessWidget {
           Container(
             width: 58,
             height: 58,
-            decoration: const BoxDecoration(
-              color: _mist,
+            decoration: BoxDecoration(
+              color: context.palette.mist,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.inventory_2_outlined,
-              color: _indigo,
+              color: context.palette.primary,
               size: 27,
             ),
           ),
           const SizedBox(height: 14),
           Text(
-            hasAnyItems ? '没有符合条件的物品' : '还没有物品',
-            style: const TextStyle(
-              color: _ink,
+            hasAnyItems
+                ? context.l10n.inventoryNoMatches
+                : context.l10n.inventoryEmpty,
+            style: TextStyle(
+              color: context.palette.ink,
               fontSize: 17,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            hasAnyItems ? '调整筛选或搜索关键词' : '从第一件需要照料的物品开始',
+            hasAnyItems
+                ? context.l10n.inventoryAdjustSearch
+                : context.l10n.inventoryStartFirstItem,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: _muted, fontSize: 13),
+            style: TextStyle(color: context.palette.muted, fontSize: 13),
           ),
           if (!hasAnyItems) ...[
             const SizedBox(height: 16),
@@ -4822,7 +5036,7 @@ class _InventoryEmptyState extends StatelessWidget {
               key: const Key('inventory-empty-add-item'),
               onPressed: onAdd,
               icon: const Icon(Icons.add_rounded, size: 19),
-              label: const Text('添加物品'),
+              label: Text(context.l10n.addItem),
             ),
           ],
         ],
@@ -4865,7 +5079,10 @@ class _SchedulePageState extends State<SchedulePage> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const BreezeHeader(title: '保养日程', subtitle: '把需要照料的事情留给合适的时间'),
+          BreezeHeader(
+            title: context.l10n.scheduleTitle,
+            subtitle: context.l10n.scheduleEmptySubtitle,
+          ),
           Expanded(
             child: MaintenanceTaskEmptyState(
               onCreate: () => Navigator.push(
@@ -4885,12 +5102,15 @@ class _SchedulePageState extends State<SchedulePage> {
       final day = maintenanceDateOnly(task.dueDate);
       (byDay[day] ??= []).add(task);
     }
-    final selectedTasks = byDay[_selectedDay] ?? const <MaintenanceTask>[];
+    final selectedTasks = byDay[_selectedDay] ?? <MaintenanceTask>[];
     return CustomScrollView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: [
-        const SliverToBoxAdapter(
-          child: BreezeHeader(title: '保养日程', subtitle: '点选日期，查看当天具体的保养任务'),
+        SliverToBoxAdapter(
+          child: BreezeHeader(
+            title: context.l10n.scheduleTitle,
+            subtitle: context.l10n.scheduleSubtitle,
+          ),
         ),
         SliverToBoxAdapter(
           child: Padding(
@@ -4912,32 +5132,45 @@ class _SchedulePageState extends State<SchedulePage> {
               children: [
                 Expanded(
                   child: Text(
-                    '${_selectedDay.month}月${_selectedDay.day}日的保养',
-                    style: const TextStyle(
-                      color: _ink,
+                    context.l10n.scheduleSelectedDateTitle(
+                      context.l10n.dateMonthDay(
+                        _selectedDay.month,
+                        _selectedDay.day,
+                      ),
+                    ),
+                    style: TextStyle(
+                      color: context.palette.ink,
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
                 Text(
-                  selectedTasks.isEmpty ? '暂无安排' : '${selectedTasks.length} 项',
-                  style: const TextStyle(color: _muted, fontSize: 12),
+                  selectedTasks.isEmpty
+                      ? context.l10n.scheduleNone
+                      : context.l10n.scheduleTaskCount(selectedTasks.length),
+                  style: TextStyle(color: context.palette.muted, fontSize: 12),
                 ),
               ],
             ),
           ),
         ),
         if (selectedTasks.isEmpty)
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.fromLTRB(20, 4, 20, 90),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 90),
               child: BreezeSurface(
                 child: Row(
                   children: [
-                    Icon(Icons.event_available_outlined, color: _indigo),
-                    SizedBox(width: 10),
-                    Text('这一天没有安排，慢慢享受生活吧。', style: TextStyle(color: _muted)),
+                    Icon(
+                      Icons.event_available_outlined,
+                      color: context.palette.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      context.l10n.scheduleDayEmpty,
+                      style: TextStyle(color: context.palette.muted),
+                    ),
                   ],
                 ),
               ),
@@ -4990,7 +5223,15 @@ class _MonthCalendar extends StatelessWidget {
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final leadingEmptyCells = firstDay.weekday - DateTime.monday;
     final cellCount = ((leadingEmptyCells + daysInMonth + 6) ~/ 7) * 7;
-    const weekdays = ['一', '二', '三', '四', '五', '六', '日'];
+    final weekdays = [
+      context.l10n.weekdayMonday,
+      context.l10n.weekdayTuesday,
+      context.l10n.weekdayWednesday,
+      context.l10n.weekdayThursday,
+      context.l10n.weekdayFriday,
+      context.l10n.weekdaySaturday,
+      context.l10n.weekdaySunday,
+    ];
     final today = DateUtils.dateOnly(DateTime.now());
     return BreezeSurface(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
@@ -4998,33 +5239,33 @@ class _MonthCalendar extends StatelessWidget {
         children: [
           Row(
             children: [
-              _monthButton(Icons.chevron_left_rounded, onPrevious),
+              _monthButton(context, Icons.chevron_left_rounded, onPrevious),
               Expanded(
                 child: Text(
-                  '${month.year} 年 ${month.month} 月',
+                  context.l10n.calendarMonthYear(month.year, month.month),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: _ink,
+                  style: TextStyle(
+                    color: context.palette.ink,
                     fontWeight: FontWeight.w800,
                     fontSize: 17,
                   ),
                 ),
               ),
-              _monthButton(Icons.chevron_right_rounded, onNext),
+              _monthButton(context, Icons.chevron_right_rounded, onNext),
             ],
           ),
           const SizedBox(height: 8),
           Row(
-            children: weekdays
+            children: weekdays.indexed
                 .map(
-                  (weekday) => Expanded(
+                  (entry) => Expanded(
                     child: Center(
                       child: Text(
-                        weekday,
+                        entry.$2,
                         style: TextStyle(
-                          color: weekday == '六' || weekday == '日'
-                              ? _amber
-                              : _muted,
+                          color: entry.$1 >= 5
+                              ? context.palette.accent
+                              : context.palette.muted,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -5066,11 +5307,17 @@ class _MonthCalendar extends StatelessWidget {
                       duration: const Duration(milliseconds: 150),
                       decoration: BoxDecoration(
                         color: selected
-                            ? _indigo
-                            : (isToday ? _mist : Colors.transparent),
+                            ? context.palette.primary
+                            : (isToday
+                                  ? context.palette.mist
+                                  : Colors.transparent),
                         borderRadius: BorderRadius.circular(15),
                         border: isToday && !selected
-                            ? Border.all(color: _indigo.withValues(alpha: .35))
+                            ? Border.all(
+                                color: context.palette.primary.withValues(
+                                  alpha: .35,
+                                ),
+                              )
                             : null,
                       ),
                       child: Column(
@@ -5079,7 +5326,9 @@ class _MonthCalendar extends StatelessWidget {
                           Text(
                             '$dayNumber',
                             style: TextStyle(
-                              color: selected ? Colors.white : _ink,
+                              color: selected
+                                  ? context.palette.onPrimary
+                                  : context.palette.ink,
                               fontWeight: selected || isToday
                                   ? FontWeight.w800
                                   : FontWeight.w500,
@@ -5103,8 +5352,8 @@ class _MonthCalendar extends StatelessWidget {
                                         ),
                                         decoration: BoxDecoration(
                                           color: selected
-                                              ? const Color(0xFFFFE6C9)
-                                              : _amber,
+                                              ? context.palette.warningSurface
+                                              : context.palette.accent,
                                           shape: BoxShape.circle,
                                         ),
                                       ),
@@ -5124,7 +5373,11 @@ class _MonthCalendar extends StatelessWidget {
     );
   }
 
-  Widget _monthButton(IconData icon, VoidCallback onTap) => Material(
+  Widget _monthButton(
+    BuildContext context,
+    IconData icon,
+    VoidCallback onTap,
+  ) => Material(
     color: Colors.transparent,
     child: InkWell(
       onTap: onTap,
@@ -5132,8 +5385,11 @@ class _MonthCalendar extends StatelessWidget {
       child: Container(
         width: 36,
         height: 36,
-        decoration: const BoxDecoration(color: _mist, shape: BoxShape.circle),
-        child: Icon(icon, color: _indigo),
+        decoration: BoxDecoration(
+          color: context.palette.mist,
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: context.palette.primary),
       ),
     ),
   );
@@ -5168,7 +5424,10 @@ class AssetLedgerPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const BreezeHeader(title: '资产运营账本', subtitle: '只记录与家庭物品有关的支出'),
+              BreezeHeader(
+                title: context.l10n.ledgerTitle,
+                subtitle: context.l10n.ledgerSubtitle,
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
@@ -5176,27 +5435,29 @@ class AssetLedgerPage extends StatelessWidget {
                     Row(
                       children: [
                         _summary(
-                          '$year 年持有成本',
+                          context,
+                          context.l10n.ledgerAnnualHoldingCost(year),
                           '¥${annualCost.toStringAsFixed(0)}',
-                          _amber,
+                          context.palette.accent,
                         ),
                         const SizedBox(width: 10),
                         _summary(
-                          '资产估值',
+                          context,
+                          context.l10n.assetValuationTitle,
                           '¥${assetValue.toStringAsFixed(0)}',
-                          const Color(0xFF3A7D70),
+                          context.palette.success,
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        '成本流水 · Linked costs',
+                        context.l10n.ledgerCostHistory,
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 18,
-                          color: _ink,
+                          color: context.palette.ink,
                         ),
                       ),
                     ),
@@ -5208,9 +5469,9 @@ class AssetLedgerPage extends StatelessWidget {
         ),
         Expanded(
           child: entries.isEmpty
-              ? const EmptyState(
+              ? EmptyState(
                   icon: Icons.receipt_long_outlined,
-                  text: '在物品详情中添加维修或耗材记录',
+                  text: context.l10n.ledgerEmpty,
                 )
               : ListView.separated(
                   keyboardDismissBehavior:
@@ -5228,12 +5489,14 @@ class AssetLedgerPage extends StatelessWidget {
                             width: 42,
                             height: 42,
                             decoration: BoxDecoration(
-                              color: _amber.withValues(alpha: .14),
+                              color: context.palette.accent.withValues(
+                                alpha: .14,
+                              ),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.receipt_long_outlined,
-                              color: _amber,
+                              color: context.palette.accent,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -5242,20 +5505,30 @@ class AssetLedgerPage extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  entry.$2.kind,
-                                  style: const TextStyle(
+                                  context.l10n.maintenancePlanTitleLabel(
+                                    entry.$2.kind,
+                                  ),
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w800,
-                                    color: _ink,
+                                    color: context.palette.ink,
                                   ),
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  '${entry.$1.name} · ${_date(entry.$2.date)}${entry.$2.note.isEmpty ? '' : ' · ${entry.$2.note}'}',
+                                  context.l10n.ledgerRecordSummary(
+                                    entry.$1.name,
+                                    _localizedDate(context, entry.$2.date),
+                                    entry.$2.note.isEmpty
+                                        ? ''
+                                        : context.l10n.ledgerNoteSuffix(
+                                            entry.$2.note,
+                                          ),
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: _muted,
+                                    color: context.palette.muted,
                                   ),
                                 ),
                               ],
@@ -5266,9 +5539,9 @@ class AssetLedgerPage extends StatelessWidget {
                             entry.$2.cost == 0
                                 ? '—'
                                 : '¥${entry.$2.cost.toStringAsFixed(0)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w800,
-                              color: _indigo,
+                              color: context.palette.primary,
                             ),
                           ),
                         ],
@@ -5281,7 +5554,12 @@ class AssetLedgerPage extends StatelessWidget {
     );
   }
 
-  Widget _summary(String title, String value, Color color) => Expanded(
+  Widget _summary(
+    BuildContext context,
+    String title,
+    String value,
+    Color color,
+  ) => Expanded(
     child: BreezeSurface(
       color: color.withValues(alpha: .10),
       radius: 20,
@@ -5289,7 +5567,10 @@ class AssetLedgerPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: _muted, fontSize: 12)),
+          Text(
+            title,
+            style: TextStyle(color: context.palette.muted, fontSize: 12),
+          ),
           const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,
@@ -5364,7 +5645,7 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _remindersEnabled = true);
       AppToast.show(
         context,
-        '保养提醒已开启：到期前 3 天会在本机提醒你',
+        context.l10n.remindersEnabledToast,
         style: AppToastStyle.success,
       );
       return;
@@ -5397,12 +5678,12 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                '保养提醒已开启',
+              Text(
+                sheet.l10n.remindersEnabledTitle,
                 style: TextStyle(
-                  color: _ink,
+                  color: sheet.palette.ink,
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                 ),
@@ -5410,12 +5691,13 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 8),
               Text(
                 scheduledTasks == 0
-                    ? '还没有启用且设置到期日的保养计划。建立计划后，可按计划的提前天数提醒。'
-                    : '已为 $scheduledTasks 个保养计划安排本机提醒，将按各计划的提前天数在上午 9:00 通知你。',
-                style: const TextStyle(color: _muted, height: 1.5),
+                    ? sheet.l10n.remindersNoScheduledPlans
+                    : sheet.l10n.remindersScheduledPlans(scheduledTasks),
+                style: TextStyle(color: sheet.palette.muted, height: 1.5),
               ),
               const SizedBox(height: 18),
               FilledButton.icon(
+                key: const Key('reminder-tools-test'),
                 onPressed: () async {
                   final sent = await store.sendTestNotification();
                   if (sheet.mounted) Navigator.pop(sheet);
@@ -5423,7 +5705,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   if (sent) {
                     AppToast.show(
                       context,
-                      '测试提醒将在 5 秒后送达，可切到桌面或锁屏查看',
+                      context.l10n.testReminderScheduled,
                       style: AppToastStyle.success,
                     );
                     return;
@@ -5441,16 +5723,17 @@ class _SettingsPageState extends State<SettingsPage> {
                   } else {
                     AppToast.show(
                       context,
-                      '测试提醒暂时无法发送，请稍后重试',
+                      context.l10n.testReminderFailed,
                       style: AppToastStyle.error,
                     );
                   }
                 },
                 icon: const Icon(Icons.notifications_active_outlined),
-                label: const Text('发送测试提醒'),
+                label: Text(sheet.l10n.sendTestReminder),
               ),
               const SizedBox(height: 8),
               TextButton(
+                key: const Key('reminder-tools-settings'),
                 onPressed: () async {
                   final opened = await launchUrl(
                     Uri.parse('app-settings:'),
@@ -5459,12 +5742,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   if (!opened && sheet.mounted) {
                     AppToast.show(
                       sheet,
-                      '请手动前往“设置 → 通知 → 家务志”管理提醒',
+                      sheet.l10n.notificationSettingsManual,
                       style: AppToastStyle.error,
                     );
                   }
                 },
-                child: const Text('前往系统通知设置'),
+                child: Text(sheet.l10n.openSystemNotificationSettings),
               ),
             ],
           ),
@@ -5477,7 +5760,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (store.isDataReadOnly) {
       AppToast.show(
         context,
-        '档案读取失败时不能修改示例数据，请先重启或恢复有效备份',
+        context.l10n.sampleReadOnlyError,
         style: AppToastStyle.error,
       );
       return;
@@ -5491,28 +5774,33 @@ class _SettingsPageState extends State<SettingsPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                '示例数据',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              Text(
+                sheet.l10n.sampleDataTitle,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                '重置只会恢复一条“示例 · 厨房净水器”，不会删除你自己创建的物品。',
-                style: TextStyle(color: _muted, height: 1.5),
+              Text(
+                sheet.l10n.sampleDataDescription,
+                style: TextStyle(color: sheet.palette.muted, height: 1.5),
               ),
               const SizedBox(height: 18),
               FilledButton.icon(
                 onPressed: () => Navigator.pop(sheet, 'reset'),
                 icon: const Icon(Icons.restart_alt_rounded),
-                label: const Text('重置示例净水器'),
+                label: Text(sheet.l10n.resetSamplePurifier),
               ),
               if (store.hasExampleData) ...[
                 const SizedBox(height: 8),
                 OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: sheet.palette.danger,
+                  ),
                   onPressed: () => Navigator.pop(sheet, 'delete'),
                   icon: const Icon(Icons.delete_outline),
-                  label: const Text('删除示例数据'),
+                  label: Text(sheet.l10n.deleteSampleData),
                 ),
               ],
             ],
@@ -5532,7 +5820,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) {
         AppToast.show(
           context,
-          '示例数据保存失败，原数据未改变，请重试。',
+          context.l10n.sampleDataSaveFailed,
           style: AppToastStyle.error,
         );
       }
@@ -5541,102 +5829,202 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
     AppToast.show(
       context,
-      action == 'reset' ? '示例净水器已重置' : '示例数据已删除',
+      action == 'reset'
+          ? context.l10n.samplePurifierReset
+          : context.l10n.sampleDataDeleted,
       style: AppToastStyle.success,
     );
   }
 
-  @override
-  Widget build(BuildContext context) => ListView(
-    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-    padding: const EdgeInsets.fromLTRB(0, 0, 0, 30),
-    children: [
-      const BreezeHeader(title: '设置', subtitle: '提醒、备份与隐私都留在你的掌握中'),
-      const SizedBox(height: 10),
-      const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text(
-          '数据与提醒',
-          style: TextStyle(fontWeight: FontWeight.w800, color: _ink),
-        ),
-      ),
-      const SizedBox(height: 8),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: BreezeSurface(
-          child: Column(
-            children: [
-              SettingRow(
-                icon: Icons.notifications_active_outlined,
-                title: _remindersEnabled ? '提醒与测试' : '开启保养提醒',
-                subtitle: _remindersEnabled
-                    ? '已开启 · 查看规则或发送测试提醒'
-                    : '到期前 3 天在本机提醒',
-                onTap: _handleReminderTap,
-              ),
-              const Divider(height: 1, color: Color(0xFFE8EDE7)),
-              SettingRow(
-                icon: Icons.ios_share_outlined,
-                title: '导出本地数据',
-                subtitle: '生成 CSV，可保存到文件或发送',
-                onTap: () => store.exportCSV(context),
-              ),
-              const Divider(height: 1, color: Color(0xFFE8EDE7)),
-              SettingRow(
-                icon: Icons.backup_outlined,
-                title: '完整备份',
-                subtitle: '导出全部档案、记录和凭证照片',
-                onTap: () => store.exportBackup(context),
-              ),
-              const Divider(height: 1, color: Color(0xFFE8EDE7)),
-              SettingRow(
-                icon: Icons.restore_page_outlined,
-                title: '恢复备份',
-                subtitle: _restoreInProgress
-                    ? '正在恢复，请勿关闭应用'
-                    : '选择此前导出的 Hearthio-backup.zip',
-                onTap: _restoreInProgress || store.isRestoringBackup
-                    ? null
-                    : () => _restoreFromBackup(context),
-              ),
-              const Divider(height: 1, color: Color(0xFFE8EDE7)),
-              SettingRow(
-                icon: Icons.science_outlined,
-                title: '管理示例数据',
-                subtitle: store.hasExampleData
-                    ? '可删除或重置“示例 · 厨房净水器”'
-                    : '恢复一条可删除的示例净水器',
-                onTap: _manageExampleData,
-              ),
-            ],
+  Future<void> _showLanguagePicker() async {
+    final controller = AppLocaleScope.maybeOf(context);
+    if (controller == null) return;
+    final selected = await showModalBottomSheet<AppLanguageMode>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) {
+        final l10n = sheet.l10n;
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.languageTitle,
+                  style: TextStyle(
+                    color: sheet.palette.ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _LanguageOption(
+                  key: const Key('language-system'),
+                  label: l10n.systemLanguage,
+                  selected: controller.mode == AppLanguageMode.system,
+                  onTap: () => Navigator.pop(sheet, AppLanguageMode.system),
+                ),
+                _LanguageOption(
+                  key: const Key('language-zh'),
+                  label: l10n.simplifiedChinese,
+                  selected:
+                      controller.mode == AppLanguageMode.simplifiedChinese,
+                  onTap: () =>
+                      Navigator.pop(sheet, AppLanguageMode.simplifiedChinese),
+                ),
+                _LanguageOption(
+                  key: const Key('language-en'),
+                  label: l10n.english,
+                  selected: controller.mode == AppLanguageMode.english,
+                  onTap: () => Navigator.pop(sheet, AppLanguageMode.english),
+                ),
+              ],
+            ),
           ),
+        );
+      },
+    );
+    if (selected != null) await controller.setMode(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final localeController = AppLocaleScope.maybeOf(context);
+    final languageLabel = switch (localeController?.mode) {
+      AppLanguageMode.system => l10n.systemLanguage,
+      AppLanguageMode.simplifiedChinese => l10n.simplifiedChinese,
+      AppLanguageMode.english => l10n.english,
+      null => l10n.systemLanguage,
+    };
+    return ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 30),
+      children: [
+        BreezeHeader(
+          title: l10n.settingsTitle,
+          subtitle: l10n.settingsSubtitle,
         ),
-      ),
-      const SizedBox(height: 24),
-      const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: Text(
-          '隐私',
-          style: TextStyle(fontWeight: FontWeight.w800, color: _ink),
-        ),
-      ),
-      const SizedBox(height: 8),
-      Padding(
-        padding: EdgeInsets.symmetric(horizontal: 20),
-        child: BreezeSurface(
-          child: SettingRow(
-            icon: Icons.privacy_tip_outlined,
-            title: '隐私政策',
-            subtitle: '查看数据保存、权限和导出说明',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            l10n.generalSection,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: context.palette.ink,
             ),
           ),
         ),
-      ),
-    ],
-  );
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: BreezeSurface(
+            child: SettingRow(
+              icon: Icons.language_rounded,
+              title: l10n.languageTitle,
+              subtitle: '$languageLabel · ${l10n.languageSettingSubtitle}',
+              onTap: localeController == null ? null : _showLanguagePicker,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            l10n.dataAndRemindersSection,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: context.palette.ink,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: BreezeSurface(
+            child: Column(
+              children: [
+                SettingRow(
+                  icon: Icons.notifications_active_outlined,
+                  title: _remindersEnabled
+                      ? l10n.remindersAndTesting
+                      : l10n.enableMaintenanceReminders,
+                  subtitle: _remindersEnabled
+                      ? l10n.remindersEnabledSubtitle
+                      : l10n.remindersDisabledSubtitle,
+                  onTap: _handleReminderTap,
+                ),
+                Divider(height: 1, color: context.palette.divider),
+                SettingRow(
+                  icon: Icons.ios_share_outlined,
+                  title: l10n.exportLocalData,
+                  subtitle: l10n.exportLocalDataSubtitle,
+                  onTap: () => store.exportCSV(context),
+                ),
+                Divider(height: 1, color: context.palette.divider),
+                SettingRow(
+                  icon: Icons.backup_outlined,
+                  title: l10n.fullBackup,
+                  subtitle: l10n.fullBackupSubtitle,
+                  onTap: () => store.exportBackup(context),
+                ),
+                Divider(height: 1, color: context.palette.divider),
+                SettingRow(
+                  icon: Icons.restore_page_outlined,
+                  title: l10n.restoreBackup,
+                  subtitle: _restoreInProgress
+                      ? l10n.restoreInProgress
+                      : l10n.restoreBackupSubtitle,
+                  onTap: _restoreInProgress || store.isRestoringBackup
+                      ? null
+                      : () => _restoreFromBackup(context),
+                ),
+                Divider(height: 1, color: context.palette.divider),
+                SettingRow(
+                  icon: Icons.science_outlined,
+                  title: l10n.manageSampleData,
+                  subtitle: store.hasExampleData
+                      ? l10n.manageSampleExistingSubtitle
+                      : l10n.manageSampleMissingSubtitle,
+                  onTap: _manageExampleData,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            l10n.privacySection,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: context.palette.ink,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: BreezeSurface(
+            child: SettingRow(
+              icon: Icons.privacy_tip_outlined,
+              title: l10n.privacyPolicyTitle,
+              subtitle: l10n.privacyPolicySubtitle,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Future<void> _restoreFromBackup(BuildContext context) async {
     if (_restoreInProgress || store.isRestoringBackup) return;
@@ -5646,13 +6034,19 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!context.mounted) return;
       final proceed = await showAppAlert<bool>(
         context,
-        title: firstTime ? '如何恢复完整备份？' : '从文件恢复完整备份？',
+        title: firstTime
+            ? context.l10n.restoreGuideTitle
+            : context.l10n.restoreConfirmTitle,
         message: firstTime
-            ? '接下来会打开“文件”选择器。\n\n1. 找到此前通过“完整备份”导出的 Hearthio-backup.zip。\n2. 选择该文件后，物品、维护记录和凭证照片会一起恢复。\n3. 当前设备上的档案将被替换；如需保留，请先导出一次当前完整备份。'
-            : '接下来会打开“文件”选择器，请选择此前导出的 Hearthio-backup.zip。\n\n恢复会替换当前设备上的档案。',
-        actions: const [
-          AppAlertAction(label: '暂不恢复', result: false),
-          AppAlertAction(label: '选择备份文件', result: true, isDefaultAction: true),
+            ? context.l10n.restoreGuideMessage
+            : context.l10n.restoreConfirmMessage,
+        actions: [
+          AppAlertAction(label: context.l10n.restoreNotNow, result: false),
+          AppAlertAction(
+            label: context.l10n.chooseBackupFile,
+            result: true,
+            isDefaultAction: true,
+          ),
         ],
       );
       if (proceed != true) return;
@@ -5661,7 +6055,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (context.mounted) {
         AppToast.show(
           context,
-          ok ? '备份已恢复：物品、记录和照片已更新' : '没有选择有效的 Hearthio-backup.zip，当前档案未发生变化',
+          ok ? context.l10n.restoreSuccess : context.l10n.restoreInvalid,
           style: ok ? AppToastStyle.success : AppToastStyle.error,
         );
       }
@@ -5669,6 +6063,29 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) setState(() => _restoreInProgress = false);
     }
   }
+}
+
+class _LanguageOption extends StatelessWidget {
+  const _LanguageOption({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    contentPadding: EdgeInsets.zero,
+    title: Text(label),
+    trailing: selected
+        ? Icon(Icons.check_rounded, color: context.palette.primary)
+        : null,
+    onTap: onTap,
+  );
 }
 
 class ItemCard extends StatelessWidget {
@@ -5690,7 +6107,7 @@ class ItemCard extends StatelessWidget {
     final planned = item.nextCareDate != null;
     return RepaintBoundary(
       child: Material(
-        color: _paper,
+        color: context.palette.paper,
         child: InkWell(
           onTap: onTap,
           child: Padding(
@@ -5701,10 +6118,14 @@ class ItemCard extends StatelessWidget {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: _mist,
+                    color: context.palette.mist,
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: Icon(_iconForItem(item), color: _indigo, size: 27),
+                  child: Icon(
+                    _iconForItem(item),
+                    color: context.palette.primary,
+                    size: 27,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -5712,11 +6133,11 @@ class ItemCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        item.name,
+                        _itemDisplayName(context, item),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: _ink,
+                        style: TextStyle(
+                          color: context.palette.ink,
                           fontWeight: FontWeight.w800,
                           fontSize: 17,
                           letterSpacing: -.2,
@@ -5725,23 +6146,26 @@ class ItemCard extends StatelessWidget {
                       const SizedBox(height: 5),
                       Text(
                         [
-                          item.category,
+                          context.l10n.itemCategoryLabel(item.category),
                           (locationLabel ?? item.location).isEmpty
-                              ? '未设置空间'
+                              ? context.l10n.unassignedSpace
                               : locationLabel ?? item.location,
                         ].where((e) => e.isNotEmpty).join(' · '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: _muted, fontSize: 13),
+                        style: TextStyle(
+                          color: context.palette.muted,
+                          fontSize: 13,
+                        ),
                       ),
                       if (!planned) ...[
                         const SizedBox(height: 4),
-                        const Text(
-                          '还没有保养提醒',
+                        Text(
+                          context.l10n.itemNoMaintenanceReminder,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Color(0xFF8D9A93),
+                            color: context.palette.subtle,
                             fontSize: 12,
                           ),
                         ),
@@ -5763,13 +6187,13 @@ class ItemCard extends StatelessWidget {
                                 vertical: 5,
                               ),
                               decoration: BoxDecoration(
-                                color: _mist,
+                                color: context.palette.mist,
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Text(
-                                '已计划',
+                              child: Text(
+                                context.l10n.itemPlanned,
                                 style: TextStyle(
-                                  color: _indigo,
+                                  color: context.palette.primary,
                                   fontWeight: FontWeight.w800,
                                   fontSize: 12,
                                 ),
@@ -5777,11 +6201,13 @@ class ItemCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 7),
                             Text(
-                              '下次 ${_date(item.nextCareDate)}',
+                              context.l10n.itemNextMaintenance(
+                                _localizedDate(context, item.nextCareDate),
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _muted,
+                              style: TextStyle(
+                                color: context.palette.muted,
                                 fontSize: 11,
                               ),
                             ),
@@ -5789,21 +6215,23 @@ class ItemCard extends StatelessWidget {
                         )
                       : Semantics(
                           button: true,
-                          label: '为${item.name}设置计划',
+                          label: context.l10n.setPlanForItemSemantic(
+                            _itemDisplayName(context, item),
+                          ),
                           child: InkWell(
                             key: ValueKey('inventory-set-plan-${item.id}'),
                             onTap: onPlanTap,
                             borderRadius: BorderRadius.circular(10),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
                                 horizontal: 4,
                                 vertical: 10,
                               ),
                               child: Text(
-                                '设置计划',
+                                context.l10n.setPlan,
                                 maxLines: 1,
                                 style: TextStyle(
-                                  color: Color(0xFFC36F2D),
+                                  color: context.palette.warning,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -5813,10 +6241,10 @@ class ItemCard extends StatelessWidget {
                         ),
                 ),
                 const SizedBox(width: 7),
-                const Icon(
+                Icon(
                   Icons.arrow_forward_ios_rounded,
                   size: 15,
-                  color: _muted,
+                  color: context.palette.muted,
                 ),
               ],
             ),
@@ -5826,6 +6254,9 @@ class ItemCard extends StatelessWidget {
     );
   }
 }
+
+String _itemDisplayName(BuildContext context, CareItem item) => context.l10n
+    .itemNameLabel(id: item.id, isSample: item.isSample, name: item.name);
 
 IconData _iconForItem(CareItem item) {
   if (item.name.contains('洗衣机')) {
@@ -5876,7 +6307,7 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: BreezeSurface(
-      color: _paper,
+      color: context.palette.paper,
       padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 28),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -5884,14 +6315,14 @@ class EmptyState extends StatelessWidget {
           Container(
             width: 64,
             height: 64,
-            decoration: const BoxDecoration(
-              color: _mist,
+            decoration: BoxDecoration(
+              color: context.palette.mist,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 30, color: _indigo),
+            child: Icon(icon, size: 30, color: context.palette.primary),
           ),
           const SizedBox(height: 15),
-          Text(text, style: const TextStyle(color: _muted)),
+          Text(text, style: TextStyle(color: context.palette.muted)),
         ],
       ),
     ),
@@ -5926,15 +6357,15 @@ class _DetailPageState extends State<DetailPage> {
   Widget _buildPage(BuildContext context) => Scaffold(
     appBar: AppBar(
       toolbarHeight: 72,
-      title: Text(item.name),
+      title: Text(_itemDisplayName(context, item)),
       leading: AppBackButton(onPressed: () => Navigator.pop(context)),
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 14),
           child: IconButton.filledTonal(
             style: IconButton.styleFrom(
-              backgroundColor: _mist,
-              foregroundColor: _indigo,
+              backgroundColor: context.palette.mist,
+              foregroundColor: context.palette.primary,
             ),
             icon: const Icon(Icons.edit_outlined),
             onPressed: () async {
@@ -5980,39 +6411,63 @@ class _DetailPageState extends State<DetailPage> {
           ),
         if (item.photos.isNotEmpty) const SizedBox(height: 18),
         _plansSection(),
-        _section('物品信息', [
-          ('类别', item.category),
-          ('位置', store.locationLabelFor(item)),
-          ('品牌', item.brand),
-          ('型号', item.model),
-          ('购买日期', _date(item.purchaseDate)),
-          ('保修截止', _date(item.warrantyDate)),
+        _section(context.l10n.itemInformation, [
           (
-            '购买价',
+            context.l10n.itemCategory,
+            context.l10n.itemCategoryLabel(item.category),
+          ),
+          (
+            context.l10n.itemLocation,
+            store.locationLabelFor(item, context.l10n),
+          ),
+          (context.l10n.itemBrand, item.brand),
+          (context.l10n.itemModel, item.model),
+          (
+            context.l10n.itemPurchaseDate,
+            _localizedDate(context, item.purchaseDate),
+          ),
+          (
+            context.l10n.itemWarrantyEnd,
+            _localizedDate(context, item.warrantyDate),
+          ),
+          (
+            context.l10n.itemPurchasePrice,
             item.purchasePrice == null
-                ? '未设置'
+                ? context.l10n.dateNotSet
                 : '¥${item.purchasePrice!.toStringAsFixed(0)}',
           ),
           (
-            '当前估值',
+            context.l10n.itemCurrentValue,
             item.currentValue == null
-                ? '未设置'
+                ? context.l10n.dateNotSet
                 : '¥${item.currentValue!.toStringAsFixed(0)}',
           ),
         ]),
-        if (item.notes.isNotEmpty) _section('备注', [('说明', item.notes)]),
+        if (item.notes.isNotEmpty)
+          _section(context.l10n.itemNotes, [
+            (
+              context.l10n.itemDescription,
+              context.l10n.itemNotesLabel(
+                id: item.id,
+                isSample: item.isSample,
+                notes: item.notes,
+              ),
+            ),
+          ]),
         MaintenanceLifecycleTimeline(item: item, controller: store),
         FilledButton.icon(
           key: const Key('start-maintenance-from-detail'),
           icon: const Icon(Icons.add_task_outlined),
-          label: const Text('开始一次保养'),
+          label: Text(context.l10n.startOneMaintenance),
           onPressed: () => _startMaintenance(context),
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: context.palette.danger,
+          ),
           icon: const Icon(Icons.delete_outline),
-          label: const Text('删除此物品'),
+          label: Text(context.l10n.deleteThisItem),
           onPressed: () async {
             try {
               await store.remove(item);
@@ -6021,7 +6476,7 @@ class _DetailPageState extends State<DetailPage> {
               if (context.mounted) {
                 AppToast.show(
                   context,
-                  '物品删除失败，原数据未改变，请重试。',
+                  context.l10n.itemDeleteFailed,
                   style: AppToastStyle.error,
                 );
               }
@@ -6058,7 +6513,10 @@ class _DetailPageState extends State<DetailPage> {
                       children: [
                         Text(
                           row.$1,
-                          style: const TextStyle(color: _muted, fontSize: 13),
+                          style: TextStyle(
+                            color: context.palette.muted,
+                            fontSize: 13,
+                          ),
                         ),
                         const SizedBox(width: 18),
                         Expanded(
@@ -6067,8 +6525,8 @@ class _DetailPageState extends State<DetailPage> {
                             textAlign: TextAlign.right,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _ink,
+                            style: TextStyle(
+                              color: context.palette.ink,
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
                             ),
@@ -6078,7 +6536,7 @@ class _DetailPageState extends State<DetailPage> {
                     ),
                   ),
                   if (index < rows.length - 1)
-                    const Divider(height: 1, color: Color(0xFFE8EDE7)),
+                    Divider(height: 1, color: context.palette.divider),
                 ],
               );
             }),
@@ -6104,23 +6562,29 @@ class _DetailPageState extends State<DetailPage> {
         children: [
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  '保养计划',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                  context.l10n.detailMaintenancePlans,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                  ),
                 ),
               ),
               if (archivedCount > 0)
                 Text(
-                  '已归档 $archivedCount 项',
-                  style: const TextStyle(color: _muted, fontSize: 12),
+                  context.l10n.detailArchivedPlans(archivedCount),
+                  style: TextStyle(color: context.palette.muted, fontSize: 12),
                 ),
             ],
           ),
           const SizedBox(height: 8),
           if (visiblePlans.isEmpty)
-            const BreezeSurface(
-              child: Text('暂无启用或停用的保养计划', style: TextStyle(color: _muted)),
+            BreezeSurface(
+              child: Text(
+                context.l10n.detailNoVisiblePlans,
+                style: TextStyle(color: context.palette.muted),
+              ),
             )
           else
             BreezeSurface(
@@ -6144,7 +6608,7 @@ class _DetailPageState extends State<DetailPage> {
                               plan.enabled
                                   ? Icons.event_available_outlined
                                   : Icons.event_busy_outlined,
-                              color: _indigo,
+                              color: context.palette.primary,
                             ),
                             const SizedBox(width: 11),
                             Expanded(
@@ -6152,37 +6616,59 @@ class _DetailPageState extends State<DetailPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    plan.title,
-                                    style: const TextStyle(
+                                    context.l10n.maintenancePlanTitleLabel(
+                                      plan.title,
+                                    ),
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w800,
-                                      color: _ink,
+                                      color: context.palette.ink,
                                     ),
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
-                                    '${status.label} · 每 ${plan.intervalDays} 天 · 提前 ${plan.reminderLeadDays} 天',
+                                    context.l10n.detailPlanSchedule(
+                                      context.l10n.maintenanceStateLabel(
+                                        status.state,
+                                      ),
+                                      plan.intervalDays,
+                                      plan.reminderLeadDays,
+                                    ),
                                     key: ValueKey(
                                       'detail-plan-status-${plan.id}',
                                     ),
-                                    style: const TextStyle(
-                                      color: _muted,
+                                    style: TextStyle(
+                                      color: context.palette.muted,
                                       fontSize: 12,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '原到期日 ${_date(plan.dueDate)} · ${status.timingLabel} · ${plan.checklist.length} 个步骤',
-                                    style: const TextStyle(
-                                      color: _muted,
+                                    context.l10n.detailPlanDueSummary(
+                                      _localizedDate(context, plan.dueDate),
+                                      context.l10n.maintenanceTimingLabel(
+                                        status,
+                                      ),
+                                      plan.checklist.length,
+                                    ),
+                                    style: TextStyle(
+                                      color: context.palette.muted,
                                       fontSize: 12,
                                     ),
                                   ),
                                   if (status.hasActiveDeferral) ...[
                                     const SizedBox(height: 2),
                                     Text(
-                                      '稍后提醒 ${_date(status.deferredUntil)} · 原状态 ${status.dueStateLabel}',
-                                      style: const TextStyle(
-                                        color: _muted,
+                                      context.l10n.dashboardDeferredStatus(
+                                        _localizedDate(
+                                          context,
+                                          status.deferredUntil,
+                                        ),
+                                        context.l10n.maintenanceStateLabel(
+                                          status.dueState,
+                                        ),
+                                      ),
+                                      style: TextStyle(
+                                        color: context.palette.muted,
                                         fontSize: 12,
                                       ),
                                     ),
@@ -6194,7 +6680,7 @@ class _DetailPageState extends State<DetailPage> {
                         ),
                       ),
                       if (index < visiblePlans.length - 1)
-                        const Divider(height: 1, color: Color(0xFFE8EDE7)),
+                        Divider(height: 1, color: context.palette.divider),
                     ],
                   );
                 }),
@@ -6210,7 +6696,7 @@ class _DetailPageState extends State<DetailPage> {
         .where((plan) => plan.enabled && !plan.archived && plan.dueDate != null)
         .toList();
     if (availablePlans.isEmpty) {
-      AppToast.show(context, '请先为物品建立并启用一个保养计划。');
+      AppToast.show(context, context.l10n.planRequiredBeforeMaintenance);
       return;
     }
     MaintenancePlan? selectedPlan;
@@ -6226,16 +6712,20 @@ class _DetailPageState extends State<DetailPage> {
             const EdgeInsets.fromLTRB(20, 14, 20, 24),
           ),
           children: [
-            const Text(
-              '选择保养任务',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            Text(
+              sheet.l10n.chooseMaintenanceTask,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
             for (final plan in availablePlans)
               ListTile(
                 key: ValueKey('start-detail-plan-${plan.id}'),
-                title: Text(plan.title),
-                subtitle: Text('原到期日 ${_date(plan.dueDate)}'),
+                title: Text(sheet.l10n.maintenancePlanTitleLabel(plan.title)),
+                subtitle: Text(
+                  sheet.l10n.dashboardOriginalDueDate(
+                    _localizedDate(sheet, plan.dueDate),
+                  ),
+                ),
                 trailing: const Icon(Icons.arrow_forward_ios_rounded),
                 onTap: () => Navigator.pop(sheet, plan),
               ),
@@ -6525,7 +7015,7 @@ class _EditorPageState extends State<EditorPage> {
   Widget _buildLegacyEditor() => Scaffold(
     appBar: AppBar(
       toolbarHeight: 72,
-      title: const Text('编辑物品'),
+      title: Text(context.l10n.editItemTitle),
       leading: AppBackButton(onPressed: () => Navigator.pop(context)),
       actions: [
         Padding(
@@ -6536,7 +7026,7 @@ class _EditorPageState extends State<EditorPage> {
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
-            child: const Text('保存'),
+            child: Text(context.l10n.commonSave),
           ),
         ),
       ],
@@ -6548,38 +7038,46 @@ class _EditorPageState extends State<EditorPage> {
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: appSafeScrollPadding(context, const EdgeInsets.all(20)),
         children: [
-          _field(name, '物品名称 *', required: true),
+          _field(name, context.l10n.itemNameRequiredLabel, required: true),
           _category(),
           _spaceSelectorField(),
           const SizedBox(height: 12),
-          _field(location, '具体位置（选填）'),
-          _field(brand, '品牌'),
-          _field(model, '型号'),
+          _field(location, context.l10n.specificLocationOptional),
+          _field(brand, context.l10n.itemBrand),
+          _field(model, context.l10n.itemModel),
           const SizedBox(height: 4),
-          const Text(
-            '资产信息 · Asset',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          Text(
+            context.l10n.assetInformation,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
           ),
           const SizedBox(height: 10),
           _field(
             purchasePrice,
-            '购买价（元）',
+            context.l10n.purchasePriceCny,
             type: const TextInputType.numberWithOptions(decimal: true),
-            validator: _nonNegativeNumber,
+            validator: (value) => _nonNegativeNumber(context, value),
           ),
           _field(
             currentValue,
-            '当前估值（元）',
+            context.l10n.currentValueCny,
             type: const TextInputType.numberWithOptions(decimal: true),
-            validator: _nonNegativeNumber,
+            validator: (value) => _nonNegativeNumber(context, value),
           ),
           const SizedBox(height: 16),
-          const Text(
-            '时间信息',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          Text(
+            context.l10n.dateInformation,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
           ),
-          _dateTile('购买日期', purchase, (d) => setState(() => purchase = d)),
-          _dateTile('保修截止', warranty, (d) => setState(() => warranty = d)),
+          _dateTile(
+            context.l10n.itemPurchaseDate,
+            purchase,
+            (d) => setState(() => purchase = d),
+          ),
+          _dateTile(
+            context.l10n.itemWarrantyEnd,
+            warranty,
+            (d) => setState(() => warranty = d),
+          ),
           const SizedBox(height: 10),
           MaintenancePlansEditorSection(
             plans: plans,
@@ -6587,14 +7085,14 @@ class _EditorPageState extends State<EditorPage> {
             onChanged: (value) => setState(() => plans = value),
           ),
           const SizedBox(height: 16),
-          const Text(
-            '凭证照片',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          Text(
+            context.l10n.documentPhotos,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
           ),
           const SizedBox(height: 8),
           _photos(),
           const SizedBox(height: 16),
-          _field(notes, '备注', maxLines: 4),
+          _field(notes, context.l10n.itemNotes, maxLines: 4),
           const SizedBox(height: 80),
         ],
       ),
@@ -6604,7 +7102,7 @@ class _EditorPageState extends State<EditorPage> {
   Widget _buildSelectionPage() => Scaffold(
     appBar: AppBar(
       toolbarHeight: 76,
-      title: const Text('选择物品'),
+      title: Text(context.l10n.chooseItemTitle),
       leading: AppBackButton(onPressed: () => Navigator.pop(context)),
     ),
     body: ListView(
@@ -6619,9 +7117,9 @@ class _EditorPageState extends State<EditorPage> {
           key: const Key('item-search'),
           controller: search,
           textInputAction: TextInputAction.search,
-          decoration: const InputDecoration(
-            hintText: '搜索类别或物品',
-            prefixIcon: Icon(Icons.search_rounded),
+          decoration: InputDecoration(
+            hintText: context.l10n.searchCategoriesOrItems,
+            prefixIcon: const Icon(Icons.search_rounded),
           ),
           onChanged: (_) => setState(() {}),
         ),
@@ -6631,27 +7129,27 @@ class _EditorPageState extends State<EditorPage> {
         if (search.text.trim().isNotEmpty)
           _searchResults()
         else ...[
-          const Text(
-            '常用物品',
+          Text(
+            context.l10n.commonItems,
             style: TextStyle(
-              color: _ink,
+              color: context.palette.ink,
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 12),
           _commonItems(),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 22),
-            child: Divider(height: 1, color: Color(0xFFE3E9E2)),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 22),
+            child: Divider(height: 1, color: context.palette.divider),
           ),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  '全部分类',
+                  context.l10n.allCategories,
                   style: TextStyle(
-                    color: _ink,
+                    color: context.palette.ink,
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                   ),
@@ -6668,8 +7166,8 @@ class _EditorPageState extends State<EditorPage> {
                 ),
                 label: Text(
                   _expandedCategories.length == _itemCatalog.length
-                      ? '全部收起'
-                      : '展开全部',
+                      ? context.l10n.collapseAll
+                      : context.l10n.expandAll,
                 ),
               ),
             ],
@@ -6690,7 +7188,7 @@ class _EditorPageState extends State<EditorPage> {
       appBar: AppBar(
         toolbarHeight: 76,
         centerTitle: true,
-        title: const Text('补充信息'),
+        title: Text(context.l10n.supplementInformation),
         leading: AppBackButton(onPressed: _returnToSelection),
       ),
       body: Form(
@@ -6704,10 +7202,10 @@ class _EditorPageState extends State<EditorPage> {
             const SizedBox(height: 24),
             _selectedItemSummary(),
             const SizedBox(height: 28),
-            const Text(
-              '选填信息',
+            Text(
+              context.l10n.optionalInformation,
               style: TextStyle(
-                color: _ink,
+                color: context.palette.ink,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
@@ -6734,7 +7232,7 @@ class _EditorPageState extends State<EditorPage> {
                   TextButton(
                     key: const Key('save-care-item-later'),
                     onPressed: _save,
-                    child: const Text('稍后完善'),
+                    child: Text(context.l10n.finishLater),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -6743,7 +7241,7 @@ class _EditorPageState extends State<EditorPage> {
                       child: FilledButton(
                         key: const Key('save-care-item'),
                         onPressed: _save,
-                        child: const Text('完成添加'),
+                        child: Text(context.l10n.finishAdding),
                       ),
                     ),
                   ),
@@ -6758,13 +7256,13 @@ class _EditorPageState extends State<EditorPage> {
                     child: FilledButton(
                       key: const Key('save-care-item'),
                       onPressed: _save,
-                      child: const Text('完成添加'),
+                      child: Text(context.l10n.finishAdding),
                     ),
                   ),
                   TextButton(
                     key: const Key('save-care-item-later'),
                     onPressed: _save,
-                    child: const Text('稍后完善'),
+                    child: Text(context.l10n.finishLater),
                   ),
                 ],
               ),
@@ -6775,12 +7273,15 @@ class _EditorPageState extends State<EditorPage> {
   Widget _stepIndicator(int activeStep) => Row(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
-      _stepDot(1, '选择物品', activeStep == 1),
-      const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 12),
-        child: Text('·', style: TextStyle(color: _muted, fontSize: 20)),
+      _stepDot(1, context.l10n.chooseItemTitle, activeStep == 1),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Text(
+          '·',
+          style: TextStyle(color: context.palette.muted, fontSize: 20),
+        ),
       ),
-      _stepDot(2, '补充信息', activeStep == 2),
+      _stepDot(2, context.l10n.supplementInformation, activeStep == 2),
     ],
   );
 
@@ -6792,13 +7293,13 @@ class _EditorPageState extends State<EditorPage> {
         height: 34,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: active ? _indigo : _mist,
+          color: active ? context.palette.primary : context.palette.mist,
           shape: BoxShape.circle,
         ),
         child: Text(
           '$number',
           style: TextStyle(
-            color: active ? Colors.white : _muted,
+            color: active ? context.palette.onPrimary : context.palette.muted,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -6807,7 +7308,7 @@ class _EditorPageState extends State<EditorPage> {
       Text(
         label,
         style: TextStyle(
-          color: active ? _ink : _muted,
+          color: active ? context.palette.ink : context.palette.muted,
           fontWeight: active ? FontWeight.w800 : FontWeight.w500,
         ),
       ),
@@ -6834,23 +7335,23 @@ class _EditorPageState extends State<EditorPage> {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: _paper,
+                    color: context.palette.paper,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFE2E8E1)),
+                    border: Border.all(color: context.palette.border),
                   ),
                   child: Icon(
                     match.item.icon ?? match.category.icon,
-                    color: _indigo,
+                    color: context.palette.primary,
                     size: 27,
                   ),
                 ),
                 const SizedBox(height: 7),
                 Text(
-                  match.item.name,
+                  context.l10n.itemPresetLabel(match.item.name),
                   maxLines: 2,
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: _ink),
+                  style: TextStyle(fontSize: 12, color: context.palette.ink),
                 ),
               ],
             ),
@@ -6868,7 +7369,7 @@ class _EditorPageState extends State<EditorPage> {
       child: Column(
         children: [
           for (var index = 0; index < _itemCatalog.length; index++) ...[
-            if (index > 0) const Divider(height: 1, color: Color(0xFFE3E9E2)),
+            if (index > 0) Divider(height: 1, color: context.palette.divider),
             _categorySection(_itemCatalog[index]),
           ],
         ],
@@ -6891,13 +7392,17 @@ class _EditorPageState extends State<EditorPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
             child: Row(
               children: [
-                Icon(itemCategory.icon, color: _indigo, size: 25),
+                Icon(
+                  itemCategory.icon,
+                  color: context.palette.primary,
+                  size: 25,
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    itemCategory.name,
-                    style: const TextStyle(
-                      color: _ink,
+                    context.l10n.itemCategoryLabel(itemCategory.name),
+                    style: TextStyle(
+                      color: context.palette.ink,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -6908,7 +7413,7 @@ class _EditorPageState extends State<EditorPage> {
                       ? Icons.keyboard_arrow_up_rounded
                       : Icons.arrow_forward_ios_rounded,
                   size: expanded ? 24 : 15,
-                  color: _muted,
+                  color: context.palette.muted,
                 ),
               ],
             ),
@@ -6917,7 +7422,7 @@ class _EditorPageState extends State<EditorPage> {
         if (expanded)
           Container(
             width: double.infinity,
-            color: _mist.withValues(alpha: .62),
+            color: context.palette.mist.withValues(alpha: .62),
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 14),
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -6936,15 +7441,15 @@ class _EditorPageState extends State<EditorPage> {
                           ),
                           onPressed: () => _selectPreset(itemCategory, item),
                           style: OutlinedButton.styleFrom(
-                            backgroundColor: _paper,
-                            foregroundColor: _ink,
+                            backgroundColor: context.palette.paper,
+                            foregroundColor: context.palette.ink,
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(15),
                             ),
                           ),
                           child: Text(
-                            item.name,
+                            context.l10n.itemPresetLabel(item.name),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
@@ -6969,7 +7474,16 @@ class _EditorPageState extends State<EditorPage> {
     final matches = <({_ItemCatalogCategory category, _ItemPreset item})>[];
     for (final itemCategory in _itemCatalog) {
       for (final item in itemCategory.items) {
-        if (itemCategory.name.contains(query) || item.name.contains(query)) {
+        if (itemCategory.name.contains(query) ||
+            item.name.contains(query) ||
+            context.l10n
+                .itemCategoryLabel(itemCategory.name)
+                .toLowerCase()
+                .contains(query.toLowerCase()) ||
+            context.l10n
+                .itemPresetLabel(item.name)
+                .toLowerCase()
+                .contains(query.toLowerCase())) {
           matches.add((category: itemCategory, item: item));
         }
       }
@@ -6978,9 +7492,11 @@ class _EditorPageState extends State<EditorPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          matches.isEmpty ? '没有找到相关物品' : '搜索结果',
-          style: const TextStyle(
-            color: _ink,
+          matches.isEmpty
+              ? context.l10n.searchNoItems
+              : context.l10n.searchResults,
+          style: TextStyle(
+            color: context.palette.ink,
             fontSize: 20,
             fontWeight: FontWeight.w800,
           ),
@@ -6991,7 +7507,7 @@ class _EditorPageState extends State<EditorPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('可以把“$query”作为自定义名称添加。'),
+                Text(context.l10n.addCustomItemHint(query)),
                 const SizedBox(height: 12),
                 FilledButton.tonalIcon(
                   key: const Key('add-custom-search-item'),
@@ -7000,7 +7516,7 @@ class _EditorPageState extends State<EditorPage> {
                     _selectPreset(other, other.items.single, custom: query);
                   },
                   icon: const Icon(Icons.add_rounded),
-                  label: const Text('添加其他物品'),
+                  label: Text(context.l10n.addOtherItem),
                 ),
               ],
             ),
@@ -7012,17 +7528,23 @@ class _EditorPageState extends State<EditorPage> {
               children: [
                 for (var index = 0; index < matches.length; index++) ...[
                   if (index > 0)
-                    const Divider(height: 1, color: Color(0xFFE3E9E2)),
+                    Divider(height: 1, color: context.palette.divider),
                   ListTile(
                     key: ValueKey(
                       'search-item-${matches[index].category.name}-${matches[index].item.name}',
                     ),
                     leading: Icon(
                       matches[index].item.icon ?? matches[index].category.icon,
-                      color: _indigo,
+                      color: context.palette.primary,
                     ),
-                    title: Text(matches[index].item.name),
-                    subtitle: Text(matches[index].category.name),
+                    title: Text(
+                      context.l10n.itemPresetLabel(matches[index].item.name),
+                    ),
+                    subtitle: Text(
+                      context.l10n.itemCategoryLabel(
+                        matches[index].category.name,
+                      ),
+                    ),
                     trailing: const Icon(
                       Icons.arrow_forward_ios_rounded,
                       size: 14,
@@ -7048,10 +7570,14 @@ class _EditorPageState extends State<EditorPage> {
           width: 64,
           height: 64,
           decoration: BoxDecoration(
-            color: _mist,
+            color: context.palette.mist,
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Icon(_selectedPresetIcon, size: 31, color: _indigo),
+          child: Icon(
+            _selectedPresetIcon,
+            size: 31,
+            color: context.palette.primary,
+          ),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -7059,22 +7585,25 @@ class _EditorPageState extends State<EditorPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _selectedPresetName ?? '',
-                style: const TextStyle(
-                  color: _ink,
+                context.l10n.itemPresetLabel(_selectedPresetName ?? ''),
+                style: TextStyle(
+                  color: context.palette.ink,
                   fontSize: 21,
                   fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 3),
-              Text(category, style: const TextStyle(color: _muted)),
+              Text(
+                context.l10n.itemCategoryLabel(category),
+                style: TextStyle(color: context.palette.muted),
+              ),
             ],
           ),
         ),
         TextButton(
           key: const Key('change-selected-item'),
           onPressed: _returnToSelection,
-          child: const Text('更换'),
+          child: Text(context.l10n.changeSelection),
         ),
       ],
     ),
@@ -7086,20 +7615,20 @@ class _EditorPageState extends State<EditorPage> {
       children: [
         _inlineField(
           customName,
-          '备注或自定义名称',
-          '例如：主卧空调',
+          context.l10n.customItemNameLabel,
+          context.l10n.customItemNameHint,
           const Key('custom-item-name'),
         ),
-        const Divider(height: 1, color: Color(0xFFE3E9E2)),
+        Divider(height: 1, color: context.palette.divider),
         _spaceSelectorRow(),
-        const Divider(height: 1, color: Color(0xFFE3E9E2)),
+        Divider(height: 1, color: context.palette.divider),
         _inlineField(
           location,
-          '具体位置（选填）',
-          '例如：阳台、电视柜左侧',
+          context.l10n.specificLocationOptional,
+          context.l10n.specificLocationHint,
           const Key('item-location'),
         ),
-        const Divider(height: 1, color: Color(0xFFE3E9E2)),
+        Divider(height: 1, color: context.palette.divider),
         InkWell(
           key: const Key('toggle-brand-model'),
           onTap: () => setState(() {
@@ -7109,10 +7638,10 @@ class _EditorPageState extends State<EditorPage> {
             padding: const EdgeInsets.symmetric(vertical: 17),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    '品牌与型号',
-                    style: TextStyle(color: _ink, fontSize: 16),
+                    context.l10n.brandAndModel,
+                    style: TextStyle(color: context.palette.ink, fontSize: 16),
                   ),
                 ),
                 Text(
@@ -7120,19 +7649,19 @@ class _EditorPageState extends State<EditorPage> {
                         brand.text,
                         model.text,
                       ].where((x) => x.isNotEmpty).join(' · ').isEmpty
-                      ? '以后也可以补充'
+                      ? context.l10n.canAddLater
                       : [
                           brand.text,
                           model.text,
                         ].where((x) => x.isNotEmpty).join(' · '),
-                  style: const TextStyle(color: _muted, fontSize: 13),
+                  style: TextStyle(color: context.palette.muted, fontSize: 13),
                 ),
                 const SizedBox(width: 6),
                 Icon(
                   _brandModelExpanded
                       ? Icons.keyboard_arrow_up_rounded
                       : Icons.arrow_forward_ios_rounded,
-                  color: _muted,
+                  color: context.palette.muted,
                   size: _brandModelExpanded ? 22 : 14,
                 ),
               ],
@@ -7140,13 +7669,13 @@ class _EditorPageState extends State<EditorPage> {
           ),
         ),
         if (_brandModelExpanded) ...[
-          const Divider(height: 1, color: Color(0xFFE3E9E2)),
+          Divider(height: 1, color: context.palette.divider),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _field(brand, '品牌')),
+              Expanded(child: _field(brand, context.l10n.itemBrand)),
               const SizedBox(width: 10),
-              Expanded(child: _field(model, '型号')),
+              Expanded(child: _field(model, context.l10n.itemModel)),
             ],
           ),
         ],
@@ -7155,13 +7684,14 @@ class _EditorPageState extends State<EditorPage> {
   );
 
   String get _selectedSpaceName =>
-      widget.store.spaceById(_selectedSpaceId)?.name ?? '未设置空间';
+      widget.store.spaceById(_selectedSpaceId)?.name ??
+      context.l10n.unassignedSpace;
 
   Widget _spaceSelectorField() => Padding(
     padding: const EdgeInsets.only(bottom: 0),
     child: Semantics(
       button: true,
-      label: '选择所在空间',
+      label: context.l10n.selectSpace,
       value: _selectedSpaceName,
       child: Material(
         color: Colors.transparent,
@@ -7170,17 +7700,17 @@ class _EditorPageState extends State<EditorPage> {
           borderRadius: BorderRadius.circular(4),
           onTap: _selectSpace,
           child: InputDecorator(
-            decoration: const InputDecoration(
-              labelText: '所在空间',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: context.l10n.spaceFieldLabel,
+              border: const OutlineInputBorder(),
             ),
             child: Row(
               children: [
                 Expanded(child: Text(_selectedSpaceName)),
-                const Icon(
+                Icon(
                   CupertinoIcons.chevron_right,
                   size: 17,
-                  color: _muted,
+                  color: context.palette.muted,
                 ),
               ],
             ),
@@ -7197,9 +7727,9 @@ class _EditorPageState extends State<EditorPage> {
       padding: const EdgeInsets.symmetric(vertical: 17),
       child: Row(
         children: [
-          const Text(
-            '所在空间',
-            style: TextStyle(color: _ink, fontSize: 16),
+          Text(
+            context.l10n.spaceFieldLabel,
+            style: TextStyle(color: context.palette.ink, fontSize: 16),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -7208,11 +7738,15 @@ class _EditorPageState extends State<EditorPage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
-              style: const TextStyle(color: _muted, fontSize: 13),
+              style: TextStyle(color: context.palette.muted, fontSize: 13),
             ),
           ),
           const SizedBox(width: 7),
-          const Icon(CupertinoIcons.chevron_right, color: _muted, size: 16),
+          Icon(
+            CupertinoIcons.chevron_right,
+            color: context.palette.muted,
+            size: 16,
+          ),
         ],
       ),
     ),
@@ -7273,22 +7807,25 @@ class _EditorPageState extends State<EditorPage> {
               padding: const EdgeInsets.fromLTRB(16, 15, 12, 15),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '购买、保修与保养信息',
+                          context.l10n.advancedItemInformation,
                           style: TextStyle(
-                            color: _ink,
+                            color: context.palette.ink,
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        SizedBox(height: 3),
+                        const SizedBox(height: 3),
                         Text(
-                          '需要时再填写',
-                          style: TextStyle(color: _muted, fontSize: 12),
+                          context.l10n.fillWhenNeeded,
+                          style: TextStyle(
+                            color: context.palette.muted,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -7297,14 +7834,14 @@ class _EditorPageState extends State<EditorPage> {
                     _advancedExpanded
                         ? Icons.keyboard_arrow_up_rounded
                         : Icons.keyboard_arrow_down_rounded,
-                    color: _muted,
+                    color: context.palette.muted,
                   ),
                 ],
               ),
             ),
           ),
           if (_advancedExpanded) ...[
-            const Divider(height: 1, color: Color(0xFFE3E9E2)),
+            Divider(height: 1, color: context.palette.divider),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
               child: Column(
@@ -7312,23 +7849,23 @@ class _EditorPageState extends State<EditorPage> {
                 children: [
                   _field(
                     purchasePrice,
-                    '购买价（元）',
+                    context.l10n.purchasePriceCny,
                     type: const TextInputType.numberWithOptions(decimal: true),
-                    validator: _nonNegativeNumber,
+                    validator: (value) => _nonNegativeNumber(context, value),
                   ),
                   _field(
                     currentValue,
-                    '当前估值（元）',
+                    context.l10n.currentValueCny,
                     type: const TextInputType.numberWithOptions(decimal: true),
-                    validator: _nonNegativeNumber,
+                    validator: (value) => _nonNegativeNumber(context, value),
                   ),
                   _dateTile(
-                    '购买日期',
+                    context.l10n.itemPurchaseDate,
                     purchase,
                     (d) => setState(() => purchase = d),
                   ),
                   _dateTile(
-                    '保修截止',
+                    context.l10n.itemWarrantyEnd,
                     warranty,
                     (d) => setState(() => warranty = d),
                   ),
@@ -7339,10 +7876,10 @@ class _EditorPageState extends State<EditorPage> {
                     onChanged: (value) => setState(() => plans = value),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    '凭证照片',
+                  Text(
+                    context.l10n.documentPhotos,
                     style: TextStyle(
-                      color: _ink,
+                      color: context.palette.ink,
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                     ),
@@ -7350,7 +7887,7 @@ class _EditorPageState extends State<EditorPage> {
                   const SizedBox(height: 8),
                   _photos(),
                   const SizedBox(height: 16),
-                  _field(notes, '备注', maxLines: 4),
+                  _field(notes, context.l10n.itemNotes, maxLines: 4),
                 ],
               ),
             ),
@@ -7382,7 +7919,7 @@ class _EditorPageState extends State<EditorPage> {
       _selectedPresetName = item.name;
       _selectedPresetIcon = item.icon ?? itemCategory.icon;
       customName.text = custom ?? '';
-      name.text = item.name;
+      name.text = context.l10n.itemPresetLabel(item.name);
       _showSupplement = true;
       _allowSupplementPop = false;
       _advancedExpanded = false;
@@ -7426,7 +7963,7 @@ class _EditorPageState extends State<EditorPage> {
       ),
       validator: (value) {
         if (required && (value == null || value.trim().isEmpty)) {
-          return '请填写物品名称';
+          return context.l10n.itemNameRequired;
         }
         return validator?.call(value);
       },
@@ -7436,8 +7973,8 @@ class _EditorPageState extends State<EditorPage> {
     padding: const EdgeInsets.only(bottom: 12),
     child: Semantics(
       button: true,
-      label: '选择类别',
-      value: category,
+      label: context.l10n.chooseCategory,
+      value: context.l10n.itemCategoryLabel(category),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -7446,22 +7983,22 @@ class _EditorPageState extends State<EditorPage> {
           onTap: _selectCategory,
           child: InputDecorator(
             isEmpty: false,
-            decoration: const InputDecoration(
-              labelText: '类别',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: context.l10n.itemCategory,
+              border: const OutlineInputBorder(),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
-                    category,
+                    context.l10n.itemCategoryLabel(category),
                     key: const Key('edit-item-category-value'),
                   ),
                 ),
-                const Icon(
+                Icon(
                   CupertinoIcons.chevron_down,
                   size: 17,
-                  color: _muted,
+                  color: context.palette.muted,
                 ),
               ],
             ),
@@ -7482,17 +8019,17 @@ class _EditorPageState extends State<EditorPage> {
     try {
       final selected = await showCupertinoModalPopup<String>(
         context: context,
-        barrierColor: Colors.black.withValues(alpha: 0.42),
+        barrierColor: context.palette.scrim,
         semanticsDismissible: true,
         builder: (sheetContext) => CupertinoTheme(
-          data: const CupertinoThemeData(
-            brightness: Brightness.light,
-            primaryColor: _indigo,
-            scaffoldBackgroundColor: _paper,
+          data: CupertinoThemeData(
+            brightness: sheetContext.palette.brightness,
+            primaryColor: sheetContext.palette.primary,
+            scaffoldBackgroundColor: sheetContext.palette.paper,
           ),
           child: DefaultTextStyle(
-            style: const TextStyle(
-              color: _ink,
+            style: TextStyle(
+              color: sheetContext.palette.ink,
               fontSize: 17,
               decoration: TextDecoration.none,
             ),
@@ -7503,9 +8040,11 @@ class _EditorPageState extends State<EditorPage> {
                 bottom: MediaQuery.paddingOf(sheetContext).bottom,
               ),
               clipBehavior: Clip.antiAlias,
-              decoration: const BoxDecoration(
-                color: _paper,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              decoration: BoxDecoration(
+                color: sheetContext.palette.paper,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(28),
+                ),
               ),
               child: Column(
                 children: [
@@ -7514,7 +8053,7 @@ class _EditorPageState extends State<EditorPage> {
                     width: 38,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFC9CEC9),
+                      color: sheetContext.palette.handle,
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
@@ -7528,15 +8067,15 @@ class _EditorPageState extends State<EditorPage> {
                             key: const Key('cancel-edit-item-category'),
                             padding: EdgeInsets.zero,
                             onPressed: () => Navigator.pop(sheetContext),
-                            child: const Text('取消'),
+                            child: Text(sheetContext.l10n.commonCancel),
                           ),
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            '选择类别',
+                            sheetContext.l10n.chooseCategory,
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: _ink,
+                              color: sheetContext.palette.ink,
                               fontSize: 17,
                               fontWeight: FontWeight.w700,
                             ),
@@ -7549,16 +8088,18 @@ class _EditorPageState extends State<EditorPage> {
                             padding: EdgeInsets.zero,
                             onPressed: () =>
                                 Navigator.pop(sheetContext, draftCategory),
-                            child: const Text(
-                              '完成',
-                              style: TextStyle(fontWeight: FontWeight.w700),
+                            child: Text(
+                              sheetContext.l10n.commonDone,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Divider(height: 1, color: Color(0xFFE7ECE5)),
+                  Divider(height: 1, color: sheetContext.palette.border),
                   Expanded(
                     child: CupertinoPicker(
                       key: const Key('edit-item-category-picker'),
@@ -7567,7 +8108,7 @@ class _EditorPageState extends State<EditorPage> {
                       diameterRatio: 1.25,
                       magnification: 1.04,
                       useMagnifier: true,
-                      backgroundColor: _paper,
+                      backgroundColor: sheetContext.palette.paper,
                       onSelectedItemChanged: (index) {
                         draftCategory = categories[index];
                       },
@@ -7575,9 +8116,9 @@ class _EditorPageState extends State<EditorPage> {
                         for (final option in categories)
                           Center(
                             child: Text(
-                              option,
-                              style: const TextStyle(
-                                color: _ink,
+                              sheetContext.l10n.itemCategoryLabel(option),
+                              style: TextStyle(
+                                color: sheetContext.palette.ink,
                                 fontSize: 20,
                                 letterSpacing: -0.2,
                                 decoration: TextDecoration.none,
@@ -7629,7 +8170,9 @@ class _EditorPageState extends State<EditorPage> {
               right: -8,
               top: -8,
               child: IconButton(
-                style: IconButton.styleFrom(backgroundColor: Colors.white),
+                style: IconButton.styleFrom(
+                  backgroundColor: context.palette.raised,
+                ),
                 constraints: const BoxConstraints(),
                 padding: const EdgeInsets.all(4),
                 onPressed: () {
@@ -7651,7 +8194,7 @@ class _EditorPageState extends State<EditorPage> {
           width: 82,
           height: 82,
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.blueGrey.shade200),
+            border: Border.all(color: context.palette.border),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(Icons.add_a_photo_outlined),
@@ -7673,15 +8216,18 @@ class _EditorPageState extends State<EditorPage> {
                   children: [
                     Text(
                       label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: _ink,
+                        color: context.palette.ink,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      _date(date),
-                      style: const TextStyle(color: _muted, fontSize: 12),
+                      _localizedDate(context, date),
+                      style: TextStyle(
+                        color: context.palette.muted,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -7722,32 +8268,32 @@ class _EditorPageState extends State<EditorPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(8, 2, 8, 12),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 2, 8, 12),
                 child: Text(
-                  '添加凭证照片',
+                  sheet.l10n.addDocumentPhoto,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: _ink,
+                    color: sheet.palette.ink,
                   ),
                 ),
               ),
               BreezeSurface(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                child: const Column(
+                child: Column(
                   children: [
                     PhotoSourceRow(
                       icon: Icons.photo_camera_outlined,
-                      title: '拍照',
-                      subtitle: '直接拍摄物品、说明书或保修卡',
+                      title: sheet.l10n.takePhoto,
+                      subtitle: sheet.l10n.photoCameraSubtitle,
                       source: ImageSource.camera,
                     ),
-                    Divider(height: 1, color: Color(0xFFE8EDE7)),
+                    Divider(height: 1, color: sheet.palette.divider),
                     PhotoSourceRow(
                       icon: Icons.photo_library_outlined,
-                      title: '从相册选择',
-                      subtitle: '从已保存的照片中添加凭证',
+                      title: sheet.l10n.chooseFromPhotos,
+                      subtitle: sheet.l10n.photoLibrarySubtitle,
                       source: ImageSource.gallery,
                     ),
                   ],
@@ -7760,7 +8306,12 @@ class _EditorPageState extends State<EditorPage> {
     );
     if (source == null) return;
     final result = await widget.store.importPhoto(source);
-    if (!mounted) return;
+    if (!mounted) {
+      if (result.path case final path?) {
+        await widget.store.discardImportedPhoto(path);
+      }
+      return;
+    }
     if (result.path != null) {
       setState(() {
         photos.add(result.path!);
@@ -7776,8 +8327,8 @@ class _EditorPageState extends State<EditorPage> {
       AppToast.show(
         context,
         source == ImageSource.camera
-            ? '无法打开相机，请检查“相机”权限后重试。'
-            : '无法读取照片，请检查“照片”权限后重试。',
+            ? context.l10n.cameraOpenFailed
+            : context.l10n.photoReadFailed,
         style: AppToastStyle.error,
       );
     }
@@ -7787,8 +8338,8 @@ class _EditorPageState extends State<EditorPage> {
     if (widget.item == null && _selectedPresetName == null) return;
     if (widget.item == null) {
       final hiddenAdvancedError =
-          _nonNegativeNumber(purchasePrice.text) ??
-          _nonNegativeNumber(currentValue.text);
+          _nonNegativeNumber(context, purchasePrice.text) ??
+          _nonNegativeNumber(context, currentValue.text);
       if (hiddenAdvancedError != null) {
         setState(() => _advancedExpanded = true);
         AppToast.show(context, hiddenAdvancedError, style: AppToastStyle.error);
@@ -7798,7 +8349,7 @@ class _EditorPageState extends State<EditorPage> {
     if (!(form.currentState?.validate() ?? false)) return;
     final resolvedName = widget.item == null
         ? (customName.text.trim().isEmpty
-              ? _selectedPresetName!
+              ? context.l10n.itemPresetLabel(_selectedPresetName!)
               : customName.text.trim())
         : name.text.trim();
     final selectedSpace = widget.store.spaceById(_selectedSpaceId);
@@ -7852,7 +8403,11 @@ class _EditorPageState extends State<EditorPage> {
       }
     } catch (_) {
       if (mounted) {
-        AppToast.show(context, '保存失败，请稍后重试。', style: AppToastStyle.error);
+        AppToast.show(
+          context,
+          context.l10n.itemSaveFailed,
+          style: AppToastStyle.error,
+        );
       }
     }
   }
@@ -7883,8 +8438,8 @@ class _EditorPageState extends State<EditorPage> {
         );
       } else {
         final message = access == NotificationAccess.enabled
-            ? '保养提醒已开启'
-            : '暂未开启通知';
+            ? context.l10n.remindersEnabledTitle
+            : context.l10n.notificationsNotEnabled;
         AppToast.show(
           context,
           message,

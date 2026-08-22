@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import 'l10n/l10n.dart';
+import 'theme/app_theme.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/app_safe_area.dart';
 
@@ -34,7 +36,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
     _policyUri = uri;
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.white)
+      ..setBackgroundColor(Colors.transparent)
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (progress) {
@@ -68,14 +70,23 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final controller = _controller;
+    if (controller != null) {
+      unawaited(controller.setBackgroundColor(context.palette.paper));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       leading: const AppBackButton(),
-      title: const Text('隐私政策'),
+      title: Text(context.l10n.privacyPolicyTitle),
       actions: [
         if (_controller != null)
           IconButton(
-            tooltip: '刷新',
+            tooltip: context.l10n.commonRefresh,
             onPressed: () {
               setState(() => _loadError = null);
               unawaited(_controller!.reload());
@@ -95,16 +106,16 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
 
   Widget _body() {
     if (_policyUri == null) {
-      return const _PrivacyFallback(
-        title: '隐私政策页面正在准备中',
-        message: '正式 HTTPS 地址接入后，这里将直接展示完整隐私政策。',
+      return _PrivacyFallback(
+        title: context.l10n.privacyPreparingTitle,
+        message: context.l10n.privacyPreparingMessage,
       );
     }
     if (_loadError != null) {
       return _PrivacyFallback(
-        title: '暂时无法加载隐私政策',
-        message: '请检查网络后重试。\n$_loadError',
-        actionLabel: '重新加载',
+        title: context.l10n.privacyLoadFailedTitle,
+        message: context.l10n.privacyLoadFailedMessage(_loadError!),
+        actionLabel: context.l10n.privacyReload,
         onAction: () {
           setState(() => _loadError = null);
           unawaited(_controller!.reload());
@@ -142,12 +153,12 @@ class _PrivacyFallback extends StatelessWidget {
       const SizedBox(height: 12),
       Text(message, textAlign: TextAlign.center),
       const SizedBox(height: 28),
-      const Card(
+      Card(
         child: Padding(
-          padding: EdgeInsets.all(18),
+          padding: const EdgeInsets.all(18),
           child: Text(
-            '家务志无需注册。物品信息、照片、维护记录和计划默认保存在本机；只有在你主动导出、备份或分享时，相关文件才会离开 App 沙盒。',
-            style: TextStyle(height: 1.6),
+            context.l10n.privacyLocalFirstSummary,
+            style: const TextStyle(height: 1.6),
           ),
         ),
       ),

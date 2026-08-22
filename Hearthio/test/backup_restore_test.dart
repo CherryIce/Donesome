@@ -4,6 +4,27 @@ import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hearthio/main.dart';
 
+void _writeUint32LittleEndian(List<int> bytes, int offset, int value) {
+  for (var index = 0; index < 4; index++) {
+    bytes[offset + index] = (value >> (index * 8)) & 0xff;
+  }
+}
+
+void _understateZipEntryExpandedSize(List<int> bytes) {
+  for (var offset = 0; offset <= bytes.length - 4; offset++) {
+    final signature =
+        bytes[offset] |
+        (bytes[offset + 1] << 8) |
+        (bytes[offset + 2] << 16) |
+        (bytes[offset + 3] << 24);
+    if (signature == 0x04034b50) {
+      _writeUint32LittleEndian(bytes, offset + 22, 1);
+    } else if (signature == 0x02014b50) {
+      _writeUint32LittleEndian(bytes, offset + 24, 1);
+    }
+  }
+}
+
 void main() {
   test('v2 backup round-trip preserves plans, records, and photo bytes', () {
     final item = CareItem(
@@ -141,6 +162,29 @@ void main() {
     expect(
       () => CareBackupCodec.decode(ZipEncoder().encode(archive)),
       throwsA(isA<CareBackupException>()),
+    );
+  });
+
+  test('backup bounds actual output when ZIP headers understate size', () {
+    final archive = Archive()
+      ..add(
+        ArchiveFile.bytes(
+          'data.json',
+          List<int>.filled(CareBackupCodec.maxDataFileBytes + 1, 0),
+        ),
+      );
+    final encoded = ZipEncoder().encode(archive);
+    _understateZipEntryExpandedSize(encoded);
+
+    expect(
+      () => CareBackupCodec.decode(encoded),
+      throwsA(
+        isA<CareBackupException>().having(
+          (error) => error.message,
+          'message',
+          contains('解压时超过大小限制'),
+        ),
+      ),
     );
   });
 

@@ -25,9 +25,56 @@ Map<String, dynamic> legacyItem({
   'records': records,
 };
 
+Future<({CareRepository repository, File snapshot})>
+_openFileRepository() async {
+  final directory = await Directory.systemTemp.createTemp(
+    'hearthio-repository-',
+  );
+  addTearDown(() async {
+    if (await directory.exists()) await directory.delete(recursive: true);
+  });
+  final snapshot = File('${directory.path}/${CareRepository.snapshotFileName}');
+  return (
+    repository: await CareRepository.open(snapshotFile: snapshot),
+    snapshot: snapshot,
+  );
+}
+
 void main() {
   test(
-    'legacy schedule and records migrate once while old key is retained',
+    'file snapshots atomically replace the previous valid archive',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final opened = await _openFileRepository();
+      const first = CareDataEnvelope(items: []);
+      final second = CareDataEnvelope(
+        items: [
+          CareItem(
+            id: 'kept',
+            name: '保留物品',
+            category: '其他',
+            location: '',
+            brand: '',
+            model: '',
+            notes: '',
+            photos: const [],
+          ),
+        ],
+      );
+
+      await opened.repository.writeEncodedSnapshot(first.encode());
+      await opened.repository.writeEncodedSnapshot(second.encode());
+
+      final persisted = CareDataEnvelope.decode(
+        await opened.snapshot.readAsString(),
+      );
+      expect(persisted.items.single.id, 'kept');
+      expect(await File('${opened.snapshot.path}.tmp').exists(), isFalse);
+    },
+  );
+
+  test(
+    'legacy schedule and records migrate once into the file snapshot',
     () async {
       final legacyJson = jsonEncode([
         legacyItem(
@@ -46,9 +93,9 @@ void main() {
       SharedPreferences.setMockInitialValues({
         CareRepository.legacyStorageKey: legacyJson,
       });
-      final repository = await CareRepository.open();
+      final opened = await _openFileRepository();
 
-      final result = await repository.load(initialItems: const []);
+      final result = await opened.repository.load(initialItems: const []);
 
       expect(result.migratedLegacyData, isTrue);
       final item = result.items.single;
@@ -58,12 +105,10 @@ void main() {
       expect(item.records.single.planId, item.plans.single.id);
 
       final preferences = await SharedPreferences.getInstance();
-      expect(
-        preferences.getString(CareRepository.legacyStorageKey),
-        legacyJson,
-      );
+      expect(preferences.getString(CareRepository.legacyStorageKey), isNull);
+      expect(preferences.getString(CareRepository.storageKey), isNull);
       final current = CareDataEnvelope.decode(
-        preferences.getString(CareRepository.storageKey)!,
+        await opened.snapshot.readAsString(),
       );
       expect(current.schemaVersion, currentCareSchemaVersion);
       expect(current.items.single.records.single.id, 'legacy-record-washer-0');
@@ -76,9 +121,9 @@ void main() {
       SharedPreferences.setMockInitialValues({
         CareRepository.legacyStorageKey: '[]',
       });
-      final repository = await CareRepository.open();
+      final opened = await _openFileRepository();
 
-      final result = await repository.load(
+      final result = await opened.repository.load(
         initialItems: [
           CareItem(
             id: 'sample',
@@ -105,16 +150,17 @@ void main() {
       SharedPreferences.setMockInitialValues({
         CareRepository.legacyStorageKey: damaged,
       });
-      final repository = await CareRepository.open();
+      final opened = await _openFileRepository();
 
       await expectLater(
-        repository.load(initialItems: const []),
+        opened.repository.load(initialItems: const []),
         throwsA(anything),
       );
 
       final preferences = await SharedPreferences.getInstance();
       expect(preferences.getString(CareRepository.legacyStorageKey), damaged);
       expect(preferences.getString(CareRepository.storageKey), isNull);
+      expect(await opened.snapshot.exists(), isFalse);
     },
   );
 
@@ -125,7 +171,8 @@ void main() {
       CareRepository.storageKey: damaged,
       CareRepository.legacyStorageKey: legacyJson,
     });
-    final store = CareStore();
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
 
     await store.load();
 
@@ -146,7 +193,6 @@ void main() {
       ),
       throwsA(isA<FileSystemException>()),
     );
-    final preferences = await SharedPreferences.getInstance();
     expect(preferences.getString(CareRepository.storageKey), damaged);
     expect(preferences.getString(CareRepository.legacyStorageKey), legacyJson);
   });
@@ -191,14 +237,14 @@ void main() {
       SharedPreferences.setMockInitialValues({
         CareRepository.storageKey: CareDataEnvelope(items: [item]).encode(),
       });
-      final store = CareStore();
+      final preferences = await SharedPreferences.getInstance();
+      final store = CareStore(repository: CareRepository(preferences));
 
       await store.load();
 
       final loaded = store.items.single;
       expect(loaded.plans.single.deferredUntil, isNull);
       expect(loaded.records.single.stepSnapshots?.single.title, '关闭水源');
-      final preferences = await SharedPreferences.getInstance();
       final persisted = CareDataEnvelope.decode(
         preferences.getString(CareRepository.storageKey)!,
       ).items.single;
