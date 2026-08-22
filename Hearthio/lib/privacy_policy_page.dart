@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import 'widgets/app_back_button.dart';
+import 'widgets/app_safe_area.dart';
+
 /// Configure the production URL with:
 /// `--dart-define=PRIVACY_POLICY_URL=https://example.com/privacy`.
 const privacyPolicyUrl = String.fromEnvironment('PRIVACY_POLICY_URL');
@@ -67,6 +70,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
+      leading: const AppBackButton(),
       title: const Text('隐私政策'),
       actions: [
         if (_controller != null)
@@ -126,7 +130,7 @@ class _PrivacyFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(24),
+    padding: appSafeScrollPadding(context, const EdgeInsets.all(24)),
     children: [
       const Icon(Icons.privacy_tip_outlined, size: 48),
       const SizedBox(height: 18),

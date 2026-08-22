@@ -28,11 +28,18 @@ import 'services/care_backup_codec.dart';
 import 'services/care_repository.dart';
 import 'services/maintenance_execution_controller.dart';
 import 'services/maintenance_history_controller.dart';
+import 'services/system_permission_service.dart';
+import 'widgets/app_alert.dart';
+import 'widgets/app_back_button.dart';
+import 'widgets/app_date_picker.dart';
+import 'widgets/app_safe_area.dart';
+import 'widgets/app_toast.dart';
 import 'widgets/maintenance_plan_editor.dart';
 import 'widgets/maintenance_execution_page.dart';
 import 'widgets/maintenance_lifecycle_section.dart';
 import 'widgets/maintenance_task_card.dart';
 import 'widgets/maintenance_report_page.dart';
+import 'widgets/system_permission_alert.dart';
 
 export 'models/care_item.dart';
 export 'models/maintenance_completion.dart';
@@ -49,6 +56,11 @@ export 'services/care_backup_codec.dart';
 export 'services/care_repository.dart';
 export 'services/maintenance_execution_controller.dart';
 export 'services/maintenance_history_controller.dart';
+export 'services/system_permission_service.dart';
+export 'widgets/app_alert.dart';
+export 'widgets/app_back_button.dart';
+export 'widgets/app_date_picker.dart';
+export 'widgets/app_toast.dart';
 export 'widgets/maintenance_plan_editor.dart';
 export 'widgets/maintenance_execution_page.dart';
 export 'widgets/maintenance_lifecycle_section.dart';
@@ -483,6 +495,7 @@ class AppBottomDock extends StatelessWidget {
             child: Material(
               color: Colors.transparent,
               child: InkWell(
+                key: ValueKey('bottom-tab-$index'),
                 borderRadius: BorderRadius.circular(17),
                 onTap: () => onSelect(index),
                 child: AnimatedContainer(
@@ -697,6 +710,10 @@ typedef CareNotificationScheduler =
     Future<void> Function(CareItem item, CareItem? previous);
 typedef CareBackupPicker = Future<String?> Function();
 typedef CareDocumentsDirectoryProvider = Future<Directory> Function();
+typedef CareImagePicker = Future<XFile?> Function(ImageSource source);
+
+Future<XFile?> _pickCareImage(ImageSource source) =>
+    ImagePicker().pickImage(source: source, imageQuality: 82, maxWidth: 1800);
 
 Future<String?> _pickCareBackup() async {
   final picked = await FilePicker.pickFiles(
@@ -740,25 +757,15 @@ NotificationAccess notificationAccessFrom({
 }
 
 Future<bool> _showNotificationPrimer(BuildContext context) async =>
-    await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: const Text('开启保养提醒？'),
-        content: const Text(
+    await showAppAlert<bool>(
+      context,
+      title: '开启保养提醒？',
+      message:
           '开启后，家务志会按每个计划设置的提前天数发送本地通知。\n\n不授权不会影响物品和保养计划保存，你也可以稍后在“设置”中开启。',
-          style: TextStyle(height: 1.55),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('暂不开启'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('开启通知'),
-          ),
-        ],
-      ),
+      actions: const [
+        AppAlertAction(label: '暂不开启', result: false),
+        AppAlertAction(label: '开启通知', result: true, isDefaultAction: true),
+      ],
     ) ??
     false;
 
@@ -784,61 +791,62 @@ Future<void> _deferMaintenanceTask(
   final tomorrow = addMaintenanceDays(today, 1);
   final deferredUntil = await showModalBottomSheet<DateTime>(
     context: context,
-    builder: (sheet) => SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '稍后提醒',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              '${task.item.name} · ${task.plan.title}\n原到期日 ${_date(task.dueDate)}，稍后提醒不会改变真实到期状态。',
-              style: const TextStyle(color: _muted, height: 1.45),
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              key: const Key('defer-until-tomorrow'),
-              leading: const Icon(Icons.wb_sunny_outlined),
-              title: const Text('明天'),
-              subtitle: Text(_date(tomorrow)),
-              onTap: () => Navigator.pop(sheet, tomorrow),
-            ),
-            ListTile(
-              key: const Key('defer-until-three-days'),
-              leading: const Icon(Icons.calendar_view_day_outlined),
-              title: const Text('3 天后'),
-              subtitle: Text(_date(addMaintenanceDays(today, 3))),
-              onTap: () => Navigator.pop(sheet, addMaintenanceDays(today, 3)),
-            ),
-            ListTile(
-              key: const Key('defer-until-next-week'),
-              leading: const Icon(Icons.date_range_outlined),
-              title: const Text('下周'),
-              subtitle: Text(_date(addMaintenanceDays(today, 7))),
-              onTap: () => Navigator.pop(sheet, addMaintenanceDays(today, 7)),
-            ),
-            ListTile(
-              key: const Key('defer-until-custom'),
-              leading: const Icon(Icons.edit_calendar_outlined),
-              title: const Text('自定义日期'),
-              onTap: () async {
-                final selected = await showDatePicker(
-                  context: sheet,
-                  initialDate: tomorrow,
-                  firstDate: tomorrow,
-                  lastDate: DateTime(2100, 12, 31),
-                );
-                if (selected != null && sheet.mounted) {
-                  Navigator.pop(sheet, selected);
-                }
-              },
-            ),
-          ],
-        ),
+    builder: (sheet) => SingleChildScrollView(
+      padding: appSafeScrollPadding(
+        sheet,
+        const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '稍后提醒',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            '${task.item.name} · ${task.plan.title}\n原到期日 ${_date(task.dueDate)}，稍后提醒不会改变真实到期状态。',
+            style: const TextStyle(color: _muted, height: 1.45),
+          ),
+          const SizedBox(height: 12),
+          ListTile(
+            key: const Key('defer-until-tomorrow'),
+            leading: const Icon(Icons.wb_sunny_outlined),
+            title: const Text('明天'),
+            subtitle: Text(_date(tomorrow)),
+            onTap: () => Navigator.pop(sheet, tomorrow),
+          ),
+          ListTile(
+            key: const Key('defer-until-three-days'),
+            leading: const Icon(Icons.calendar_view_day_outlined),
+            title: const Text('3 天后'),
+            subtitle: Text(_date(addMaintenanceDays(today, 3))),
+            onTap: () => Navigator.pop(sheet, addMaintenanceDays(today, 3)),
+          ),
+          ListTile(
+            key: const Key('defer-until-next-week'),
+            leading: const Icon(Icons.date_range_outlined),
+            title: const Text('下周'),
+            subtitle: Text(_date(addMaintenanceDays(today, 7))),
+            onTap: () => Navigator.pop(sheet, addMaintenanceDays(today, 7)),
+          ),
+          ListTile(
+            key: const Key('defer-until-custom'),
+            leading: const Icon(Icons.edit_calendar_outlined),
+            title: const Text('自定义日期'),
+            onTap: () async {
+              final selected = await showAppDatePicker(
+                context: sheet,
+                initialDate: tomorrow,
+                firstDate: tomorrow,
+                lastDate: DateTime(2100, 12, 31),
+              );
+              if (selected != null && sheet.mounted) {
+                Navigator.pop(sheet, selected);
+              }
+            },
+          ),
+        ],
       ),
     ),
   );
@@ -847,9 +855,7 @@ Future<void> _deferMaintenanceTask(
     await store.deferPlan(task.item, task.plan.id, deferredUntil);
   } catch (_) {
     if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('稍后提醒设置失败，请重试。')));
+      AppToast.show(context, '稍后提醒设置失败，请重试。', style: AppToastStyle.error);
     }
   }
 }
@@ -900,11 +906,17 @@ class CareStore extends ChangeNotifier
     CareNotificationScheduler? notificationScheduler,
     CareBackupPicker? backupPicker,
     CareDocumentsDirectoryProvider? documentsDirectoryProvider,
+    SystemPermissionGuard? systemPermissions,
+    CareImagePicker? imagePicker,
   }) : _repository = repository,
        _notificationScheduler = notificationScheduler,
        _backupPicker = backupPicker ?? _pickCareBackup,
        _documentsDirectoryProvider =
-           documentsDirectoryProvider ?? getApplicationDocumentsDirectory;
+           documentsDirectoryProvider ?? getApplicationDocumentsDirectory,
+       _systemPermissions =
+           systemPermissions ??
+           const SystemPermissionGuard(MethodChannelSystemPermissionGateway()),
+       _imagePicker = imagePicker ?? _pickCareImage;
 
   final _notifications = FlutterLocalNotificationsPlugin();
   Future<void>? _notificationsReady;
@@ -914,6 +926,8 @@ class CareStore extends ChangeNotifier
   final CareNotificationScheduler? _notificationScheduler;
   final CareBackupPicker _backupPicker;
   final CareDocumentsDirectoryProvider _documentsDirectoryProvider;
+  final SystemPermissionGuard _systemPermissions;
+  final CareImagePicker _imagePicker;
   final Map<String, Future<MaintenanceCompletionResult>> _completionOperations =
       {};
   Future<bool>? _restoreOperation;
@@ -1426,11 +1440,14 @@ class CareStore extends ChangeNotifier
   @override
   Future<PhotoImportResult> importPhoto(ImageSource source) async {
     try {
-      final picked = await ImagePicker().pickImage(
-        source: source,
-        imageQuality: 82,
-        maxWidth: 1800,
-      );
+      final permission = source == ImageSource.camera
+          ? SystemPermissionKind.camera
+          : SystemPermissionKind.photoLibrary;
+      final permissionState = await _systemPermissions.ensure(permission);
+      if (!permissionState.isGranted) {
+        return PhotoImportResult.permissionBlocked(permission, permissionState);
+      }
+      final picked = await _imagePicker(source);
       // A null result means the user dismissed the system picker. It is not a
       // permission failure and must not show an alarming error message.
       if (picked == null) return const PhotoImportResult.cancelled();
@@ -1513,15 +1530,19 @@ class CareStore extends ChangeNotifier
       }
     } on CareBackupException catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
+        AppToast.show(
           context,
-        ).showSnackBar(SnackBar(content: Text('完整备份未导出：${error.message}')));
+          '完整备份未导出：${error.message}',
+          style: AppToastStyle.error,
+        );
       }
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
+        AppToast.show(
           context,
-        ).showSnackBar(const SnackBar(content: Text('完整备份未导出，请检查设备存储后重试。')));
+          '完整备份未导出，请检查设备存储后重试。',
+          style: AppToastStyle.error,
+        );
       }
     }
   }
@@ -1644,20 +1665,35 @@ class CareStore extends ChangeNotifier
   Future<NotificationAccess> notificationAccess() async {
     try {
       await _ensureNotificationsReady();
-      final ios = _notifications
-          .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin
-          >();
-      if (ios == null) return NotificationAccess.unavailable;
-      final permissions = await ios.checkPermissions();
       final prefs = await SharedPreferences.getInstance();
-      return notificationAccessFrom(
-        notificationsEnabled:
-            permissions?.isAlertEnabled == true ||
-            permissions?.isProvisionalEnabled == true,
-        permissionPrompted:
-            prefs.getBool('notification_permission_prompted') ?? false,
-      );
+      final permissionPrompted =
+          prefs.getBool('notification_permission_prompted') ?? false;
+      if (Platform.isIOS) {
+        final ios = _notifications
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >();
+        if (ios == null) return NotificationAccess.unavailable;
+        final permissions = await ios.checkPermissions();
+        return notificationAccessFrom(
+          notificationsEnabled:
+              permissions?.isAlertEnabled == true ||
+              permissions?.isProvisionalEnabled == true,
+          permissionPrompted: permissionPrompted,
+        );
+      }
+      if (Platform.isAndroid) {
+        final android = _notifications
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        if (android == null) return NotificationAccess.unavailable;
+        return notificationAccessFrom(
+          notificationsEnabled: await android.areNotificationsEnabled() == true,
+          permissionPrompted: permissionPrompted,
+        );
+      }
+      return NotificationAccess.unavailable;
     } catch (_) {
       return NotificationAccess.unavailable;
     }
@@ -1672,16 +1708,28 @@ class CareStore extends ChangeNotifier
       }
       if (before == NotificationAccess.denied) return before;
       await _ensureNotificationsReady();
-      final ios = _notifications
-          .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin
-          >();
-      if (ios == null) return NotificationAccess.unavailable;
-      final granted = await ios.requestPermissions(
-        alert: true,
-        badge: false,
-        sound: true,
-      );
+      final bool? granted;
+      if (Platform.isIOS) {
+        final ios = _notifications
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >();
+        if (ios == null) return NotificationAccess.unavailable;
+        granted = await ios.requestPermissions(
+          alert: true,
+          badge: false,
+          sound: true,
+        );
+      } else if (Platform.isAndroid) {
+        final android = _notifications
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        if (android == null) return NotificationAccess.unavailable;
+        granted = await android.requestNotificationsPermission();
+      } else {
+        return NotificationAccess.unavailable;
+      }
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('notification_permission_prompted', true);
       final after = granted == true
@@ -1845,6 +1893,12 @@ class CareStore extends ChangeNotifier
       scheduledDate: scheduled,
       notificationDetails: const NotificationDetails(
         iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
+        android: AndroidNotificationDetails(
+          'care_reminders',
+          '保养提醒',
+          channelDescription: '家庭物品保养提醒',
+          importance: Importance.defaultImportance,
+        ),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
@@ -1852,6 +1906,10 @@ class CareStore extends ChangeNotifier
 
   Future<void> _scheduleSafely(CareItem item, {CareItem? previous}) async {
     try {
+      if (_notificationScheduler == null &&
+          await notificationAccess() != NotificationAccess.enabled) {
+        return;
+      }
       await _serializeNotificationMutation(
         () => _scheduleItem(item, previous: previous),
       );
@@ -2000,7 +2058,11 @@ class CareStore extends ChangeNotifier
     for (var index = 0; index < target.length; index++) {
       var item = freezeMaintenanceHistorySnapshots(target[index]);
       final plans = item.plans
-          .map((plan) => clearExpiredMaintenanceDeferral(plan, now: today))
+          .map(
+            (plan) => enrichMaintenanceTemplateStepDescriptions(
+              clearExpiredMaintenanceDeferral(plan, now: today),
+            ),
+          )
           .toList(growable: false);
       final plansChanged = List.generate(
         plans.length,
@@ -2142,9 +2204,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           '这条保养提醒已失效，已返回待保养列表。',
         MaintenanceNotificationResolutionType.ready => '',
       };
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(message)));
+      AppToast.show(context, message);
     } finally {
       _notificationNavigationInFlight = false;
       if (mounted) setState(() {});
@@ -2156,8 +2216,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     animation: store,
     builder: (context, _) {
       _scheduleNotificationNavigation();
+      void openItemEditor() {
+        Navigator.push<void>(
+          context,
+          MaterialPageRoute(builder: (_) => EditorPage(store: store)),
+        );
+      }
+
       final pages = [
-        Dashboard(store: store),
+        Dashboard(
+          store: store,
+          onAdd: openItemEditor,
+          onOpenSchedule: () => setState(() => tab = 2),
+        ),
         InventoryPage(store: store),
         SchedulePage(store: store),
         MaintenanceReportPage(items: store.items),
@@ -2165,6 +2236,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       ];
       return Scaffold(
         body: SafeArea(
+          bottom: false,
           child: Column(
             children: [
               if (store.loadError case final message?)
@@ -2185,13 +2257,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             ],
           ),
         ),
-        floatingActionButton: tab < 2
-            ? AddItemButton(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => EditorPage(store: store)),
-                ),
-              )
+        floatingActionButton: tab == 1
+            ? AddItemButton(onTap: openItemEditor)
             : null,
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         bottomNavigationBar: AppBottomDock(
@@ -2204,11 +2271,23 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 }
 
 class Dashboard extends StatelessWidget {
-  const Dashboard({super.key, required this.store});
+  const Dashboard({
+    super.key,
+    required this.store,
+    this.onAdd,
+    this.onOpenSchedule,
+    this.now,
+  });
+
   final CareStore store;
+  final VoidCallback? onAdd;
+  final VoidCallback? onOpenSchedule;
+  final DateTime? now;
+
   @override
   Widget build(BuildContext context) {
-    final year = DateTime.now().year;
+    final today = maintenanceDateOnly(now ?? DateTime.now());
+    final year = today.year;
     final annualCost = store.items
         .expand((item) => item.records)
         .where((record) => record.date.year == year)
@@ -2223,7 +2302,7 @@ class Dashboard extends StatelessWidget {
         rooms[item.location] = (rooms[item.location] ?? 0) + 1;
       }
     }
-    final tasks = maintenanceTasksForItems(store.items);
+    final tasks = maintenanceTasksForItems(store.items, now: today);
     final attentionCount = tasks
         .where(
           (task) =>
@@ -2232,154 +2311,585 @@ class Dashboard extends StatelessWidget {
               task.status.dueState == MaintenanceTaskState.dueSoon,
         )
         .length;
+    final nextTask = tasks.isEmpty ? null : tasks.first;
+
+    void openAddFlow() {
+      if (onAdd != null) {
+        onAdd!();
+        return;
+      }
+      Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => EditorPage(store: store)),
+      );
+    }
+
     return CustomScrollView(
-      // The dashboard cards are intentionally lightweight; avoid speculative
-      // off-screen work during the very first user drag.
+      key: const PageStorageKey('dashboard-scroll'),
       cacheExtent: 0,
       slivers: [
-        const SliverToBoxAdapter(
-          child: RepaintBoundary(
-            child: BreezeHeader(
-              title: '家务志',
-              subtitle: 'Hearthio · 安静整理家的每一件物品',
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: RepaintBoundary(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 22),
+          sliver: SliverToBoxAdapter(
+            child: RepaintBoundary(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      _stat('物品总数', '${store.items.length}', _indigo),
-                      const SizedBox(width: 10),
-                      _stat('待处理', '$attentionCount', _amber),
-                    ],
+                  _DashboardHeader(today: today, onAdd: openAddFlow),
+                  const SizedBox(height: 12),
+                  _DashboardTodayHero(
+                    attentionCount: attentionCount,
+                    onOpenSchedule: onOpenSchedule,
                   ),
-                  const SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: _indigo,
-                      borderRadius: BorderRadius.circular(24),
+                  const SizedBox(height: 20),
+                  const _DashboardSectionTitle(title: '下一项保养'),
+                  const SizedBox(height: 4),
+                  if (nextTask == null)
+                    MaintenanceTaskEmptyState(onCreate: openAddFlow)
+                  else
+                    _DashboardNextTask(
+                      task: nextTask,
+                      onStart: () =>
+                          _startMaintenanceTask(context, store, nextTask),
+                      onDefer: () =>
+                          _deferMaintenanceTask(context, store, nextTask),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Row(
-                          children: [
-                            Icon(
-                              Icons.spa_outlined,
-                              color: Color(0xFFDBECDD),
-                              size: 18,
-                            ),
-                            SizedBox(width: 7),
-                            Text(
-                              '家庭资产估值',
-                              style: TextStyle(color: Color(0xFFDBECDD)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '¥${assetValue.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 27,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      _stat(
-                        '$year 年维护',
-                        '¥${annualCost.toStringAsFixed(0)}',
-                        const Color(0xFF3A7D70),
-                      ),
-                      const SizedBox(width: 10),
-                      _stat(
-                        '家庭空间 / Rooms',
-                        '${rooms.length}',
-                        const Color(0xFF875E9C),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 6),
                   const Text(
-                    '待保养 · Maintenance tasks',
+                    '家庭概览',
                     style: TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w800,
                       color: _ink,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -.2,
                     ),
+                  ),
+                  const SizedBox(height: 10),
+                  _DashboardHouseholdOverview(
+                    itemCount: store.items.length,
+                    roomCount: rooms.length,
+                    annualCost: annualCost,
+                    assetValue: assetValue,
                   ),
                 ],
               ),
             ),
           ),
         ),
-        if (tasks.isEmpty)
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: MaintenanceTaskEmptyState(
-              onCreate: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => EditorPage(store: store)),
-              ),
-            ),
-          )
-        else
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final task = tasks[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 5,
-                  ),
-                  child: MaintenanceTaskCard(
-                    task: task,
-                    onStart: () => _startMaintenanceTask(context, store, task),
-                    onDefer: () => _deferMaintenanceTask(context, store, task),
-                  ),
-                );
-              },
-              childCount: tasks.length,
-              addRepaintBoundaries: false,
-              addAutomaticKeepAlives: false,
-            ),
-          ),
-        const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
   }
+}
 
-  Widget _stat(String title, String value, Color color) => Expanded(
-    child: BreezeSurface(
-      color: color.withValues(alpha: .10),
-      padding: const EdgeInsets.all(15),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+class _DashboardHeader extends StatelessWidget {
+  const _DashboardHeader({required this.today, required this.onAdd});
+
+  final DateTime today;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '家务志',
+              style: TextStyle(
+                color: _ink,
+                fontSize: 30,
+                height: 1.05,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -1,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              _dashboardDate(today),
+              style: const TextStyle(
+                color: _muted,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                letterSpacing: .2,
+              ),
+            ),
+          ],
+        ),
+      ),
+      Semantics(
+        button: true,
+        label: '添加物品',
+        child: Material(
+          color: _mist,
+          shape: const CircleBorder(),
+          child: InkWell(
+            key: const Key('dashboard-add-item'),
+            onTap: onAdd,
+            customBorder: const CircleBorder(),
+            child: const SizedBox(
+              width: 48,
+              height: 48,
+              child: Icon(Icons.add_rounded, color: _indigo, size: 28),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _DashboardTodayHero extends StatelessWidget {
+  const _DashboardTodayHero({
+    required this.attentionCount,
+    required this.onOpenSchedule,
+  });
+
+  final int attentionCount;
+  final VoidCallback? onOpenSchedule;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = attentionCount == 0
+        ? '没有到期任务'
+        : attentionCount == 1
+        ? '1 项任务需要关注'
+        : '$attentionCount 项任务需要关注';
+    final subtitle = attentionCount == 0 ? '家里一切按计划进行' : '先从最紧要的一项开始';
+    return Container(
+      key: const Key('dashboard-today-hero'),
+      width: double.infinity,
+      height: 172,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: _indigo,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Stack(
         children: [
-          Text(title, style: const TextStyle(color: _muted, fontSize: 12)),
+          Positioned(
+            right: -18,
+            bottom: -16,
+            width: 218,
+            height: 164,
+            child: ExcludeSemantics(
+              child: Opacity(
+                opacity: .22,
+                child: Image.asset(
+                  'assets/home/dashboard-room-line.png',
+                  fit: BoxFit.contain,
+                  alignment: Alignment.bottomRight,
+                  color: const Color(0xFFD7E6DA),
+                  colorBlendMode: BlendMode.srcIn,
+                ),
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 13),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        color: Color(0xFFECF3ED),
+                        size: 17,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        '今日',
+                        style: TextStyle(
+                          color: Color(0xFFECF3ED),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 250),
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 25,
+                        height: 1.1,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -.6,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFFD7E6DA),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    key: const Key('dashboard-open-schedule'),
+                    onPressed: onOpenSchedule,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 36),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    label: const Text(
+                      '查看日程',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    iconAlignment: IconAlignment.end,
+                    icon: const Icon(Icons.chevron_right_rounded, size: 18),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardSectionTitle extends StatelessWidget {
+  const _DashboardSectionTitle({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        style: const TextStyle(
+          color: _ink,
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -.2,
+        ),
+      ),
+      const SizedBox(height: 10),
+      const Divider(height: 1, color: Color(0xFFDCE4DD)),
+    ],
+  );
+}
+
+class _DashboardNextTask extends StatelessWidget {
+  const _DashboardNextTask({
+    required this.task,
+    required this.onStart,
+    required this.onDefer,
+  });
+
+  final MaintenanceTask task;
+  final VoidCallback onStart;
+  final VoidCallback onDefer;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = task.status;
+    final tone = _dashboardTaskTone(status.dueState);
+    return Container(
+      key: ValueKey('maintenance-task-${task.item.id}-${task.plan.id}'),
+      constraints: const BoxConstraints(minHeight: 206),
+      child: Stack(
+        children: [
+          Positioned(
+            left: 2,
+            top: 5,
+            bottom: 7,
+            child: SizedBox(
+              width: 10,
+              child: Column(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: tone,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  const Expanded(
+                    child: VerticalDivider(
+                      width: 1,
+                      thickness: 1,
+                      color: Color(0xFFD8E1D9),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFC9D8C9),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 31),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _dashboardTaskTiming(status),
+                  style: TextStyle(
+                    color: tone,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 58,
+                      height: 58,
+                      decoration: BoxDecoration(
+                        color: _mist,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: _dashboardTaskIcon(task),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            task.item.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _ink,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            task.plan.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: _muted, fontSize: 14),
+                          ),
+                          const SizedBox(height: 9),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.event_outlined,
+                                color: _indigo,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 5),
+                              Expanded(
+                                child: Text(
+                                  status.hasActiveDeferral
+                                      ? '原到期日 ${_date(task.dueDate)}'
+                                      : _date(task.dueDate),
+                                  key: ValueKey(
+                                    'maintenance-task-due-${task.id}',
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: _indigo,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (status.hasActiveDeferral) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '稍后提醒 ${_date(status.deferredUntil)} · 原状态 ${status.dueStateLabel}',
+                              key: ValueKey(
+                                'maintenance-task-deferral-${task.id}',
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: _muted,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _mist,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Text(
+                              status.label,
+                              style: const TextStyle(
+                                color: _indigo,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.only(left: 70),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FilledButton.icon(
+                        key: ValueKey('start-maintenance-task-${task.id}'),
+                        onPressed: onStart,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 42),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 15,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                        label: const Text('开始保养'),
+                      ),
+                      const SizedBox(height: 1),
+                      TextButton(
+                        key: ValueKey('defer-maintenance-task-${task.id}'),
+                        onPressed: onDefer,
+                        style: TextButton.styleFrom(
+                          foregroundColor: _indigo,
+                          minimumSize: const Size(0, 36),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(status.hasActiveDeferral ? '修改提醒' : '稍后提醒'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardHouseholdOverview extends StatelessWidget {
+  const _DashboardHouseholdOverview({
+    required this.itemCount,
+    required this.roomCount,
+    required this.annualCost,
+    required this.assetValue,
+  });
+
+  final int itemCount;
+  final int roomCount;
+  final double annualCost;
+  final double assetValue;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('dashboard-household-overview'),
+    height: 96,
+    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 9),
+    decoration: BoxDecoration(
+      color: _paper,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: const Color(0xFFDCE4DD)),
+    ),
+    child: Row(
+      children: [
+        _DashboardFact(
+          icon: Icons.inventory_2_outlined,
+          label: '物品',
+          value: '$itemCount',
+        ),
+        const _DashboardFactDivider(),
+        _DashboardFact(
+          icon: Icons.chair_outlined,
+          label: '空间',
+          value: '$roomCount',
+        ),
+        const _DashboardFactDivider(),
+        _DashboardFact(
+          icon: Icons.paid_outlined,
+          label: '今年维护',
+          value: '¥${annualCost.toStringAsFixed(0)}',
+        ),
+        const _DashboardFactDivider(),
+        _DashboardFact(
+          icon: Icons.home_outlined,
+          label: '资产',
+          value: '¥${assetValue.toStringAsFixed(0)}',
+        ),
+      ],
+    ),
+  );
+}
+
+class _DashboardFact extends StatelessWidget {
+  const _DashboardFact({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: _muted, size: 20),
           const SizedBox(height: 5),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: _muted, fontSize: 10),
+          ),
+          const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: TextStyle(
-                color: color,
-                fontSize: 26,
+              style: const TextStyle(
+                color: _ink,
+                fontSize: 17,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -2390,43 +2900,153 @@ class Dashboard extends StatelessWidget {
   );
 }
 
+class _DashboardFactDivider extends StatelessWidget {
+  const _DashboardFactDivider();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(
+    height: 58,
+    child: VerticalDivider(width: 1, color: Color(0xFFE2E8E2)),
+  );
+}
+
+String _dashboardDate(DateTime value) {
+  const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  return '${value.month}月${value.day}日 · ${weekdays[value.weekday - 1]}';
+}
+
+String _dashboardTaskTiming(MaintenancePlanStatus status) {
+  final days = status.daysUntilDue;
+  if (days == null) return '尚未设置日期';
+  if (days < 0) return '已逾期 ${-days} 天';
+  if (days == 0) return '今天到期';
+  return '$days 天后';
+}
+
+Color _dashboardTaskTone(MaintenanceTaskState state) => switch (state) {
+  MaintenanceTaskState.overdue => const Color(0xFFB64B43),
+  MaintenanceTaskState.dueToday => const Color(0xFFC36F2D),
+  MaintenanceTaskState.dueSoon => const Color(0xFFE18455),
+  MaintenanceTaskState.deferred => const Color(0xFF725E91),
+  MaintenanceTaskState.planned => const Color(0xFFE18455),
+  MaintenanceTaskState.completed => const Color(0xFF3A7D70),
+  MaintenanceTaskState.disabled => _muted,
+};
+
+Widget _dashboardTaskIcon(MaintenanceTask task) {
+  final searchable = '${task.item.name}${task.item.category}${task.plan.title}';
+  if (searchable.contains('净水') || searchable.contains('滤芯')) {
+    return Padding(
+      padding: const EdgeInsets.all(10),
+      child: Image.asset(
+        'assets/home/dashboard-purifier-icon.png',
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+      ),
+    );
+  }
+  return const Icon(
+    Icons.home_repair_service_outlined,
+    color: _indigo,
+    size: 27,
+  );
+}
+
 class MaintenanceTaskEmptyState extends StatelessWidget {
   const MaintenanceTaskEmptyState({super.key, required this.onCreate});
 
   final VoidCallback onCreate;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: BreezeSurface(
+  Widget build(BuildContext context) => Container(
+    key: const Key('dashboard-empty-maintenance-state'),
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+    decoration: BoxDecoration(
       color: _paper,
-      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: const BoxDecoration(
-              color: _mist,
-              shape: BoxShape.circle,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: const Color(0xFFDCE4DD)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: _mist,
+                borderRadius: BorderRadius.circular(17),
+              ),
+              child: const Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Center(
+                    child: Icon(
+                      Icons.calendar_month_outlined,
+                      size: 27,
+                      color: _indigo,
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 7,
+                    child: Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 12,
+                      color: _amber,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: const Icon(
-              Icons.event_available_outlined,
-              size: 30,
-              color: _indigo,
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '从第一个计划开始',
+                    style: TextStyle(
+                      color: _ink,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -.2,
+                    ),
+                  ),
+                  SizedBox(height: 5),
+                  Text(
+                    '添加物品并设置保养周期，到期前会提醒你。',
+                    style: TextStyle(color: _muted, fontSize: 12, height: 1.45),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 15),
-          const Text('还没有保养计划', style: TextStyle(color: _muted)),
-          const SizedBox(height: 12),
-          FilledButton.icon(
+          ],
+        ),
+        const SizedBox(height: 15),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
             key: const Key('create-first-maintenance-plan'),
             onPressed: onCreate,
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('建立首个计划'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+            icon: const Icon(Icons.add_rounded, size: 19),
+            label: const Text(
+              '创建保养计划',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 }
@@ -2495,10 +3115,10 @@ class _InventoryPageState extends State<InventoryPage> {
                           return true;
                         } catch (_) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('物品删除失败，原数据未改变，请重试。'),
-                              ),
+                            AppToast.show(
+                              context,
+                              '物品删除失败，原数据未改变，请重试。',
+                              style: AppToastStyle.error,
                             );
                           }
                           return false;
@@ -2532,22 +3152,18 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   Future<bool> _confirmDelete(BuildContext context, CareItem item) async =>
-      await showDialog<bool>(
-        context: context,
-        builder: (c) => AlertDialog(
-          title: const Text('删除物品？'),
-          content: Text('将删除“${item.name}”以及已保存的凭证照片。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(c, true),
-              child: const Text('删除'),
-            ),
-          ],
-        ),
+      await showAppAlert<bool>(
+        context,
+        title: '删除物品？',
+        message: '将删除“${item.name}”以及已保存的凭证照片。',
+        actions: const [
+          AppAlertAction(label: '取消', result: false),
+          AppAlertAction(
+            label: '删除',
+            result: true,
+            tone: AppAlertActionTone.destructive,
+          ),
+        ],
       ) ??
       false;
 }
@@ -3069,9 +3685,11 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
     if (current == NotificationAccess.unavailable) {
-      ScaffoldMessenger.of(
+      await showSystemPermissionAlert(
         context,
-      ).showSnackBar(const SnackBar(content: Text('暂时无法读取通知状态，请稍后重试')));
+        permission: SystemPermissionKind.notifications,
+        state: SystemPermissionState.unavailable,
+      );
       return;
     }
     final proceed = await _showNotificationPrimer(context);
@@ -3081,51 +3699,29 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
     if (access == NotificationAccess.enabled) {
       setState(() => _remindersEnabled = true);
-      ScaffoldMessenger.of(
+      AppToast.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('保养提醒已开启：到期前 3 天会在本机提醒你')));
+        '保养提醒已开启：到期前 3 天会在本机提醒你',
+        style: AppToastStyle.success,
+      );
       return;
     }
     if (access == NotificationAccess.denied) {
       await _showNotificationSettingsGuide();
       return;
     }
-    ScaffoldMessenger.of(
+    await showSystemPermissionAlert(
       context,
-    ).showSnackBar(const SnackBar(content: Text('暂时无法读取通知状态，请稍后重试')));
+      permission: SystemPermissionKind.notifications,
+      state: SystemPermissionState.unavailable,
+    );
   }
 
   Future<void> _showNotificationSettingsGuide() async {
-    await showDialog<void>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: const Text('通知权限未开启'),
-        content: const Text(
-          '你之前没有允许“家务志”发送通知，因此系统不会再次弹出授权框。\n\n请前往 iPhone「设置 → 通知 → 家务志」，打开“允许通知”后再回到这里。',
-          style: TextStyle(height: 1.55),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog),
-            child: const Text('稍后处理'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(dialog);
-              final opened = await launchUrl(
-                Uri.parse('app-settings:'),
-                mode: LaunchMode.externalApplication,
-              );
-              if (!opened && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('请手动前往“设置 → 通知 → 家务志”开启通知')),
-                );
-              }
-            },
-            child: const Text('前往系统设置'),
-          ),
-        ],
-      ),
+    await showSystemPermissionAlert(
+      context,
+      permission: SystemPermissionKind.notifications,
+      state: SystemPermissionState.denied,
     );
   }
 
@@ -3160,15 +3756,30 @@ class _SettingsPageState extends State<SettingsPage> {
                 onPressed: () async {
                   final sent = await store.sendTestNotification();
                   if (sheet.mounted) Navigator.pop(sheet);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          sent
-                              ? '测试提醒将在 5 秒后送达，可切到桌面或锁屏查看'
-                              : '无法发送测试提醒，请检查系统通知设置',
-                        ),
-                      ),
+                  if (!mounted) return;
+                  if (sent) {
+                    AppToast.show(
+                      context,
+                      '测试提醒将在 5 秒后送达，可切到桌面或锁屏查看',
+                      style: AppToastStyle.success,
+                    );
+                    return;
+                  }
+                  final access = await store.notificationAccess();
+                  if (!mounted) return;
+                  if (access == NotificationAccess.denied) {
+                    await _showNotificationSettingsGuide();
+                  } else if (access == NotificationAccess.unavailable) {
+                    await showSystemPermissionAlert(
+                      context,
+                      permission: SystemPermissionKind.notifications,
+                      state: SystemPermissionState.unavailable,
+                    );
+                  } else {
+                    AppToast.show(
+                      context,
+                      '测试提醒暂时无法发送，请稍后重试',
+                      style: AppToastStyle.error,
                     );
                   }
                 },
@@ -3183,8 +3794,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     mode: LaunchMode.externalApplication,
                   );
                   if (!opened && sheet.mounted) {
-                    ScaffoldMessenger.of(sheet).showSnackBar(
-                      const SnackBar(content: Text('请手动前往“设置 → 通知 → 家务志”管理提醒')),
+                    AppToast.show(
+                      sheet,
+                      '请手动前往“设置 → 通知 → 家务志”管理提醒',
+                      style: AppToastStyle.error,
                     );
                   }
                 },
@@ -3199,8 +3812,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _manageExampleData() async {
     if (store.isDataReadOnly) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('档案读取失败时不能修改示例数据，请先重启或恢复有效备份')),
+      AppToast.show(
+        context,
+        '档案读取失败时不能修改示例数据，请先重启或恢复有效备份',
+        style: AppToastStyle.error,
       );
       return;
     }
@@ -3252,15 +3867,19 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        AppToast.show(
           context,
-        ).showSnackBar(const SnackBar(content: Text('示例数据保存失败，原数据未改变，请重试。')));
+          '示例数据保存失败，原数据未改变，请重试。',
+          style: AppToastStyle.error,
+        );
       }
       return;
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(action == 'reset' ? '示例净水器已重置' : '示例数据已删除')),
+    AppToast.show(
+      context,
+      action == 'reset' ? '示例净水器已重置' : '示例数据已删除',
+      style: AppToastStyle.success,
     );
   }
 
@@ -3362,40 +3981,25 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final firstTime = await store.needsRestoreGuide();
       if (!context.mounted) return;
-      final proceed = await showDialog<bool>(
-        context: context,
-        builder: (dialog) => AlertDialog(
-          title: Text(firstTime ? '如何恢复完整备份？' : '从文件恢复完整备份？'),
-          content: Text(
-            firstTime
-                ? '接下来会打开“文件”选择器。\n\n1. 找到此前通过“完整备份”导出的 Hearthio-backup.zip。\n2. 选择该文件后，物品、维护记录和凭证照片会一起恢复。\n3. 当前设备上的档案将被替换；如需保留，请先导出一次当前完整备份。'
-                : '接下来会打开“文件”选择器，请选择此前导出的 Hearthio-backup.zip。\n\n恢复会替换当前设备上的档案。',
-            style: const TextStyle(height: 1.55),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialog, false),
-              child: const Text('暂不恢复'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialog, true),
-              child: const Text('选择备份文件'),
-            ),
-          ],
-        ),
+      final proceed = await showAppAlert<bool>(
+        context,
+        title: firstTime ? '如何恢复完整备份？' : '从文件恢复完整备份？',
+        message: firstTime
+            ? '接下来会打开“文件”选择器。\n\n1. 找到此前通过“完整备份”导出的 Hearthio-backup.zip。\n2. 选择该文件后，物品、维护记录和凭证照片会一起恢复。\n3. 当前设备上的档案将被替换；如需保留，请先导出一次当前完整备份。'
+            : '接下来会打开“文件”选择器，请选择此前导出的 Hearthio-backup.zip。\n\n恢复会替换当前设备上的档案。',
+        actions: const [
+          AppAlertAction(label: '暂不恢复', result: false),
+          AppAlertAction(label: '选择备份文件', result: true, isDefaultAction: true),
+        ],
       );
       if (proceed != true) return;
       if (firstTime) unawaited(store.markRestoreGuideSeen());
       final ok = await store.restoreBackup();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              ok
-                  ? '备份已恢复：物品、记录和照片已更新'
-                  : '没有选择有效的 Hearthio-backup.zip，当前档案未发生变化',
-            ),
-          ),
+        AppToast.show(
+          context,
+          ok ? '备份已恢复：物品、记录和照片已更新' : '没有选择有效的 Hearthio-backup.zip，当前档案未发生变化',
+          style: ok ? AppToastStyle.success : AppToastStyle.error,
         );
       }
     } finally {
@@ -3606,17 +4210,7 @@ class _DetailPageState extends State<DetailPage> {
     appBar: AppBar(
       toolbarHeight: 72,
       title: Text(item.name),
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 14),
-        child: IconButton.filledTonal(
-          style: IconButton.styleFrom(
-            backgroundColor: _mist,
-            foregroundColor: _indigo,
-          ),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 17),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
+      leading: AppBackButton(onPressed: () => Navigator.pop(context)),
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 14),
@@ -3640,7 +4234,7 @@ class _DetailPageState extends State<DetailPage> {
     ),
     body: ListView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.all(20),
+      padding: appSafeScrollPadding(context, const EdgeInsets.all(20)),
       children: [
         MaintenanceLifecycleOverview(item: item),
         if (item.photos.isNotEmpty)
@@ -3708,8 +4302,10 @@ class _DetailPageState extends State<DetailPage> {
               if (context.mounted) Navigator.pop(context);
             } catch (_) {
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('物品删除失败，原数据未改变，请重试。')),
+                AppToast.show(
+                  context,
+                  '物品删除失败，原数据未改变，请重试。',
+                  style: AppToastStyle.error,
                 );
               }
             }
@@ -3897,9 +4493,7 @@ class _DetailPageState extends State<DetailPage> {
         .where((plan) => plan.enabled && !plan.archived && plan.dueDate != null)
         .toList();
     if (availablePlans.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('请先为物品建立并启用一个保养计划。')));
+      AppToast.show(context, '请先为物品建立并启用一个保养计划。');
       return;
     }
     MaintenancePlan? selectedPlan;
@@ -3908,26 +4502,27 @@ class _DetailPageState extends State<DetailPage> {
     } else {
       selectedPlan = await showModalBottomSheet<MaintenancePlan>(
         context: context,
-        builder: (sheet) => SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-            children: [
-              const Text(
-                '选择保养任务',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 10),
-              for (final plan in availablePlans)
-                ListTile(
-                  key: ValueKey('start-detail-plan-${plan.id}'),
-                  title: Text(plan.title),
-                  subtitle: Text('原到期日 ${_date(plan.dueDate)}'),
-                  trailing: const Icon(Icons.arrow_forward_ios_rounded),
-                  onTap: () => Navigator.pop(sheet, plan),
-                ),
-            ],
+        builder: (sheet) => ListView(
+          shrinkWrap: true,
+          padding: appSafeScrollPadding(
+            sheet,
+            const EdgeInsets.fromLTRB(20, 14, 20, 24),
           ),
+          children: [
+            const Text(
+              '选择保养任务',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 10),
+            for (final plan in availablePlans)
+              ListTile(
+                key: ValueKey('start-detail-plan-${plan.id}'),
+                title: Text(plan.title),
+                subtitle: Text('原到期日 ${_date(plan.dueDate)}'),
+                trailing: const Icon(Icons.arrow_forward_ios_rounded),
+                onTap: () => Navigator.pop(sheet, plan),
+              ),
+          ],
         ),
       );
     }
@@ -4192,7 +4787,7 @@ class _EditorPageState extends State<EditorPage> {
     appBar: AppBar(
       toolbarHeight: 72,
       title: const Text('编辑物品'),
-      leading: _backButton(() => Navigator.pop(context)),
+      leading: AppBackButton(onPressed: () => Navigator.pop(context)),
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 18),
@@ -4212,7 +4807,7 @@ class _EditorPageState extends State<EditorPage> {
       child: ListView(
         key: const PageStorageKey('item-editor-scroll'),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.all(20),
+        padding: appSafeScrollPadding(context, const EdgeInsets.all(20)),
         children: [
           _field(name, '物品名称 *', required: true),
           _category(),
@@ -4269,12 +4864,15 @@ class _EditorPageState extends State<EditorPage> {
     appBar: AppBar(
       toolbarHeight: 76,
       title: const Text('选择物品'),
-      leading: _backButton(() => Navigator.pop(context)),
+      leading: AppBackButton(onPressed: () => Navigator.pop(context)),
     ),
     body: ListView(
       key: const PageStorageKey('item-selection-scroll'),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 36),
+      padding: appSafeScrollPadding(
+        context,
+        const EdgeInsets.fromLTRB(20, 4, 20, 36),
+      ),
       children: [
         TextField(
           key: const Key('item-search'),
@@ -4352,7 +4950,7 @@ class _EditorPageState extends State<EditorPage> {
         toolbarHeight: 76,
         centerTitle: true,
         title: const Text('补充信息'),
-        leading: _backButton(_returnToSelection),
+        leading: AppBackButton(onPressed: _returnToSelection),
       ),
       body: Form(
         key: form,
@@ -4381,48 +4979,54 @@ class _EditorPageState extends State<EditorPage> {
           ],
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(20, 10, 20, 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                key: const Key('save-care-item'),
-                onPressed: _save,
-                child: const Text('完成添加'),
+      bottomNavigationBar: Padding(
+        padding: appSafeScrollPadding(
+          context,
+          _advancedExpanded
+              ? const EdgeInsets.fromLTRB(20, 6, 20, 8)
+              : const EdgeInsets.fromLTRB(20, 10, 20, 12),
+        ),
+        child: _advancedExpanded
+            ? Row(
+                key: const Key('compact-item-actions'),
+                children: [
+                  TextButton(
+                    key: const Key('save-care-item-later'),
+                    onPressed: _save,
+                    child: const Text('稍后完善'),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SizedBox(
+                      height: 50,
+                      child: FilledButton(
+                        key: const Key('save-care-item'),
+                        onPressed: _save,
+                        child: const Text('完成添加'),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                key: const Key('full-item-actions'),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      key: const Key('save-care-item'),
+                      onPressed: _save,
+                      child: const Text('完成添加'),
+                    ),
+                  ),
+                  TextButton(
+                    key: const Key('save-care-item-later'),
+                    onPressed: _save,
+                    child: const Text('稍后完善'),
+                  ),
+                ],
               ),
-            ),
-            TextButton(
-              key: const Key('save-care-item-later'),
-              onPressed: _save,
-              child: const Text('稍后完善'),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-
-  Widget _backButton(VoidCallback onPressed) => Padding(
-    padding: const EdgeInsets.only(left: 16),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: SizedBox.square(
-        dimension: 40,
-        child: IconButton(
-          style: IconButton.styleFrom(
-            backgroundColor: _mist,
-            foregroundColor: _indigo,
-            padding: EdgeInsets.zero,
-            minimumSize: const Size.square(40),
-            maximumSize: const Size.square(40),
-            shape: const CircleBorder(),
-          ),
-          onPressed: onPressed,
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 17),
-        ),
       ),
     ),
   );
@@ -5106,7 +5710,7 @@ class _EditorPageState extends State<EditorPage> {
                     ),
                   IconButton(
                     onPressed: () async {
-                      final result = await showDatePicker(
+                      final result = await showAppDatePicker(
                         context: context,
                         firstDate: DateTime(2000),
                         lastDate: DateTime(2100),
@@ -5176,15 +5780,19 @@ class _EditorPageState extends State<EditorPage> {
         photos.add(result.path!);
         _newPhotoPaths.add(result.path!);
       });
+    } else if (result.permission case final permission?) {
+      await showSystemPermissionAlert(
+        context,
+        permission: permission,
+        state: result.permissionState!,
+      );
     } else if (result.error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            source == ImageSource.camera
-                ? '无法打开相机，请检查“相机”权限后重试。'
-                : '无法读取照片，请检查“照片”权限后重试。',
-          ),
-        ),
+      AppToast.show(
+        context,
+        source == ImageSource.camera
+            ? '无法打开相机，请检查“相机”权限后重试。'
+            : '无法读取照片，请检查“照片”权限后重试。',
+        style: AppToastStyle.error,
       );
     }
   }
@@ -5197,9 +5805,7 @@ class _EditorPageState extends State<EditorPage> {
           _nonNegativeNumber(currentValue.text);
       if (hiddenAdvancedError != null) {
         setState(() => _advancedExpanded = true);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(hiddenAdvancedError)));
+        AppToast.show(context, hiddenAdvancedError, style: AppToastStyle.error);
         return;
       }
     }
@@ -5251,9 +5857,7 @@ class _EditorPageState extends State<EditorPage> {
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('保存失败，请稍后重试。')));
+        AppToast.show(context, '保存失败，请稍后重试。', style: AppToastStyle.error);
       }
     }
   }
@@ -5270,15 +5874,30 @@ class _EditorPageState extends State<EditorPage> {
       if (!proceed || !mounted) return;
       final access = await widget.store.requestNotifications();
       if (!mounted) return;
-      final message = switch (access) {
-        NotificationAccess.enabled => '保养提醒已开启',
-        NotificationAccess.denied => '通知权限未开启，可稍后在“设置”中处理',
-        NotificationAccess.notDetermined => '暂未开启通知',
-        NotificationAccess.unavailable => '暂时无法申请通知权限，请稍后重试',
-      };
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      if (access == NotificationAccess.denied) {
+        await showSystemPermissionAlert(
+          context,
+          permission: SystemPermissionKind.notifications,
+          state: SystemPermissionState.denied,
+        );
+      } else if (access == NotificationAccess.unavailable) {
+        await showSystemPermissionAlert(
+          context,
+          permission: SystemPermissionKind.notifications,
+          state: SystemPermissionState.unavailable,
+        );
+      } else {
+        final message = access == NotificationAccess.enabled
+            ? '保养提醒已开启'
+            : '暂未开启通知';
+        AppToast.show(
+          context,
+          message,
+          style: access == NotificationAccess.enabled
+              ? AppToastStyle.success
+              : AppToastStyle.info,
+        );
+      }
     } catch (_) {
       // Notification setup must never turn a successful item save into failure.
     }

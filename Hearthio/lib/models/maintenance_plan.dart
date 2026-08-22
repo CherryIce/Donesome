@@ -5,16 +5,19 @@ class MaintenanceStep {
     required this.id,
     required this.title,
     required this.sortOrder,
+    this.description = '',
   });
 
   final String id;
   final String title;
   final int sortOrder;
+  final String description;
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'title': title,
     'sortOrder': sortOrder,
+    if (description.isNotEmpty) 'description': description,
   };
 
   factory MaintenanceStep.fromJson(Map<String, dynamic> json) =>
@@ -22,6 +25,7 @@ class MaintenanceStep {
         id: json['id'] as String,
         title: json['title'] as String,
         sortOrder: json['sortOrder'] as int? ?? 0,
+        description: json['description'] as String? ?? '',
       );
 }
 

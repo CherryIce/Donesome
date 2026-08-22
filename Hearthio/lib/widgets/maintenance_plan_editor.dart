@@ -4,6 +4,10 @@ import '../models/maintenance_calendar.dart';
 import '../models/maintenance_plan.dart';
 import '../models/maintenance_record.dart';
 import '../models/maintenance_template.dart';
+import 'app_alert.dart';
+import 'app_back_button.dart';
+import 'app_date_picker.dart';
+import 'app_safe_area.dart';
 
 class MaintenancePlansEditorSection extends StatelessWidget {
   const MaintenancePlansEditorSection({
@@ -120,26 +124,23 @@ class MaintenancePlansEditorSection extends StatelessWidget {
 
   Future<void> _removePlan(BuildContext context, MaintenancePlan plan) async {
     final hasHistory = records.any((record) => record.planId == plan.id);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: Text(hasHistory ? '归档这个计划？' : '删除这个计划？'),
-        content: Text(
-          hasHistory
-              ? '“${plan.title}”已有维护记录。归档后会停止提醒，但历史记录仍会保留。'
-              : '“${plan.title}”尚无维护记录，删除后无法恢复。',
+    final confirmed = await showAppAlert<bool>(
+      context,
+      title: hasHistory ? '归档这个计划？' : '删除这个计划？',
+      message: hasHistory
+          ? '“${plan.title}”已有维护记录。归档后会停止提醒，但历史记录仍会保留。'
+          : '“${plan.title}”尚无维护记录，删除后无法恢复。',
+      actions: [
+        const AppAlertAction(label: '取消', result: false),
+        AppAlertAction(
+          label: hasHistory ? '确认归档' : '确认删除',
+          result: true,
+          tone: hasHistory
+              ? AppAlertActionTone.standard
+              : AppAlertActionTone.destructive,
+          isDefaultAction: hasHistory,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialog, true),
-            child: Text(hasHistory ? '确认归档' : '确认删除'),
-          ),
-        ],
-      ),
+      ],
     );
     if (confirmed != true) return;
     onChanged([
@@ -261,70 +262,71 @@ class _MaintenanceTemplatePicker extends StatelessWidget {
   const _MaintenanceTemplatePicker();
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    child: DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.76,
-      minChildSize: 0.45,
-      maxChildSize: 0.92,
-      builder: (context, scrollController) => ListView(
-        controller: scrollController,
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-        children: [
-          Center(
-            child: Container(
-              width: 42,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.black12,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            '选择保养模板',
-            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            '模板只是可编辑起点，并非强制安全周期；请以厂商说明书为准。',
-            style: TextStyle(color: Color(0xFF72817A), height: 1.45),
-          ),
-          const SizedBox(height: 14),
-          ...maintenanceTemplates.map(
-            (template) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                key: ValueKey('template-${template.id}'),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: Color(0xFFE2E9E2)),
-                ),
-                leading: CircleAvatar(
-                  backgroundColor: const Color(0xFFEAF1E9),
-                  foregroundColor: const Color(0xFF31584B),
-                  child: Icon(
-                    template.id == 'custom'
-                        ? Icons.edit_note_outlined
-                        : Icons.home_repair_service_outlined,
-                  ),
-                ),
-                title: Text('${template.scene} · ${template.title}'),
-                subtitle: Text(
-                  template.id == 'custom'
-                      ? '名称、周期和步骤均由你填写'
-                      : '默认 ${template.intervalDays} 天 · ${template.steps.join('、')}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 15),
-                onTap: () => Navigator.pop(context, template),
-              ),
-            ),
-          ),
-        ],
+  Widget build(BuildContext context) => DraggableScrollableSheet(
+    expand: false,
+    initialChildSize: 0.76,
+    minChildSize: 0.45,
+    maxChildSize: 0.92,
+    builder: (context, scrollController) => ListView(
+      controller: scrollController,
+      padding: appSafeScrollPadding(
+        context,
+        const EdgeInsets.fromLTRB(20, 12, 20, 28),
       ),
+      children: [
+        Center(
+          child: Container(
+            width: 42,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.black12,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          '选择保养模板',
+          style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          '模板只是可编辑起点，并非强制安全周期；请以厂商说明书为准。',
+          style: TextStyle(color: Color(0xFF72817A), height: 1.45),
+        ),
+        const SizedBox(height: 14),
+        ...maintenanceTemplates.map(
+          (template) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              key: ValueKey('template-${template.id}'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: Color(0xFFE2E9E2)),
+              ),
+              leading: CircleAvatar(
+                backgroundColor: const Color(0xFFEAF1E9),
+                foregroundColor: const Color(0xFF31584B),
+                child: Icon(
+                  template.id == 'custom'
+                      ? Icons.edit_note_outlined
+                      : Icons.home_repair_service_outlined,
+                ),
+              ),
+              title: Text('${template.scene} · ${template.title}'),
+              subtitle: Text(
+                template.id == 'custom'
+                    ? '名称、周期和步骤均由你填写'
+                    : '默认 ${template.intervalDays} 天 · ${template.steps.join('、')}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 15),
+              onTap: () => Navigator.pop(context, template),
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -376,8 +378,11 @@ class _MaintenancePlanEditorPageState extends State<MaintenancePlanEditorPage> {
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     _steps = checklist
         .map(
-          (step) =>
-              _StepDraft(step.id, TextEditingController(text: step.title)),
+          (step) => _StepDraft(
+            step.id,
+            TextEditingController(text: step.title),
+            step.description,
+          ),
         )
         .toList();
   }
@@ -402,6 +407,7 @@ class _MaintenancePlanEditorPageState extends State<MaintenancePlanEditorPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
+      leading: const AppBackButton(),
       title: const Text('编辑保养计划'),
       actions: [
         Padding(
@@ -414,196 +420,196 @@ class _MaintenancePlanEditorPageState extends State<MaintenancePlanEditorPage> {
         ),
       ],
     ),
-    body: SafeArea(
-      top: false,
-      child: Form(
-        key: _form,
-        child: ListView(
-          key: const PageStorageKey('maintenance-plan-editor-scroll'),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
-          children: [
-            TextFormField(
-              key: const Key('maintenance-plan-title'),
-              controller: _title,
-              validator: MaintenancePlanValidator.title,
-              decoration: const InputDecoration(labelText: '计划名称 *'),
-            ),
-            const SizedBox(height: 12),
-            SwitchListTile.adaptive(
-              key: const Key('maintenance-plan-enabled'),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-              title: const Text('启用计划'),
-              subtitle: const Text('停用后保留计划和历史，但不再发送提醒'),
-              value: _enabled,
-              onChanged: (value) => setState(() => _enabled = value),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    key: const Key('maintenance-plan-interval'),
-                    controller: _interval,
-                    keyboardType: TextInputType.number,
-                    validator: MaintenancePlanValidator.interval,
-                    onChanged: (_) => _refreshDerivedDueDate(),
-                    decoration: const InputDecoration(labelText: '周期（天）*'),
-                  ),
+    body: Form(
+      key: _form,
+      child: ListView(
+        key: const PageStorageKey('maintenance-plan-editor-scroll'),
+        padding: appSafeScrollPadding(
+          context,
+          const EdgeInsets.fromLTRB(20, 16, 20, 40),
+        ),
+        children: [
+          TextFormField(
+            key: const Key('maintenance-plan-title'),
+            controller: _title,
+            validator: MaintenancePlanValidator.title,
+            decoration: const InputDecoration(labelText: '计划名称 *'),
+          ),
+          const SizedBox(height: 12),
+          SwitchListTile.adaptive(
+            key: const Key('maintenance-plan-enabled'),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+            title: const Text('启用计划'),
+            subtitle: const Text('停用后保留计划和历史，但不再发送提醒'),
+            value: _enabled,
+            onChanged: (value) => setState(() => _enabled = value),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextFormField(
+                  key: const Key('maintenance-plan-interval'),
+                  controller: _interval,
+                  keyboardType: TextInputType.number,
+                  validator: MaintenancePlanValidator.interval,
+                  onChanged: (_) => _refreshDerivedDueDate(),
+                  decoration: const InputDecoration(labelText: '周期（天）*'),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextFormField(
-                    key: const Key('maintenance-plan-reminder-lead'),
-                    controller: _reminderLead,
-                    keyboardType: TextInputType.number,
-                    validator: (value) => MaintenancePlanValidator.reminderLead(
-                      value,
-                      intervalDays: int.tryParse(_interval.text.trim()),
-                    ),
-                    onChanged: (_) => setState(() {}),
-                    decoration: const InputDecoration(labelText: '提前提醒（天）*'),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextFormField(
+                  key: const Key('maintenance-plan-reminder-lead'),
+                  controller: _reminderLead,
+                  keyboardType: TextInputType.number,
+                  validator: (value) => MaintenancePlanValidator.reminderLead(
+                    value,
+                    intervalDays: int.tryParse(_interval.text.trim()),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _PlanDateTile(
-              label: '上次完成日（可选）',
-              date: _lastCompletedAt,
-              onChanged: (date) {
-                setState(() {
-                  _lastCompletedAt = date;
-                  _showDateError = false;
-                  if (date != null) {
-                    _dueFollowsReference = false;
-                    final interval = int.tryParse(_interval.text.trim());
-                    if (interval != null && interval > 0) {
-                      _dueDate = addMaintenanceDays(date, interval);
-                      _dueFollowsLast = true;
-                    }
-                  }
-                });
-              },
-            ),
-            const SizedBox(height: 10),
-            _PlanDateTile(
-              label: '首次 / 下次到期日',
-              date: _dueDate,
-              onChanged: (date) => setState(() {
-                _dueDate = date;
-                _dueFollowsLast = date == null;
-                _dueFollowsReference = false;
-                _showDateError = false;
-              }),
-            ),
-            if (_showDateError) ...[
-              const SizedBox(height: 6),
-              Text(
-                MaintenancePlanValidator.dates(_lastCompletedAt, _dueDate)!,
-                key: const Key('maintenance-plan-date-error'),
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontSize: 12,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(labelText: '提前提醒（天）*'),
                 ),
               ),
             ],
-            const SizedBox(height: 14),
-            Container(
-              key: const Key('maintenance-plan-preview'),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF1E9),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.event_available_outlined,
-                    color: Color(0xFF31584B),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          '下一次日期预览',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          _previewDate == null
-                              ? '补全周期和日期后显示'
-                              : '${_date(_previewDate)} · 提前 ${_reminderLead.text.trim().isEmpty ? '—' : _reminderLead.text.trim()} 天提醒',
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+          ),
+          const SizedBox(height: 12),
+          _PlanDateTile(
+            label: '上次完成日（可选）',
+            date: _lastCompletedAt,
+            onChanged: (date) {
+              setState(() {
+                _lastCompletedAt = date;
+                _showDateError = false;
+                if (date != null) {
+                  _dueFollowsReference = false;
+                  final interval = int.tryParse(_interval.text.trim());
+                  if (interval != null && interval > 0) {
+                    _dueDate = addMaintenanceDays(date, interval);
+                    _dueFollowsLast = true;
+                  }
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 10),
+          _PlanDateTile(
+            label: '首次 / 下次到期日',
+            date: _dueDate,
+            onChanged: (date) => setState(() {
+              _dueDate = date;
+              _dueFollowsLast = date == null;
+              _dueFollowsReference = false;
+              _showDateError = false;
+            }),
+          ),
+          if (_showDateError) ...[
+            const SizedBox(height: 6),
+            Text(
+              MaintenancePlanValidator.dates(_lastCompletedAt, _dueDate)!,
+              key: const Key('maintenance-plan-date-error'),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 12,
               ),
             ),
-            const SizedBox(height: 20),
-            Row(
+          ],
+          const SizedBox(height: 14),
+          Container(
+            key: const Key('maintenance-plan-preview'),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF1E9),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
               children: [
-                const Expanded(
-                  child: Text(
-                    '执行步骤',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                  ),
+                const Icon(
+                  Icons.event_available_outlined,
+                  color: Color(0xFF31584B),
                 ),
-                TextButton.icon(
-                  key: const Key('add-maintenance-step'),
-                  onPressed: _addStep,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('添加步骤'),
-                ),
-              ],
-            ),
-            if (_steps.isEmpty)
-              const Text(
-                '步骤可选；需要时可逐条添加，并在保存前修改。',
-                style: TextStyle(color: Color(0xFF72817A)),
-              )
-            else
-              ...List.generate(_steps.length, (index) {
-                final step = _steps[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 16, right: 10),
-                        child: CircleAvatar(
-                          radius: 13,
-                          backgroundColor: const Color(0xFFEAF1E9),
-                          foregroundColor: const Color(0xFF31584B),
-                          child: Text('${index + 1}'),
-                        ),
+                      const Text(
+                        '下一次日期预览',
+                        style: TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      Expanded(
-                        child: TextFormField(
-                          key: ValueKey('maintenance-step-$index'),
-                          controller: step.controller,
-                          validator: (value) =>
-                              value == null || value.trim().isEmpty
-                              ? '请填写步骤内容'
-                              : null,
-                          decoration: const InputDecoration(labelText: '步骤内容'),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: '删除步骤 ${index + 1}',
-                        onPressed: () => _removeStep(index),
-                        icon: const Icon(Icons.close_rounded),
+                      const SizedBox(height: 3),
+                      Text(
+                        _previewDate == null
+                            ? '补全周期和日期后显示'
+                            : '${_date(_previewDate)} · 提前 ${_reminderLead.text.trim().isEmpty ? '—' : _reminderLead.text.trim()} 天提醒',
                       ),
                     ],
                   ),
-                );
-              }),
-          ],
-        ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '执行步骤',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+              ),
+              TextButton.icon(
+                key: const Key('add-maintenance-step'),
+                onPressed: _addStep,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('添加步骤'),
+              ),
+            ],
+          ),
+          if (_steps.isEmpty)
+            const Text(
+              '步骤可选；需要时可逐条添加，并在保存前修改。',
+              style: TextStyle(color: Color(0xFF72817A)),
+            )
+          else
+            ...List.generate(_steps.length, (index) {
+              final step = _steps[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16, right: 10),
+                      child: CircleAvatar(
+                        radius: 13,
+                        backgroundColor: const Color(0xFFEAF1E9),
+                        foregroundColor: const Color(0xFF31584B),
+                        child: Text('${index + 1}'),
+                      ),
+                    ),
+                    Expanded(
+                      child: TextFormField(
+                        key: ValueKey('maintenance-step-$index'),
+                        controller: step.controller,
+                        validator: (value) =>
+                            value == null || value.trim().isEmpty
+                            ? '请填写步骤内容'
+                            : null,
+                        decoration: const InputDecoration(labelText: '步骤内容'),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: '删除步骤 ${index + 1}',
+                      onPressed: () => _removeStep(index),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
       ),
     ),
   );
@@ -626,6 +632,7 @@ class _MaintenancePlanEditorPageState extends State<MaintenancePlanEditorPage> {
         _StepDraft(
           '${widget.initialPlan.id}-step-${DateTime.now().microsecondsSinceEpoch}',
           TextEditingController(),
+          '',
         ),
       );
     });
@@ -667,6 +674,7 @@ class _MaintenancePlanEditorPageState extends State<MaintenancePlanEditorPage> {
             id: _steps[index].id,
             title: _steps[index].controller.text.trim(),
             sortOrder: index,
+            description: _steps[index].description,
           ),
           growable: false,
         ),
@@ -727,7 +735,7 @@ class _PlanDateTile extends StatelessWidget {
           ),
         IconButton(
           onPressed: () async {
-            final selected = await showDatePicker(
+            final selected = await showAppDatePicker(
               context: context,
               initialDate: date ?? DateTime.now(),
               firstDate: MaintenancePlanValidator.minDate,
@@ -743,10 +751,11 @@ class _PlanDateTile extends StatelessWidget {
 }
 
 class _StepDraft {
-  _StepDraft(this.id, this.controller);
+  _StepDraft(this.id, this.controller, this.description);
 
   final String id;
   final TextEditingController controller;
+  final String description;
 }
 
 String _date(DateTime? value) =>

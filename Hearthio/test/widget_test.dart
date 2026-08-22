@@ -100,8 +100,18 @@ MaintenanceTask _executionTask() {
         reminderLeadDays: 3,
         dueDate: addMaintenanceDays(today, -2),
         checklist: const [
-          MaintenanceStep(id: 'water-off', title: '关闭水源', sortOrder: 0),
-          MaintenanceStep(id: 'flush', title: '冲洗', sortOrder: 1),
+          MaintenanceStep(
+            id: 'water-off',
+            title: '关闭水源',
+            description: '关闭进水阀，确保停止进水',
+            sortOrder: 0,
+          ),
+          MaintenanceStep(
+            id: 'flush',
+            title: '冲洗',
+            description: '打开水源，冲洗滤芯至出水清澈',
+            sortOrder: 1,
+          ),
         ],
       ),
     ],
@@ -396,21 +406,19 @@ void main() {
         );
         await tester.tap(step);
       }
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('execution-cost')),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.tap(find.byKey(const Key('execution-record-cost')));
+      await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const Key('execution-cost')), '129');
+      await tester.tap(find.byKey(const Key('record-field-done')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('execution-record-material')));
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const Key('execution-material')),
         'PP 棉滤芯 A1',
       );
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('complete-maintenance')),
-        400,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.tap(find.byKey(const Key('record-field-done')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('complete-maintenance')));
       await tester.pumpAndSettle();
 
@@ -517,9 +525,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('家务志'), findsOneWidget);
-    expect(find.text('添加物品'), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-add-item')), findsOneWidget);
 
-    await tester.tap(find.text('物品'));
+    await tester.tap(find.byKey(const ValueKey('bottom-tab-1')));
     await tester.pumpAndSettle();
     expect(find.text('物品档案'), findsOneWidget);
 
@@ -574,6 +582,230 @@ void main() {
     expect(find.text('拍照'), findsOneWidget);
     expect(find.text('从相册选择'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'scrollable pages keep the bottom safe area inside their scroll padding',
+    (tester) async {
+      final task = _executionTask();
+      final controller = _FakeExecutionController(task: task);
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(viewPadding: const EdgeInsets.only(bottom: 34)),
+            child: child!,
+          ),
+          home: MaintenanceExecutionPage(controller: controller, task: task),
+        ),
+      );
+
+      final executionScroll = find.byKey(
+        const PageStorageKey('maintenance-execution-scroll'),
+      );
+      final list = tester.widget<ListView>(executionScroll);
+      expect(list.padding, const EdgeInsets.fromLTRB(20, 14, 20, 74));
+      expect(
+        find.ancestor(of: executionScroll, matching: find.byType(SafeArea)),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'redesigned execution timeline advances and fits an iPhone viewport',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(393, 852));
+      final plan = maintenanceTemplates
+          .firstWhere((template) => template.id == 'water-purifier-filter')
+          .createPlan(
+            planId: 'filter',
+            referenceDate: addMaintenanceDays(DateTime.now(), -180),
+          );
+      final item = CareItem(
+        id: 'purifier',
+        name: '厨房净水器',
+        category: '滤芯与耗材',
+        location: '厨房',
+        brand: '',
+        model: '',
+        notes: '',
+        photos: const [],
+        plans: [plan],
+      );
+      final task = MaintenanceTask(
+        item: item,
+        plan: plan,
+        status: MaintenancePlanStatus.evaluate(plan),
+      );
+      final controller = _FakeExecutionController(task: task);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MaintenanceExecutionPage(controller: controller, task: task),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('执行步骤'), findsOneWidget);
+      expect(find.text('请确认净水器型号与适配滤芯'), findsOneWidget);
+      expect(find.text('关闭进水阀，确保停止进水'), findsOneWidget);
+      expect(find.text('保养前留照（可选）'), findsOneWidget);
+      expect(
+        tester
+            .widget<InkWell>(
+              find.byKey(const Key('execution-before-photo-entry')),
+            )
+            .onTap,
+        isNotNull,
+      );
+
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('execution-after-photo-entry')),
+        260,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('本次记录（可选）'), findsOneWidget);
+      expect(find.text('保养后留照（可选）'), findsOneWidget);
+      expect(find.byKey(const Key('execution-record-date')), findsOneWidget);
+      expect(find.byKey(const Key('execution-record-cost')), findsOneWidget);
+      expect(
+        find.byKey(const Key('execution-record-material')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('execution-record-note')), findsOneWidget);
+      expect(
+        tester
+            .widget<InkWell>(
+              find.byKey(const Key('execution-after-photo-entry')),
+            )
+            .onTap,
+        isNull,
+      );
+      expect(find.text('完成全部步骤后可添加保养后照片'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('complete-maintenance')))
+            .onPressed,
+        isNull,
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const Key('execution-record-date')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('app-date-picker-sheet')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('app-date-picker-cancel')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('execution-step-filter-step-0')),
+      );
+      await tester.pump();
+      expect(find.bySemanticsLabel(RegExp(r'步骤 1.*当前步骤')), findsOneWidget);
+
+      for (var index = 0; index < plan.checklist.length; index++) {
+        final step = find.byKey(ValueKey('execution-step-filter-step-$index'));
+        await tester.scrollUntilVisible(
+          step,
+          180,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.tap(step);
+        await tester.pump();
+        expect(find.byIcon(Icons.check_rounded), findsNWidgets(index + 1));
+        if (index + 1 < plan.checklist.length) {
+          expect(
+            find.bySemanticsLabel(RegExp('步骤 ${index + 2}.*当前步骤')),
+            findsOneWidget,
+          );
+        }
+      }
+
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('complete-maintenance')))
+            .onPressed,
+        isNotNull,
+      );
+      expect(
+        tester
+            .widget<InkWell>(
+              find.byKey(const Key('execution-after-photo-entry')),
+            )
+            .onTap,
+        isNotNull,
+      );
+      expect(find.text('步骤已完成，记录最终状态以便对比'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.binding.setSurfaceSize(null);
+    },
+  );
+
+  testWidgets('fixed action area includes the system bottom inset', (
+    tester,
+  ) async {
+    final store = CareStore();
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(viewPadding: const EdgeInsets.only(bottom: 34)),
+          child: child!,
+        ),
+        home: EditorPage(store: store),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('common-item-冰箱')));
+    await tester.pumpAndSettle();
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).last);
+    final actionArea = scaffold.bottomNavigationBar! as Padding;
+    expect(actionArea.padding, const EdgeInsets.fromLTRB(20, 10, 20, 46));
+    expect(find.byKey(const Key('full-item-actions')), findsOneWidget);
+    expect(
+      find.ancestor(
+        of: find.byKey(const Key('save-care-item')),
+        matching: find.byType(SafeArea),
+      ),
+      findsNothing,
+    );
+
+    await tester.drag(
+      find.byKey(const PageStorageKey('item-supplement-scroll')),
+      const Offset(0, -320),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('toggle-advanced-item-details')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('toggle-advanced-item-details')));
+    await tester.pumpAndSettle();
+
+    final expandedScaffold = tester.widget<Scaffold>(
+      find.byType(Scaffold).last,
+    );
+    final compactActionArea = expandedScaffold.bottomNavigationBar! as Padding;
+    expect(compactActionArea.padding, const EdgeInsets.fromLTRB(20, 6, 20, 42));
+    expect(find.byKey(const Key('compact-item-actions')), findsOneWidget);
+    expect(find.byKey(const Key('save-care-item')), findsOneWidget);
+    expect(find.byKey(const Key('save-care-item-later')), findsOneWidget);
+  });
+
+  testWidgets('home content does not reserve the bottom inset twice', (
+    tester,
+  ) async {
+    final store = CareStore()..loaded = true;
+    await tester.pumpWidget(MaterialApp(home: HomePage(store: store)));
+    await tester.pumpAndSettle();
+
+    final homeSafeArea = tester.widget<SafeArea>(
+      find
+          .ancestor(of: find.byType(Dashboard), matching: find.byType(SafeArea))
+          .first,
+    );
+    expect(homeSafeArea.bottom, isFalse);
   });
 
   testWidgets('item search auto-fills category and keeps naming optional', (
@@ -922,7 +1154,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('dashboard sorts plan tasks by unified due-state priority', (
+  testWidgets('dashboard highlights the most urgent maintenance task', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(800, 1600));
@@ -971,21 +1203,105 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final overdue = tester.getTopLeft(
+    expect(
       find.byKey(const ValueKey('maintenance-task-device-overdue')),
+      findsOneWidget,
     );
-    final dueToday = tester.getTopLeft(
+    expect(
       find.byKey(const ValueKey('maintenance-task-device-today')),
+      findsNothing,
     );
-    final dueSoon = tester.getTopLeft(
+    expect(
       find.byKey(const ValueKey('maintenance-task-device-soon')),
+      findsNothing,
     );
-    final planned = tester.getTopLeft(
+    expect(
       find.byKey(const ValueKey('maintenance-task-device-planned')),
+      findsNothing,
     );
-    expect(overdue.dy, lessThan(dueToday.dy));
-    expect(dueToday.dy, lessThan(dueSoon.dy));
-    expect(dueSoon.dy, lessThan(planned.dy));
+    expect(find.text('已逾期 1 天'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('dashboard header add action opens the item flow', (
+    tester,
+  ) async {
+    await tester.pumpWidget(MaterialApp(home: Dashboard(store: CareStore())));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('dashboard-add-item')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('选择物品'), findsWidgets);
+    expect(find.text('常用物品'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dashboard schedule action selects the schedule tab', (
+    tester,
+  ) async {
+    final store = CareStore()..loaded = true;
+    await tester.pumpWidget(MaterialApp(home: HomePage(store: store)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('dashboard-open-schedule')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('保养日程'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('redesigned dashboard is stable on an iPhone viewport', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(393, 852));
+    final item = CareItem(
+      id: 'sample-purifier',
+      name: '示例 · 厨房净水器',
+      category: '滤芯与耗材',
+      location: '厨房',
+      brand: '',
+      model: '',
+      notes: '',
+      photos: const [],
+      plans: [
+        MaintenancePlan(
+          id: 'sample-filter-plan',
+          title: '更换滤芯',
+          intervalDays: 180,
+          dueDate: DateTime(2027, 2, 17),
+        ),
+      ],
+      currentValue: 0,
+      isSample: true,
+    );
+    final store = CareStore()
+      ..loaded = true
+      ..items = [item];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SafeArea(
+            child: Dashboard(store: store, now: DateTime(2026, 8, 22)),
+          ),
+          bottomNavigationBar: AppBottomDock(selected: 0, onSelect: (_) {}),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('没有到期任务'), findsOneWidget);
+    expect(find.text('179 天后'), findsOneWidget);
+    expect(find.text('示例 · 厨房净水器'), findsOneWidget);
+    expect(
+      find.byKey(const Key('dashboard-household-overview')),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(
+      find.byKey(const Key('dashboard-household-overview')),
+    );
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await tester.binding.setSurfaceSize(null);
   });
@@ -996,7 +1312,13 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: Dashboard(store: CareStore())));
     await tester.pumpAndSettle();
 
-    expect(find.text('还没有保养计划'), findsOneWidget);
+    expect(find.text('从第一个计划开始'), findsOneWidget);
+    expect(find.text('添加物品并设置保养周期，到期前会提醒你。'), findsOneWidget);
+    final emptyState = find.byKey(
+      const Key('dashboard-empty-maintenance-state'),
+    );
+    expect(emptyState, findsOneWidget);
+    expect(tester.getSize(emptyState).width, greaterThan(700));
     await tester.ensureVisible(
       find.byKey(const Key('create-first-maintenance-plan')),
     );
@@ -1159,7 +1481,7 @@ void main() {
   });
 
   testWidgets(
-    'execution keeps unchecked steps and records inputs plus before-after photos',
+    'execution requires all steps and records inputs plus before-after photos',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 1200));
       final task = _executionTask();
@@ -1177,54 +1499,113 @@ void main() {
       expect(find.text('厨房净水器'), findsOneWidget);
       expect(find.text('更换滤芯'), findsOneWidget);
       expect(find.textContaining('原计划日期'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('execution-step-water-off')));
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('execution-cost')),
-        280,
-        scrollable: find.byType(Scrollable).first,
+      expect(find.text('关闭进水阀，确保停止进水'), findsOneWidget);
+      final completionButton = tester.widget<FilledButton>(
+        find.byKey(const Key('complete-maintenance')),
       );
-      await tester.enterText(find.byKey(const Key('execution-cost')), '129');
-      await tester.enterText(
-        find.byKey(const Key('execution-material')),
-        'PP 棉滤芯 A1',
-      );
-      await tester.enterText(find.byKey(const Key('execution-note')), '已冲洗');
+      expect(completionButton.onPressed, isNull);
 
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('add-before-maintenance-photo')),
-        280,
-        scrollable: find.byType(Scrollable).first,
-      );
+      await tester.tap(find.byKey(const Key('execution-before-photo-entry')));
+      await tester.pumpAndSettle();
+      expect(find.text('保养前留照'), findsOneWidget);
+      expect(find.text('保养后照片'), findsNothing);
       await tester.tap(find.byKey(const Key('add-before-maintenance-photo')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('execution-photo-camera')));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('add-after-maintenance-photo')),
-        280,
-        scrollable: find.byType(Scrollable).first,
+      await tester.tap(find.byTooltip('关闭'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('execution-step-water-off')));
+      await tester.pump();
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('complete-maintenance')))
+            .onPressed,
+        isNull,
       );
+      expect(
+        tester
+            .widget<InkWell>(
+              find.byKey(const Key('execution-before-photo-entry')),
+            )
+            .onTap,
+        isNotNull,
+      );
+      await tester.tap(find.byKey(const Key('execution-before-photo-entry')));
+      await tester.pumpAndSettle();
+      expect(find.text('执行已经开始，保养前照片已锁定。'), findsOneWidget);
+      expect(
+        tester
+            .widget<TextButton>(
+              find.byKey(const Key('add-before-maintenance-photo')),
+            )
+            .onPressed,
+        isNull,
+      );
+      await tester.tap(find.byTooltip('关闭'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('execution-record-cost')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('execution-cost')), '129');
+      await tester.tap(find.byKey(const Key('record-field-done')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('execution-record-material')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('execution-material')),
+        'PP 棉滤芯 A1',
+      );
+      await tester.tap(find.byKey(const Key('record-field-done')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('execution-record-note')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('execution-note')), '已冲洗');
+      await tester.tap(find.byKey(const Key('record-field-done')));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<InkWell>(
+              find.byKey(const Key('execution-after-photo-entry')),
+            )
+            .onTap,
+        isNull,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('execution-step-flush')));
+      await tester.pump();
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('complete-maintenance')))
+            .onPressed,
+        isNotNull,
+      );
+      await tester.ensureVisible(
+        find.byKey(const Key('execution-after-photo-entry')),
+      );
+      await tester.tap(find.byKey(const Key('execution-after-photo-entry')));
+      await tester.pumpAndSettle();
+      expect(find.text('保养后留照'), findsOneWidget);
+      expect(find.text('保养前照片'), findsNothing);
       await tester.tap(find.byKey(const Key('add-after-maintenance-photo')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('execution-photo-gallery')));
       await tester.pumpAndSettle();
-
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('complete-maintenance')),
-        280,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.byKey(const Key('complete-maintenance')));
+      await tester.tap(find.byTooltip('关闭'));
       await tester.pumpAndSettle();
-      expect(find.text('仍有步骤未勾选'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('confirm-incomplete-maintenance')));
+
+      await tester.tap(find.byKey(const Key('complete-maintenance')));
       await tester.pumpAndSettle();
 
       final draft = controller.lastDraft!;
       expect(draft.cost, 129);
       expect(draft.materialName, 'PP 棉滤芯 A1');
       expect(draft.note, '已冲洗');
-      expect(draft.completedStepIds, ['water-off']);
+      expect(draft.completedStepIds, ['water-off', 'flush']);
       expect(draft.beforePhotos, ['/tmp/before.jpg']);
       expect(draft.afterPhotos, ['/tmp/after.jpg']);
       expect(find.text('本次保养已归档'), findsOneWidget);
@@ -1255,6 +1636,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('execution-step-water-off')));
     await tester.tap(find.byKey(const ValueKey('execution-step-flush')));
+    await tester.pump();
     await tester.scrollUntilVisible(
       find.byKey(const Key('complete-maintenance')),
       300,
@@ -1290,6 +1672,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('execution-step-water-off')));
     await tester.tap(find.byKey(const ValueKey('execution-step-flush')));
+    await tester.pump();
     await tester.scrollUntilVisible(
       find.byKey(const Key('complete-maintenance')),
       300,
@@ -1622,5 +2005,34 @@ void main() {
       expect(tester.takeException(), isNull);
     }
     await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('secondary-page back button stays square in tall app bars', (
+    tester,
+  ) async {
+    for (final toolbarHeight in [56.0, 72.0, 76.0, 96.0]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            appBar: AppBar(
+              toolbarHeight: toolbarHeight,
+              leading: const AppBackButton(),
+              title: const Text('二级页面'),
+            ),
+          ),
+        ),
+      );
+
+      final button = find.descendant(
+        of: find.byType(AppBackButton),
+        matching: find.byType(IconButton),
+      );
+      expect(button, findsOneWidget);
+      expect(
+        tester.getSize(button),
+        const Size.square(AppBackButton.dimension),
+      );
+      expect(tester.takeException(), isNull);
+    }
   });
 }

@@ -88,7 +88,12 @@ void main() {
           intervalDays: 90,
           dueDate: DateTime(2026, 4, 1),
           checklist: const [
-            MaintenanceStep(id: 'power', title: '断电', sortOrder: 0),
+            MaintenanceStep(
+              id: 'power',
+              title: '断电',
+              description: '关闭设备电源并确认停止运行',
+              sortOrder: 0,
+            ),
           ],
         ),
         MaintenancePlan(
@@ -127,6 +132,7 @@ void main() {
 
     expect(restored.plans, hasLength(2));
     expect(restored.plans.first.checklist.single.title, '断电');
+    expect(restored.plans.first.checklist.single.description, '关闭设备电源并确认停止运行');
     expect(restored.records.single.planId, 'filter');
     expect(restored.records.single.materialName, '滤网清洁剂');
     expect(restored.records.single.completedStepIds, ['power']);
@@ -236,6 +242,41 @@ void main() {
       '关闭水源',
       '更换',
       '冲洗',
+    ]);
+    expect(plan.checklist.map((step) => step.description), [
+      '请确认净水器型号与适配滤芯',
+      '关闭进水阀，确保停止进水',
+      '拆卸旧滤芯，安装新滤芯',
+      '打开水源，冲洗滤芯至出水清澈',
+    ]);
+  });
+
+  test('legacy built-in plans gain instructions without changing step ids', () {
+    final legacy = MaintenancePlan(
+      id: 'legacy-filter',
+      title: '更换滤芯',
+      intervalDays: 180,
+      checklist: const [
+        MaintenanceStep(id: 'legacy-0', title: '核对型号', sortOrder: 0),
+        MaintenanceStep(id: 'legacy-1', title: '关闭水源', sortOrder: 1),
+        MaintenanceStep(id: 'legacy-2', title: '更换', sortOrder: 2),
+        MaintenanceStep(id: 'legacy-3', title: '冲洗', sortOrder: 3),
+      ],
+    );
+
+    final enriched = enrichMaintenanceTemplateStepDescriptions(legacy);
+
+    expect(enriched.checklist.map((step) => step.id), [
+      'legacy-0',
+      'legacy-1',
+      'legacy-2',
+      'legacy-3',
+    ]);
+    expect(enriched.checklist.map((step) => step.description), [
+      '请确认净水器型号与适配滤芯',
+      '关闭进水阀，确保停止进水',
+      '拆卸旧滤芯，安装新滤芯',
+      '打开水源，冲洗滤芯至出水清澈',
     ]);
   });
 

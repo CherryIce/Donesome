@@ -7,6 +7,8 @@ import '../models/maintenance_lifecycle.dart';
 import '../models/maintenance_plan.dart';
 import '../models/maintenance_record.dart';
 import '../services/maintenance_history_controller.dart';
+import 'app_alert.dart';
+import 'app_toast.dart';
 import 'maintenance_record_editor.dart';
 
 const _lifecycleInk = Color(0xFF263630);
@@ -253,29 +255,21 @@ class _MaintenanceLifecycleTimelineState
   Future<void> _delete(MaintenanceRecord record) async {
     if (_busyRecordIds.contains(record.id)) return;
     final plan = _planFor(widget.item, record.planId);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: const Text('删除这条维护记录？'),
-        content: Text(
-          plan == null
-              ? '删除后无法恢复。记录中的照片也会从本机移除。'
-              : '删除后无法恢复，并会按“${plan.title}”剩余记录重新计算上次完成日和下一次日期。记录照片也会从本机移除。',
-          style: const TextStyle(height: 1.5),
+    final confirmed = await showAppAlert<bool>(
+      context,
+      title: '删除这条维护记录？',
+      message: plan == null
+          ? '删除后无法恢复。记录中的照片也会从本机移除。'
+          : '删除后无法恢复，并会按“${plan.title}”剩余记录重新计算上次完成日和下一次日期。记录照片也会从本机移除。',
+      actions: const [
+        AppAlertAction(label: '取消', result: false),
+        AppAlertAction(
+          label: '确认删除',
+          result: true,
+          key: Key('confirm-delete-maintenance-record'),
+          tone: AppAlertActionTone.destructive,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialog, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            key: const Key('confirm-delete-maintenance-record'),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(dialog, true),
-            child: const Text('确认删除'),
-          ),
-        ],
-      ),
+      ],
     );
     if (confirmed != true || !mounted) return;
     setState(() => _busyRecordIds.add(record.id));
@@ -286,15 +280,11 @@ class _MaintenanceLifecycleTimelineState
       );
     } on MaintenanceHistoryException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
+        AppToast.show(context, error.message, style: AppToastStyle.error);
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('维护记录未能删除，请重试。')));
+        AppToast.show(context, '维护记录未能删除，请重试。', style: AppToastStyle.error);
       }
     } finally {
       if (mounted) setState(() => _busyRecordIds.remove(record.id));

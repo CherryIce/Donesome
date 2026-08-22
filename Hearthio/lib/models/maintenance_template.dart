@@ -8,6 +8,7 @@ class MaintenanceTemplate {
     required this.title,
     required this.intervalDays,
     required this.steps,
+    this.stepDescriptions = const [],
   });
 
   final String id;
@@ -15,6 +16,7 @@ class MaintenanceTemplate {
   final String title;
   final int intervalDays;
   final List<String> steps;
+  final List<String> stepDescriptions;
 
   MaintenancePlan createPlan({
     required String planId,
@@ -33,6 +35,9 @@ class MaintenanceTemplate {
           id: '$planId-step-$index',
           title: steps[index],
           sortOrder: index,
+          description: index < stepDescriptions.length
+              ? stepDescriptions[index]
+              : '',
         ),
         growable: false,
       ),
@@ -54,6 +59,12 @@ const maintenanceTemplates = <MaintenanceTemplate>[
     title: '更换滤芯',
     intervalDays: 180,
     steps: ['核对型号', '关闭水源', '更换', '冲洗'],
+    stepDescriptions: [
+      '请确认净水器型号与适配滤芯',
+      '关闭进水阀，确保停止进水',
+      '拆卸旧滤芯，安装新滤芯',
+      '打开水源，冲洗滤芯至出水清澈',
+    ],
   ),
   MaintenanceTemplate(
     id: 'washer-drum',
@@ -84,6 +95,54 @@ const maintenanceTemplates = <MaintenanceTemplate>[
     steps: [],
   ),
 ];
+
+MaintenancePlan enrichMaintenanceTemplateStepDescriptions(
+  MaintenancePlan plan,
+) {
+  MaintenanceTemplate? matchedTemplate;
+  for (final template in maintenanceTemplates) {
+    if (template.title != plan.title ||
+        template.steps.length != plan.checklist.length ||
+        template.stepDescriptions.isEmpty) {
+      continue;
+    }
+    final sortedSteps = [...plan.checklist]
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final titlesMatch = List.generate(
+      sortedSteps.length,
+      (index) => sortedSteps[index].title == template.steps[index],
+      growable: false,
+    ).every((matches) => matches);
+    if (titlesMatch) {
+      matchedTemplate = template;
+      break;
+    }
+  }
+  if (matchedTemplate == null) return plan;
+
+  var changed = false;
+  final checklist = plan.checklist
+      .map((step) {
+        if (step.description.isNotEmpty) return step;
+        final templateIndex = matchedTemplate!.steps.indexOf(step.title);
+        if (templateIndex == -1 ||
+            templateIndex >= matchedTemplate.stepDescriptions.length) {
+          return step;
+        }
+        final description = matchedTemplate.stepDescriptions[templateIndex];
+        if (description.isEmpty) return step;
+        changed = true;
+        return MaintenanceStep(
+          id: step.id,
+          title: step.title,
+          sortOrder: step.sortOrder,
+          description: description,
+        );
+      })
+      .toList(growable: false);
+
+  return changed ? plan.copyWith(checklist: checklist) : plan;
+}
 
 class MaintenancePlanValidator {
   static const minIntervalDays = 1;

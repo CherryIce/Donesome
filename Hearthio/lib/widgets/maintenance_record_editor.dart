@@ -8,6 +8,11 @@ import '../models/maintenance_calendar.dart';
 import '../models/maintenance_plan.dart';
 import '../models/maintenance_record.dart';
 import '../services/maintenance_history_controller.dart';
+import 'app_back_button.dart';
+import 'app_date_picker.dart';
+import 'app_safe_area.dart';
+import 'app_toast.dart';
+import 'system_permission_alert.dart';
 
 class MaintenanceRecordEditorPage extends StatefulWidget {
   const MaintenanceRecordEditorPage({
@@ -81,155 +86,158 @@ class _MaintenanceRecordEditorPageState
           )),
     ]..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     return Scaffold(
-      appBar: AppBar(title: const Text('编辑维护记录')),
-      body: SafeArea(
-        top: false,
-        child: Form(
-          key: _form,
-          child: ListView(
-            key: const PageStorageKey('maintenance-record-editor-scroll'),
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 40),
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEAF1E9),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '所属计划',
-                      style: TextStyle(color: Color(0xFF72817A)),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${widget.record.kind}${widget.plan == null && widget.record.planId != null ? '（原计划不可用）' : ''}',
-                      key: const Key('record-editor-plan'),
-                      style: const TextStyle(
-                        color: Color(0xFF263630),
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    const Text(
-                      '记录与原计划的关联不会在编辑时改变。',
-                      style: TextStyle(color: Color(0xFF72817A), fontSize: 12),
-                    ),
-                  ],
-                ),
+      appBar: AppBar(
+        leading: const AppBackButton(),
+        title: const Text('编辑维护记录'),
+      ),
+      body: Form(
+        key: _form,
+        child: ListView(
+          key: const PageStorageKey('maintenance-record-editor-scroll'),
+          padding: appSafeScrollPadding(
+            context,
+            const EdgeInsets.fromLTRB(20, 14, 20, 40),
+          ),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAF1E9),
+                borderRadius: BorderRadius.circular(18),
               ),
-              const SizedBox(height: 18),
-              _RecordDateField(
-                value: _completedAt,
-                onChanged: (value) => setState(() => _completedAt = value),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                key: const Key('record-editor-cost'),
-                controller: _cost,
-                enabled: !_saving,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                validator: _costValidator,
-                decoration: const InputDecoration(
-                  labelText: '本次费用（元）',
-                  helperText: '可留空，按 0 元记录',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('record-editor-material'),
-                controller: _material,
-                enabled: !_saving,
-                decoration: const InputDecoration(labelText: '耗材名称 / 型号'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const Key('record-editor-note'),
-                controller: _note,
-                enabled: !_saving,
-                minLines: 3,
-                maxLines: 8,
-                decoration: const InputDecoration(labelText: '备注'),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                '执行步骤',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
-              if (checklist.isEmpty)
-                Text(
-                  _completedStepIds.isEmpty
-                      ? '这条记录没有步骤数据。'
-                      : '已保留 ${_completedStepIds.length} 个历史步骤标识；原步骤内容不可用。',
-                  style: const TextStyle(color: Color(0xFF72817A)),
-                )
-              else
-                ...checklist.map(
-                  (step) => CheckboxListTile(
-                    key: ValueKey('record-editor-step-${step.id}'),
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    value: _completedStepIds.contains(step.id),
-                    title: Text(step.title),
-                    onChanged: _saving
-                        ? null
-                        : (selected) => setState(() {
-                            if (selected == true) {
-                              _completedStepIds.add(step.id);
-                            } else {
-                              _completedStepIds.remove(step.id);
-                            }
-                          }),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '所属计划',
+                    style: TextStyle(color: Color(0xFF72817A)),
                   ),
-                ),
-              const SizedBox(height: 18),
-              _EditableRecordPhotos(
-                title: '保养前照片',
-                addKey: const Key('record-editor-add-before-photo'),
-                photos: _beforePhotos,
-                enabled: !_saving,
-                onAdd: () => _addPhoto(before: true),
-                onRemove: (path) => _removePhoto(path, before: true),
-              ),
-              const SizedBox(height: 18),
-              _EditableRecordPhotos(
-                title: '保养后照片',
-                addKey: const Key('record-editor-add-after-photo'),
-                photos: _afterPhotos,
-                enabled: !_saving,
-                onAdd: () => _addPhoto(before: false),
-                onRemove: (path) => _removePhoto(path, before: false),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                Text(
-                  _error!,
-                  key: const Key('record-editor-error'),
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(height: 3),
+                  Text(
+                    '${widget.record.kind}${widget.plan == null && widget.record.planId != null ? '（原计划不可用）' : ''}',
+                    key: const Key('record-editor-plan'),
+                    style: const TextStyle(
+                      color: Color(0xFF263630),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
+                  const SizedBox(height: 5),
+                  const Text(
+                    '记录与原计划的关联不会在编辑时改变。',
+                    style: TextStyle(color: Color(0xFF72817A), fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            _RecordDateField(
+              value: _completedAt,
+              onChanged: (value) => setState(() => _completedAt = value),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              key: const Key('record-editor-cost'),
+              controller: _cost,
+              enabled: !_saving,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              validator: _costValidator,
+              decoration: const InputDecoration(
+                labelText: '本次费用（元）',
+                helperText: '可留空，按 0 元记录',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('record-editor-material'),
+              controller: _material,
+              enabled: !_saving,
+              decoration: const InputDecoration(labelText: '耗材名称 / 型号'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('record-editor-note'),
+              controller: _note,
+              enabled: !_saving,
+              minLines: 3,
+              maxLines: 8,
+              decoration: const InputDecoration(labelText: '备注'),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '执行步骤',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            if (checklist.isEmpty)
+              Text(
+                _completedStepIds.isEmpty
+                    ? '这条记录没有步骤数据。'
+                    : '已保留 ${_completedStepIds.length} 个历史步骤标识；原步骤内容不可用。',
+                style: const TextStyle(color: Color(0xFF72817A)),
+              )
+            else
+              ...checklist.map(
+                (step) => CheckboxListTile(
+                  key: ValueKey('record-editor-step-${step.id}'),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: _completedStepIds.contains(step.id),
+                  title: Text(step.title),
+                  onChanged: _saving
+                      ? null
+                      : (selected) => setState(() {
+                          if (selected == true) {
+                            _completedStepIds.add(step.id);
+                          } else {
+                            _completedStepIds.remove(step.id);
+                          }
+                        }),
                 ),
-              ],
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                key: const Key('save-maintenance-record'),
-                onPressed: _saving ? null : _save,
-                icon: _saving
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save_outlined),
-                label: Text(_saving ? '正在保存…' : '保存记录'),
+              ),
+            const SizedBox(height: 18),
+            _EditableRecordPhotos(
+              title: '保养前照片',
+              addKey: const Key('record-editor-add-before-photo'),
+              photos: _beforePhotos,
+              enabled: !_saving,
+              onAdd: () => _addPhoto(before: true),
+              onRemove: (path) => _removePhoto(path, before: true),
+            ),
+            const SizedBox(height: 18),
+            _EditableRecordPhotos(
+              title: '保养后照片',
+              addKey: const Key('record-editor-add-after-photo'),
+              photos: _afterPhotos,
+              enabled: !_saving,
+              onAdd: () => _addPhoto(before: false),
+              onRemove: (path) => _removePhoto(path, before: false),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                key: const Key('record-editor-error'),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
-          ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              key: const Key('save-maintenance-record'),
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined),
+              label: Text(_saving ? '正在保存…' : '保存记录'),
+            ),
+          ],
         ),
       ),
     );
@@ -267,15 +275,19 @@ class _MaintenanceRecordEditorPageState
         _newPhotoPaths.add(path);
         (before ? _beforePhotos : _afterPhotos).add(path);
       });
+    } else if (result.permission case final permission?) {
+      await showSystemPermissionAlert(
+        context,
+        permission: permission,
+        state: result.permissionState!,
+      );
     } else if (result.error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            source == ImageSource.camera
-                ? '无法打开相机，请检查相机权限后重试。'
-                : '无法读取照片，请检查照片权限后重试。',
-          ),
-        ),
+      AppToast.show(
+        context,
+        source == ImageSource.camera
+            ? '无法打开相机，请检查相机权限后重试。'
+            : '无法读取照片，请检查照片权限后重试。',
+        style: AppToastStyle.error,
       );
     }
   }
@@ -350,7 +362,7 @@ class _RecordDateField extends StatelessWidget {
     onTap: () async {
       final today = maintenanceDateOnly(DateTime.now());
       final initial = value.isAfter(today) ? today : value;
-      final selected = await showDatePicker(
+      final selected = await showAppDatePicker(
         context: context,
         initialDate: initial,
         firstDate: DateTime(2000),
