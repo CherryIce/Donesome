@@ -3516,11 +3516,29 @@ class ItemCard extends StatelessWidget {
 IconData _iconFor(String category) {
   switch (category) {
     case '家电':
+    case '家用电器':
       return Icons.kitchen_outlined;
     case '滤芯与耗材':
       return Icons.water_drop_outlined;
     case '家具与家居':
+    case '家具':
       return Icons.chair_outlined;
+    case '厨房用品':
+      return Icons.soup_kitchen_outlined;
+    case '个人与卫浴':
+      return Icons.bathtub_outlined;
+    case '织物与床品':
+      return Icons.bed_outlined;
+    case '清洁与收纳':
+      return Icons.cleaning_services_outlined;
+    case '小物品与工具':
+      return Icons.handyman_outlined;
+    case '医疗保健':
+      return Icons.medical_services_outlined;
+    case '文件证件':
+      return Icons.folder_outlined;
+    case '装饰与兴趣':
+      return Icons.palette_outlined;
     case '车辆与出行':
       return Icons.directions_car_outlined;
     case '宠物用品':
@@ -3928,6 +3946,156 @@ class _DetailPageState extends State<DetailPage> {
   }
 }
 
+class _ItemPreset {
+  const _ItemPreset(this.name, [this.icon]);
+
+  final String name;
+  final IconData? icon;
+}
+
+class _ItemCatalogCategory {
+  const _ItemCatalogCategory(this.name, this.icon, this.items);
+
+  final String name;
+  final IconData icon;
+  final List<_ItemPreset> items;
+}
+
+const _itemCatalog = <_ItemCatalogCategory>[
+  _ItemCatalogCategory('家具', Icons.chair_outlined, [
+    _ItemPreset('沙发'),
+    _ItemPreset('床'),
+    _ItemPreset('茶几'),
+    _ItemPreset('电视柜'),
+    _ItemPreset('餐桌'),
+    _ItemPreset('餐椅'),
+    _ItemPreset('衣柜'),
+    _ItemPreset('书桌'),
+    _ItemPreset('鞋柜'),
+    _ItemPreset('其他家具', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('家用电器', Icons.kitchen_outlined, [
+    _ItemPreset('冰箱', Icons.kitchen_outlined),
+    _ItemPreset('洗衣机', Icons.local_laundry_service_outlined),
+    _ItemPreset('空调', Icons.air_outlined),
+    _ItemPreset('电视', Icons.tv_outlined),
+    _ItemPreset('油烟机', Icons.wind_power_outlined),
+    _ItemPreset('电饭煲', Icons.rice_bowl_outlined),
+    _ItemPreset('吸尘器', Icons.cleaning_services_outlined),
+    _ItemPreset('扫地机器人', Icons.smart_toy_outlined),
+    _ItemPreset('净水器', Icons.water_drop_outlined),
+    _ItemPreset('热水器', Icons.hot_tub_outlined),
+    _ItemPreset('其他家电', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('厨房用品', Icons.soup_kitchen_outlined, [
+    _ItemPreset('炒锅'),
+    _ItemPreset('汤锅'),
+    _ItemPreset('碗碟'),
+    _ItemPreset('筷子'),
+    _ItemPreset('刀具'),
+    _ItemPreset('砧板'),
+    _ItemPreset('保鲜盒'),
+    _ItemPreset('调料罐'),
+    _ItemPreset('其他厨房用品', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('个人与卫浴', Icons.bathtub_outlined, [
+    _ItemPreset('牙刷'),
+    _ItemPreset('毛巾'),
+    _ItemPreset('沐浴用品'),
+    _ItemPreset('洗发用品'),
+    _ItemPreset('马桶'),
+    _ItemPreset('洗手盆'),
+    _ItemPreset('浴帘'),
+    _ItemPreset('其他卫浴用品', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('织物与床品', Icons.bed_outlined, [
+    _ItemPreset('床单'),
+    _ItemPreset('被套'),
+    _ItemPreset('被子'),
+    _ItemPreset('枕头'),
+    _ItemPreset('凉席'),
+    _ItemPreset('蚊帐'),
+    _ItemPreset('衣物'),
+    _ItemPreset('鞋子'),
+    _ItemPreset('包包'),
+    _ItemPreset('配饰'),
+    _ItemPreset('其他织物', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('清洁与收纳', Icons.cleaning_services_outlined, [
+    _ItemPreset('扫帚'),
+    _ItemPreset('拖把'),
+    _ItemPreset('洗洁精'),
+    _ItemPreset('洗衣液'),
+    _ItemPreset('垃圾桶'),
+    _ItemPreset('收纳箱'),
+    _ItemPreset('衣架'),
+    _ItemPreset('其他清洁用品', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('小物品与工具', Icons.handyman_outlined, [
+    _ItemPreset('文具'),
+    _ItemPreset('充电线'),
+    _ItemPreset('充电宝'),
+    _ItemPreset('螺丝刀'),
+    _ItemPreset('扳手'),
+    _ItemPreset('胶带'),
+    _ItemPreset('电池'),
+    _ItemPreset('其他工具', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('医疗保健', Icons.medical_services_outlined, [
+    _ItemPreset('常用药品'),
+    _ItemPreset('保健品'),
+    _ItemPreset('体温计'),
+    _ItemPreset('血压计'),
+    _ItemPreset('创可贴'),
+    _ItemPreset('其他医疗用品', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('文件证件', Icons.folder_outlined, [
+    _ItemPreset('身份证'),
+    _ItemPreset('户口本'),
+    _ItemPreset('房产证'),
+    _ItemPreset('合同'),
+    _ItemPreset('票据'),
+    _ItemPreset('证书'),
+    _ItemPreset('其他文件', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('装饰与兴趣', Icons.palette_outlined, [
+    _ItemPreset('挂画'),
+    _ItemPreset('花瓶'),
+    _ItemPreset('香薰'),
+    _ItemPreset('绿植'),
+    _ItemPreset('运动器材'),
+    _ItemPreset('书法绘画工具'),
+    _ItemPreset('其他兴趣用品', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('滤芯与耗材', Icons.filter_alt_outlined, [
+    _ItemPreset('净水器滤芯'),
+    _ItemPreset('空调滤网'),
+    _ItemPreset('空气净化器滤芯'),
+    _ItemPreset('吸尘器尘袋'),
+    _ItemPreset('其他耗材', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('车辆与出行', Icons.directions_car_outlined, [
+    _ItemPreset('汽车'),
+    _ItemPreset('电动车'),
+    _ItemPreset('自行车'),
+    _ItemPreset('头盔'),
+    _ItemPreset('行车记录仪'),
+    _ItemPreset('其他出行物品', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('宠物用品', Icons.pets_outlined, [
+    _ItemPreset('猫砂盆'),
+    _ItemPreset('宠物饮水机'),
+    _ItemPreset('宠物喂食器'),
+    _ItemPreset('宠物笼'),
+    _ItemPreset('其他宠物用品', Icons.more_horiz_rounded),
+  ]),
+  _ItemCatalogCategory('其他物品', Icons.more_horiz_rounded, [
+    _ItemPreset('其他物品', Icons.inventory_2_outlined),
+  ]),
+];
+
+const _commonItemNames = ['冰箱', '空调', '洗衣机', '净水器', '扫地机器人'];
+
 class EditorPage extends StatefulWidget {
   const EditorPage({super.key, required this.store, this.item});
   final CareStore store;
@@ -3939,6 +4107,8 @@ class EditorPage extends StatefulWidget {
 class _EditorPageState extends State<EditorPage> {
   final form = GlobalKey<FormState>();
   late final TextEditingController name,
+      customName,
+      search,
       location,
       brand,
       model,
@@ -3950,13 +4120,27 @@ class _EditorPageState extends State<EditorPage> {
   late List<String> photos;
   late List<MaintenancePlan> plans;
   final _newPhotoPaths = <String>{};
+  final _expandedCategories = <String>{'家用电器'};
   bool _saved = false;
-  final categories = ['家电', '滤芯与耗材', '家具与家居', '车辆与出行', '宠物用品', '其他'];
+  bool _allowSupplementPop = false;
+  bool _showSupplement = false;
+  bool _advancedExpanded = false;
+  bool _brandModelExpanded = false;
+  String? _selectedPresetName;
+  IconData _selectedPresetIcon = Icons.inventory_2_outlined;
+  late final List<String> categories = _itemCatalog
+      .map((entry) => entry.name)
+      .followedBy(const ['家电', '家具与家居', '其他'])
+      .toSet()
+      .toList();
+
   @override
   void initState() {
     super.initState();
     final x = widget.item;
     name = TextEditingController(text: x?.name);
+    customName = TextEditingController();
+    search = TextEditingController();
     location = TextEditingController(text: x?.location);
     brand = TextEditingController(text: x?.brand);
     model = TextEditingController(text: x?.model);
@@ -3984,6 +4168,8 @@ class _EditorPageState extends State<EditorPage> {
     }
     for (final c in [
       name,
+      customName,
+      search,
       location,
       brand,
       model,
@@ -3997,21 +4183,16 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    if (widget.item != null) return _buildLegacyEditor();
+    return _showSupplement ? _buildSupplementPage() : _buildSelectionPage();
+  }
+
+  Widget _buildLegacyEditor() => Scaffold(
     appBar: AppBar(
       toolbarHeight: 72,
-      title: Text(widget.item == null ? '添加物品' : '编辑物品'),
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 14),
-        child: IconButton.filledTonal(
-          style: IconButton.styleFrom(
-            backgroundColor: _mist,
-            foregroundColor: _indigo,
-          ),
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 17),
-        ),
-      ),
+      title: const Text('编辑物品'),
+      leading: _backButton(() => Navigator.pop(context)),
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 18),
@@ -4083,6 +4264,714 @@ class _EditorPageState extends State<EditorPage> {
       ),
     ),
   );
+
+  Widget _buildSelectionPage() => Scaffold(
+    appBar: AppBar(
+      toolbarHeight: 76,
+      title: const Text('选择物品'),
+      leading: _backButton(() => Navigator.pop(context)),
+    ),
+    body: ListView(
+      key: const PageStorageKey('item-selection-scroll'),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 36),
+      children: [
+        TextField(
+          key: const Key('item-search'),
+          controller: search,
+          textInputAction: TextInputAction.search,
+          decoration: const InputDecoration(
+            hintText: '搜索类别或物品',
+            prefixIcon: Icon(Icons.search_rounded),
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 18),
+        _stepIndicator(1),
+        const SizedBox(height: 26),
+        if (search.text.trim().isNotEmpty)
+          _searchResults()
+        else ...[
+          const Text(
+            '常用物品',
+            style: TextStyle(
+              color: _ink,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _commonItems(),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 22),
+            child: Divider(height: 1, color: Color(0xFFE3E9E2)),
+          ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  '全部分类',
+                  style: TextStyle(
+                    color: _ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                key: const Key('toggle-all-item-categories'),
+                onPressed: _toggleAllCategories,
+                iconAlignment: IconAlignment.end,
+                icon: Icon(
+                  _expandedCategories.length == _itemCatalog.length
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                ),
+                label: Text(
+                  _expandedCategories.length == _itemCatalog.length
+                      ? '全部收起'
+                      : '展开全部',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _categoryDirectory(),
+        ],
+      ],
+    ),
+  );
+
+  Widget _buildSupplementPage() => PopScope(
+    canPop: _allowSupplementPop,
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop) _returnToSelection();
+    },
+    child: Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 76,
+        centerTitle: true,
+        title: const Text('补充信息'),
+        leading: _backButton(_returnToSelection),
+      ),
+      body: Form(
+        key: form,
+        child: ListView(
+          key: const PageStorageKey('item-supplement-scroll'),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          children: [
+            _stepIndicator(2),
+            const SizedBox(height: 24),
+            _selectedItemSummary(),
+            const SizedBox(height: 28),
+            const Text(
+              '选填信息',
+              style: TextStyle(
+                color: _ink,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _optionalInfoGroup(),
+            const SizedBox(height: 16),
+            _advancedInfoGroup(),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(20, 10, 20, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                key: const Key('save-care-item'),
+                onPressed: _save,
+                child: const Text('完成添加'),
+              ),
+            ),
+            TextButton(
+              key: const Key('save-care-item-later'),
+              onPressed: _save,
+              child: const Text('稍后完善'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  Widget _backButton(VoidCallback onPressed) => Padding(
+    padding: const EdgeInsets.only(left: 16),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: SizedBox.square(
+        dimension: 40,
+        child: IconButton(
+          style: IconButton.styleFrom(
+            backgroundColor: _mist,
+            foregroundColor: _indigo,
+            padding: EdgeInsets.zero,
+            minimumSize: const Size.square(40),
+            maximumSize: const Size.square(40),
+            shape: const CircleBorder(),
+          ),
+          onPressed: onPressed,
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 17),
+        ),
+      ),
+    ),
+  );
+
+  Widget _stepIndicator(int activeStep) => Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      _stepDot(1, '选择物品', activeStep == 1),
+      const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 12),
+        child: Text('·', style: TextStyle(color: _muted, fontSize: 20)),
+      ),
+      _stepDot(2, '补充信息', activeStep == 2),
+    ],
+  );
+
+  Widget _stepDot(int number, String label, bool active) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? _indigo : _mist,
+          shape: BoxShape.circle,
+        ),
+        child: Text(
+          '$number',
+          style: TextStyle(
+            color: active ? Colors.white : _muted,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      const SizedBox(width: 8),
+      Text(
+        label,
+        style: TextStyle(
+          color: active ? _ink : _muted,
+          fontWeight: active ? FontWeight.w800 : FontWeight.w500,
+        ),
+      ),
+    ],
+  );
+
+  Widget _commonItems() => SizedBox(
+    height: 104,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: _commonItemNames.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 10),
+      itemBuilder: (context, index) {
+        final match = _findPreset(_commonItemNames[index])!;
+        return SizedBox(
+          width: 64,
+          child: InkWell(
+            key: ValueKey('common-item-${match.item.name}'),
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => _selectPreset(match.category, match.item),
+            child: Column(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: _paper,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8E1)),
+                  ),
+                  child: Icon(
+                    match.item.icon ?? match.category.icon,
+                    color: _indigo,
+                    size: 27,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  match.item.name,
+                  maxLines: 2,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: _ink),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ),
+  );
+
+  Widget _categoryDirectory() => ClipRRect(
+    borderRadius: BorderRadius.circular(18),
+    child: BreezeSurface(
+      radius: 18,
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (var index = 0; index < _itemCatalog.length; index++) ...[
+            if (index > 0) const Divider(height: 1, color: Color(0xFFE3E9E2)),
+            _categorySection(_itemCatalog[index]),
+          ],
+        ],
+      ),
+    ),
+  );
+
+  Widget _categorySection(_ItemCatalogCategory itemCategory) {
+    final expanded = _expandedCategories.contains(itemCategory.name);
+    return Column(
+      children: [
+        InkWell(
+          key: ValueKey('item-category-${itemCategory.name}'),
+          onTap: () => setState(() {
+            expanded
+                ? _expandedCategories.remove(itemCategory.name)
+                : _expandedCategories.add(itemCategory.name);
+          }),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            child: Row(
+              children: [
+                Icon(itemCategory.icon, color: _indigo, size: 25),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    itemCategory.name,
+                    style: const TextStyle(
+                      color: _ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Icon(
+                  expanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.arrow_forward_ios_rounded,
+                  size: expanded ? 24 : 15,
+                  color: _muted,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (expanded)
+          Container(
+            width: double.infinity,
+            color: _mist.withValues(alpha: .62),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 14),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = (constraints.maxWidth - 16) / 3;
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final item in itemCategory.items)
+                      SizedBox(
+                        width: width,
+                        height: 58,
+                        child: OutlinedButton(
+                          key: ValueKey(
+                            'catalog-item-${itemCategory.name}-${item.name}',
+                          ),
+                          onPressed: () => _selectPreset(itemCategory, item),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: _paper,
+                            foregroundColor: _ink,
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                          child: Text(
+                            item.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _searchResults() {
+    final query = search.text.trim();
+    final matches = <({_ItemCatalogCategory category, _ItemPreset item})>[];
+    for (final itemCategory in _itemCatalog) {
+      for (final item in itemCategory.items) {
+        if (itemCategory.name.contains(query) || item.name.contains(query)) {
+          matches.add((category: itemCategory, item: item));
+        }
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          matches.isEmpty ? '没有找到相关物品' : '搜索结果',
+          style: const TextStyle(
+            color: _ink,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (matches.isEmpty)
+          BreezeSurface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('可以把“$query”作为自定义名称添加。'),
+                const SizedBox(height: 12),
+                FilledButton.tonalIcon(
+                  key: const Key('add-custom-search-item'),
+                  onPressed: () {
+                    final other = _itemCatalog.last;
+                    _selectPreset(other, other.items.single, custom: query);
+                  },
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('添加其他物品'),
+                ),
+              ],
+            ),
+          )
+        else
+          BreezeSurface(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (var index = 0; index < matches.length; index++) ...[
+                  if (index > 0)
+                    const Divider(height: 1, color: Color(0xFFE3E9E2)),
+                  ListTile(
+                    key: ValueKey(
+                      'search-item-${matches[index].category.name}-${matches[index].item.name}',
+                    ),
+                    leading: Icon(
+                      matches[index].item.icon ?? matches[index].category.icon,
+                      color: _indigo,
+                    ),
+                    title: Text(matches[index].item.name),
+                    subtitle: Text(matches[index].category.name),
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                    ),
+                    onTap: () => _selectPreset(
+                      matches[index].category,
+                      matches[index].item,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _selectedItemSummary() => BreezeSurface(
+    padding: const EdgeInsets.all(14),
+    child: Row(
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            color: _mist,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(_selectedPresetIcon, size: 31, color: _indigo),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _selectedPresetName ?? '',
+                style: const TextStyle(
+                  color: _ink,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(category, style: const TextStyle(color: _muted)),
+            ],
+          ),
+        ),
+        TextButton(
+          key: const Key('change-selected-item'),
+          onPressed: _returnToSelection,
+          child: const Text('更换'),
+        ),
+      ],
+    ),
+  );
+
+  Widget _optionalInfoGroup() => BreezeSurface(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Column(
+      children: [
+        _inlineField(
+          customName,
+          '备注或自定义名称',
+          '例如：主卧空调',
+          const Key('custom-item-name'),
+        ),
+        const Divider(height: 1, color: Color(0xFFE3E9E2)),
+        _inlineField(location, '存放位置', '选择或输入位置', const Key('item-location')),
+        const Divider(height: 1, color: Color(0xFFE3E9E2)),
+        InkWell(
+          key: const Key('toggle-brand-model'),
+          onTap: () => setState(() {
+            _brandModelExpanded = !_brandModelExpanded;
+          }),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 17),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '品牌与型号',
+                    style: TextStyle(color: _ink, fontSize: 16),
+                  ),
+                ),
+                Text(
+                  [
+                        brand.text,
+                        model.text,
+                      ].where((x) => x.isNotEmpty).join(' · ').isEmpty
+                      ? '以后也可以补充'
+                      : [
+                          brand.text,
+                          model.text,
+                        ].where((x) => x.isNotEmpty).join(' · '),
+                  style: const TextStyle(color: _muted, fontSize: 13),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  _brandModelExpanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.arrow_forward_ios_rounded,
+                  color: _muted,
+                  size: _brandModelExpanded ? 22 : 14,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_brandModelExpanded) ...[
+          const Divider(height: 1, color: Color(0xFFE3E9E2)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _field(brand, '品牌')),
+              const SizedBox(width: 10),
+              Expanded(child: _field(model, '型号')),
+            ],
+          ),
+        ],
+      ],
+    ),
+  );
+
+  Widget _inlineField(
+    TextEditingController controller,
+    String label,
+    String hint,
+    Key key,
+  ) => TextFormField(
+    key: key,
+    controller: controller,
+    onChanged: (_) => setState(() {}),
+    decoration: InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: false,
+      contentPadding: const EdgeInsets.symmetric(vertical: 14),
+      border: InputBorder.none,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+    ),
+  );
+
+  Widget _advancedInfoGroup() => ClipRRect(
+    borderRadius: BorderRadius.circular(18),
+    child: BreezeSurface(
+      padding: EdgeInsets.zero,
+      radius: 18,
+      child: Column(
+        children: [
+          InkWell(
+            key: const Key('toggle-advanced-item-details'),
+            onTap: () => setState(() {
+              _advancedExpanded = !_advancedExpanded;
+            }),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 15, 12, 15),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '购买、保修与保养信息',
+                          style: TextStyle(
+                            color: _ink,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          '需要时再填写',
+                          style: TextStyle(color: _muted, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _advancedExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: _muted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_advancedExpanded) ...[
+            const Divider(height: 1, color: Color(0xFFE3E9E2)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _field(
+                    purchasePrice,
+                    '购买价（元）',
+                    type: const TextInputType.numberWithOptions(decimal: true),
+                    validator: _nonNegativeNumber,
+                  ),
+                  _field(
+                    currentValue,
+                    '当前估值（元）',
+                    type: const TextInputType.numberWithOptions(decimal: true),
+                    validator: _nonNegativeNumber,
+                  ),
+                  _dateTile(
+                    '购买日期',
+                    purchase,
+                    (d) => setState(() => purchase = d),
+                  ),
+                  _dateTile(
+                    '保修截止',
+                    warranty,
+                    (d) => setState(() => warranty = d),
+                  ),
+                  const SizedBox(height: 6),
+                  MaintenancePlansEditorSection(
+                    plans: plans,
+                    records: widget.item?.records ?? const [],
+                    onChanged: (value) => setState(() => plans = value),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '凭证照片',
+                    style: TextStyle(
+                      color: _ink,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _photos(),
+                  const SizedBox(height: 16),
+                  _field(notes, '备注', maxLines: 4),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+
+  ({_ItemCatalogCategory category, _ItemPreset item})? _findPreset(
+    String name,
+  ) {
+    for (final itemCategory in _itemCatalog) {
+      for (final item in itemCategory.items) {
+        if (item.name == name) return (category: itemCategory, item: item);
+      }
+    }
+    return null;
+  }
+
+  void _selectPreset(
+    _ItemCatalogCategory itemCategory,
+    _ItemPreset item, {
+    String? custom,
+  }) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      category = itemCategory.name;
+      _selectedPresetName = item.name;
+      _selectedPresetIcon = item.icon ?? itemCategory.icon;
+      customName.text = custom ?? '';
+      name.text = item.name;
+      _showSupplement = true;
+      _allowSupplementPop = false;
+      _advancedExpanded = false;
+      _brandModelExpanded = false;
+    });
+  }
+
+  void _returnToSelection() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _showSupplement = false);
+  }
+
+  void _toggleAllCategories() {
+    setState(() {
+      if (_expandedCategories.length == _itemCatalog.length) {
+        _expandedCategories.clear();
+      } else {
+        _expandedCategories
+          ..clear()
+          ..addAll(_itemCatalog.map((entry) => entry.name));
+      }
+    });
+  }
+
   Widget _field(
     TextEditingController c,
     String label, {
@@ -4301,7 +5190,25 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Future<void> _save() async {
+    if (widget.item == null && _selectedPresetName == null) return;
+    if (widget.item == null) {
+      final hiddenAdvancedError =
+          _nonNegativeNumber(purchasePrice.text) ??
+          _nonNegativeNumber(currentValue.text);
+      if (hiddenAdvancedError != null) {
+        setState(() => _advancedExpanded = true);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(hiddenAdvancedError)));
+        return;
+      }
+    }
     if (!(form.currentState?.validate() ?? false)) return;
+    final resolvedName = widget.item == null
+        ? (customName.text.trim().isEmpty
+              ? _selectedPresetName!
+              : customName.text.trim())
+        : name.text.trim();
     final item =
         (widget.item ??
                 CareItem(
@@ -4315,7 +5222,7 @@ class _EditorPageState extends State<EditorPage> {
                   photos: [],
                 ))
             .copyWith(
-              name: name.text.trim(),
+              name: resolvedName,
               category: category,
               location: location.text.trim(),
               brand: brand.text.trim(),
@@ -4336,7 +5243,12 @@ class _EditorPageState extends State<EditorPage> {
       await widget.store.save(item);
       _saved = true;
       await _offerNotificationFor(item);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        setState(() => _allowSupplementPop = true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) Navigator.pop(context, true);
+        });
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(

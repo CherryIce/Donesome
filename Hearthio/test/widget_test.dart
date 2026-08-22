@@ -525,18 +525,118 @@ void main() {
 
     await tester.tap(find.text('添加物品'));
     await tester.pumpAndSettle();
-    expect(find.text('添加物品'), findsOneWidget);
-    expect(find.text('物品名称 *'), findsOneWidget);
+    expect(find.text('选择物品'), findsWidgets);
+    expect(find.text('常用物品'), findsOneWidget);
+    expect(find.text('全部分类'), findsOneWidget);
 
     await tester.drag(
-      find.byKey(const PageStorageKey('item-editor-scroll')),
-      const Offset(0, -800),
+      find.byKey(const PageStorageKey('item-selection-scroll')),
+      const Offset(0, -520),
     );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('item-category-厨房用品')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('item-category-厨房用品')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('catalog-item-厨房用品-炒锅')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('catalog-item-厨房用品-炒锅')));
+    await tester.pumpAndSettle();
+    expect(find.text('补充信息'), findsWidgets);
+    expect(find.text('备注或自定义名称'), findsOneWidget);
+
+    await tester.drag(
+      find.byKey(const PageStorageKey('item-supplement-scroll')),
+      const Offset(0, -360),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('toggle-advanced-item-details')));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.byIcon(Icons.add_a_photo_outlined),
+      280,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const PageStorageKey('item-supplement-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.ensureVisible(find.byIcon(Icons.add_a_photo_outlined));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.add_a_photo_outlined));
     await tester.pumpAndSettle();
     expect(find.text('拍照'), findsOneWidget);
     expect(find.text('从相册选择'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('item search auto-fills category and keeps naming optional', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = CareStore();
+    await tester.pumpWidget(MaterialApp(home: EditorPage(store: store)));
+
+    await tester.enterText(find.byKey(const Key('item-search')), '体温计');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('search-item-医疗保健-体温计')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('补充信息'), findsWidgets);
+    expect(find.text('体温计'), findsOneWidget);
+    expect(find.text('医疗保健'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('custom-item-name')), '儿童房体温计');
+    await tester.enterText(find.byKey(const Key('item-location')), '儿童房');
+    await tester.tap(find.byKey(const Key('save-care-item')));
+    await tester.pumpAndSettle();
+
+    expect(store.items.single.name, '儿童房体温计');
+    expect(store.items.single.category, '医疗保健');
+    expect(store.items.single.location, '儿童房');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('saving a new item returns from the two-step editor route', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final store = CareStore();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              key: const Key('open-item-editor'),
+              onPressed: () {
+                unawaited(
+                  Navigator.of(context).push<void>(
+                    MaterialPageRoute(builder: (_) => EditorPage(store: store)),
+                  ),
+                );
+              },
+              child: const Text('打开新增物品'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('open-item-editor')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('common-item-冰箱')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('save-care-item')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('open-item-editor')), findsOneWidget);
+    expect(find.text('补充信息'), findsNothing);
+    expect(store.items.single.name, '冰箱');
     expect(tester.takeException(), isNull);
   });
 
@@ -600,16 +700,27 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final store = CareStore();
     await tester.pumpWidget(MaterialApp(home: EditorPage(store: store)));
-    await tester.enterText(
-      find.widgetWithText(TextFormField, '物品名称 *'),
-      '厨房净水器',
+    await tester.ensureVisible(find.byKey(const ValueKey('common-item-净水器')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('common-item-净水器')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('custom-item-name')), '厨房净水器');
+
+    await tester.drag(
+      find.byKey(const PageStorageKey('item-supplement-scroll')),
+      const Offset(0, -360),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('toggle-advanced-item-details')));
+    await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
       find.byKey(const Key('add-maintenance-plan')),
       280,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.byKey(const Key('add-maintenance-plan')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('add-maintenance-plan')));
     await tester.pumpAndSettle();
     expect(find.text('选择保养模板'), findsOneWidget);
@@ -893,7 +1004,18 @@ void main() {
     await tester.tap(find.byKey(const Key('create-first-maintenance-plan')));
     await tester.pumpAndSettle();
 
-    expect(find.text('添加物品'), findsOneWidget);
+    expect(find.text('选择物品'), findsWidgets);
+    await tester.ensureVisible(find.byKey(const ValueKey('common-item-净水器')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('common-item-净水器')));
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const PageStorageKey('item-supplement-scroll')),
+      const Offset(0, -360),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('toggle-advanced-item-details')));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byKey(const Key('add-maintenance-plan')),
       280,
