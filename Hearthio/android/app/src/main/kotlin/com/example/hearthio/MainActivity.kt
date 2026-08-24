@@ -53,17 +53,10 @@ class MainActivity : FlutterActivity() {
                 "denied"
             }
         }
-        // Android's system photo picker grants access only to selected media,
-        // so this feature must not request broad library access.
-        "photoLibrary" -> "granted"
         else -> "unavailable"
     }
 
     private fun requestPermission(permission: String?, result: MethodChannel.Result) {
-        if (permission == "photoLibrary") {
-            result.success("granted")
-            return
-        }
         if (permission != "camera" || pendingCameraResult != null) {
             result.success("unavailable")
             return

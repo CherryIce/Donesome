@@ -46,7 +46,6 @@ String _permissionName(
   SystemPermissionKind permission,
 ) => switch (permission) {
   SystemPermissionKind.camera => l10n.permissionCamera,
-  SystemPermissionKind.photoLibrary => l10n.permissionPhotos,
   SystemPermissionKind.notifications => l10n.permissionNotifications,
 };
 

@@ -67,7 +67,6 @@
   "dateTodaySemantic": "{date}, today",
   "@dateTodaySemantic": {"placeholders": {"date": {"type": "String"}}},
   "permissionCamera": "Camera",
-  "permissionPhotos": "Photos",
   "permissionNotifications": "Notifications",
   "permissionUnavailableTitle": "{permission} access is unavailable",
   "@permissionUnavailableTitle": {"placeholders": {"permission": {"type": "String"}}},

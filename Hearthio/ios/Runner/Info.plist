@@ -26,8 +26,6 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>用于在你主动操作时保存和管理物品凭证照片。</string>
 	<key>NSCameraUsageDescription</key>
 	<string>用于拍摄物品凭证、说明书、保修卡和维护记录照片。</string>
 	<key>NSPhotoLibraryUsageDescription</key>

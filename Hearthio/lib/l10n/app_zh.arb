@@ -67,7 +67,6 @@
   "dateTodaySemantic": "{date}，今天",
   "@dateTodaySemantic": {"placeholders": {"date": {"type": "String"}}},
   "permissionCamera": "相机",
-  "permissionPhotos": "照片",
   "permissionNotifications": "通知",
   "permissionUnavailableTitle": "{permission}权限不可用",
   "@permissionUnavailableTitle": {"placeholders": {"permission": {"type": "String"}}},

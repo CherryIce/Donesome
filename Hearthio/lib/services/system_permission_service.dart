@@ -1,20 +1,17 @@
 import 'package:flutter/services.dart';
 
-enum SystemPermissionKind { camera, photoLibrary, notifications }
+enum SystemPermissionKind { camera, notifications }
 
 enum SystemPermissionState {
   notDetermined,
   granted,
-  limited,
   denied,
   restricted,
   unavailable,
 }
 
 extension SystemPermissionStateAccess on SystemPermissionState {
-  bool get isGranted =>
-      this == SystemPermissionState.granted ||
-      this == SystemPermissionState.limited;
+  bool get isGranted => this == SystemPermissionState.granted;
 }
 
 abstract interface class SystemPermissionGateway {

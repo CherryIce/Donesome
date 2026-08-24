@@ -219,9 +219,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionCamera => 'Camera';
 
   @override
-  String get permissionPhotos => 'Photos';
-
-  @override
   String get permissionNotifications => 'Notifications';
 
   @override

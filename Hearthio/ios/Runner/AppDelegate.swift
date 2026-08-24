@@ -1,6 +1,5 @@
 import AVFoundation
 import Flutter
-import Photos
 import UIKit
 
 @main
@@ -80,21 +79,6 @@ private final class SystemPermissionService {
       case .restricted: return "restricted"
       @unknown default: return "unavailable"
       }
-    case "photoLibrary":
-      let authorizationStatus: PHAuthorizationStatus
-      if #available(iOS 14, *) {
-        authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-      } else {
-        authorizationStatus = PHPhotoLibrary.authorizationStatus()
-      }
-      switch authorizationStatus {
-      case .notDetermined: return "notDetermined"
-      case .authorized: return "granted"
-      case .limited: return "limited"
-      case .denied: return "denied"
-      case .restricted: return "restricted"
-      @unknown default: return "unavailable"
-      }
     default:
       return "unavailable"
     }
@@ -107,17 +91,6 @@ private final class SystemPermissionService {
         DispatchQueue.main.async {
           result(self?.status(for: permission) ?? "unavailable")
         }
-      }
-    case "photoLibrary":
-      let completion: (PHAuthorizationStatus) -> Void = { [weak self] _ in
-        DispatchQueue.main.async {
-          result(self?.status(for: permission) ?? "unavailable")
-        }
-      }
-      if #available(iOS 14, *) {
-        PHPhotoLibrary.requestAuthorization(for: .readWrite, handler: completion)
-      } else {
-        PHPhotoLibrary.requestAuthorization(completion)
       }
     default:
       result("unavailable")

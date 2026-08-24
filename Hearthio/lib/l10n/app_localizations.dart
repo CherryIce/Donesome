@@ -476,12 +476,6 @@ abstract class AppLocalizations {
   /// **'Camera'**
   String get permissionCamera;
 
-  /// No description provided for @permissionPhotos.
-  ///
-  /// In en, this message translates to:
-  /// **'Photos'**
-  String get permissionPhotos;
-
   /// No description provided for @permissionNotifications.
   ///
   /// In en, this message translates to:

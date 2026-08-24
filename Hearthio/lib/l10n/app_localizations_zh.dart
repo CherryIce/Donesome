@@ -207,9 +207,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get permissionCamera => '相机';
 
   @override
-  String get permissionPhotos => '照片';
-
-  @override
   String get permissionNotifications => '通知';
 
   @override

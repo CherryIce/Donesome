@@ -60,19 +60,19 @@ void main() {
   test('permission guard requests only an undetermined permission', () async {
     final gateway = _FakePermissionGateway(
       checkedState: SystemPermissionState.notDetermined,
-      requestedState: SystemPermissionState.limited,
+      requestedState: SystemPermissionState.granted,
     );
 
     final state = await SystemPermissionGuard(
       gateway,
-    ).ensure(SystemPermissionKind.photoLibrary);
+    ).ensure(SystemPermissionKind.camera);
 
-    expect(state, SystemPermissionState.limited);
+    expect(state, SystemPermissionState.granted);
     expect(gateway.checkCalls, 1);
     expect(gateway.requestCalls, 1);
   });
 
-  test('denied photo import never opens the system picker', () async {
+  test('denied camera import never opens the system picker', () async {
     final gateway = _FakePermissionGateway(
       checkedState: SystemPermissionState.denied,
     );
@@ -95,17 +95,18 @@ void main() {
   });
 
   test(
-    'first photo import requests permission before opening picker',
+    'gallery import opens the system picker without requesting permission',
     () async {
       final gateway = _FakePermissionGateway(
-        checkedState: SystemPermissionState.notDetermined,
-        requestedState: SystemPermissionState.granted,
+        checkedState: SystemPermissionState.denied,
       );
       var pickerCalls = 0;
+      ImageSource? pickedSource;
       final store = CareStore(
         systemPermissions: SystemPermissionGuard(gateway),
         imagePicker: (source) async {
           pickerCalls++;
+          pickedSource = source;
           return null;
         },
       );
@@ -115,9 +116,10 @@ void main() {
       expect(result.path, isNull);
       expect(result.error, isFalse);
       expect(result.permission, isNull);
-      expect(gateway.checkCalls, 1);
-      expect(gateway.requestCalls, 1);
+      expect(gateway.checkCalls, 0);
+      expect(gateway.requestCalls, 0);
       expect(pickerCalls, 1);
+      expect(pickedSource, ImageSource.gallery);
     },
   );
 

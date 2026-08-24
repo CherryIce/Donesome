@@ -724,8 +724,12 @@ typedef CareBackupPicker = Future<String?> Function();
 typedef CareDocumentsDirectoryProvider = Future<Directory> Function();
 typedef CareImagePicker = Future<XFile?> Function(ImageSource source);
 
-Future<XFile?> _pickCareImage(ImageSource source) =>
-    ImagePicker().pickImage(source: source, imageQuality: 82, maxWidth: 1800);
+Future<XFile?> _pickCareImage(ImageSource source) => ImagePicker().pickImage(
+  source: source,
+  imageQuality: 82,
+  maxWidth: 1800,
+  requestFullMetadata: false,
+);
 
 Future<String?> _pickCareBackup() async {
   final picked = await FilePicker.pickFiles(
@@ -1626,12 +1630,15 @@ class CareStore extends ChangeNotifier
   @override
   Future<PhotoImportResult> importPhoto(ImageSource source) async {
     try {
-      final permission = source == ImageSource.camera
-          ? SystemPermissionKind.camera
-          : SystemPermissionKind.photoLibrary;
-      final permissionState = await _systemPermissions.ensure(permission);
-      if (!permissionState.isGranted) {
-        return PhotoImportResult.permissionBlocked(permission, permissionState);
+      if (source == ImageSource.camera) {
+        const permission = SystemPermissionKind.camera;
+        final permissionState = await _systemPermissions.ensure(permission);
+        if (!permissionState.isGranted) {
+          return PhotoImportResult.permissionBlocked(
+            permission,
+            permissionState,
+          );
+        }
       }
       final picked = await _imagePicker(source);
       // A null result means the user dismissed the system picker. It is not a
