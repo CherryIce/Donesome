@@ -17,6 +17,12 @@ class CareSpace {
   );
 }
 
+class DuplicateSpaceNameException implements Exception {
+  const DuplicateSpaceNameException(this.name);
+
+  final String name;
+}
+
 const careSpaceTypeTemplates = <String>[
   '客厅',
   '卧室',
@@ -52,6 +58,18 @@ bool careSpaceUsesDefaultName(CareSpace space) {
   final type = knownCareSpaceType(space.type);
   final nameType = knownCareSpaceType(space.name);
   return type != null && nameType == type;
+}
+
+bool careSpaceNamesAreDuplicate(CareSpace first, CareSpace second) {
+  if (first.name.trim().toLowerCase() == second.name.trim().toLowerCase()) {
+    return true;
+  }
+  final firstType = knownCareSpaceType(first.type);
+  final secondType = knownCareSpaceType(second.type);
+  return firstType != null &&
+      firstType == secondType &&
+      careSpaceUsesDefaultName(first) &&
+      careSpaceUsesDefaultName(second);
 }
 
 String _requiredSpaceString(Map<String, dynamic> json, String key) {

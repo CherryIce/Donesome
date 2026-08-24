@@ -12,6 +12,7 @@ import 'package:flutter/cupertino.dart' show CupertinoPicker;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hearthio/app/locale_controller.dart';
+import 'package:hearthio/feature_intro_page.dart';
 import 'package:hearthio/l10n/app_localizations.dart';
 import 'package:hearthio/l10n/catalog_l10n.dart';
 import 'package:hearthio/main.dart';
@@ -1230,6 +1231,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: SettingsPage(store: CareStore())),
     );
+    await tester.ensureVisible(find.text('恢复备份'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('恢复备份'));
     await tester.pumpAndSettle();
 
@@ -1238,6 +1241,34 @@ void main() {
     expect(find.textContaining('Hearthio-backup.zip'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'settings replaces sample-data management with the feature guide',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: SettingsPage(store: CareStore())),
+      );
+
+      expect(find.text('管理示例数据'), findsNothing);
+      expect(find.text('功能介绍'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('settings-feature-intro')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FeatureIntroPage), findsOneWidget);
+      expect(find.text('建立物品档案'), findsOneWidget);
+      expect(find.text('建立保养计划'), findsOneWidget);
+      expect(find.text('完成保养并留档'), findsOneWidget);
+      expect(find.text('回看记录与成本'), findsOneWidget);
+      await tester.drag(
+        find.byKey(const Key('feature-intro-list')),
+        const Offset(0, -700),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('先从示例看看'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('reminder tools use the full bottom-sheet content width', (
     tester,

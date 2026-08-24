@@ -140,6 +140,114 @@ abstract class AppLocalizations {
   /// **'Choose system default, Simplified Chinese, or English'**
   String get languageSettingSubtitle;
 
+  /// No description provided for @featureIntroTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Feature guide'**
+  String get featureIntroTitle;
+
+  /// No description provided for @featureIntroSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn how to create item profiles, care plans, and maintenance records'**
+  String get featureIntroSettingsSubtitle;
+
+  /// No description provided for @featureIntroHeroEyebrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Start with an item profile'**
+  String get featureIntroHeroEyebrow;
+
+  /// No description provided for @featureIntroHeroTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep household items and care plans organized'**
+  String get featureIntroHeroTitle;
+
+  /// No description provided for @featureIntroHeroBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Hearthio starts with each item profile and keeps its care plans, completed work, and costs together for easy reference.'**
+  String get featureIntroHeroBody;
+
+  /// No description provided for @featureIntroStepsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Get started in four steps'**
+  String get featureIntroStepsTitle;
+
+  /// No description provided for @featureIntroArchiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create an item profile'**
+  String get featureIntroArchiveTitle;
+
+  /// No description provided for @featureIntroArchiveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Items and add an appliance, consumable, or piece of furniture. Include its space, model, photos, and other useful details.'**
+  String get featureIntroArchiveBody;
+
+  /// No description provided for @featureIntroPlanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a care plan'**
+  String get featureIntroPlanTitle;
+
+  /// No description provided for @featureIntroPlanBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the item, choose Set plan, then add the interval, next date, reminder lead time, and checklist.'**
+  String get featureIntroPlanBody;
+
+  /// No description provided for @featureIntroCompleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete and record the work'**
+  String get featureIntroCompleteTitle;
+
+  /// No description provided for @featureIntroCompleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Start care from Schedule or the item page, work through the checklist, and save photos, costs, and notes.'**
+  String get featureIntroCompleteBody;
+
+  /// No description provided for @featureIntroReviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Review history and costs'**
+  String get featureIntroReviewTitle;
+
+  /// No description provided for @featureIntroReviewBody.
+  ///
+  /// In en, this message translates to:
+  /// **'See completed care on each item and use Reports to understand maintenance activity and household-item spending.'**
+  String get featureIntroReviewBody;
+
+  /// No description provided for @featureIntroSampleTipTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore the sample first'**
+  String get featureIntroSampleTipTitle;
+
+  /// No description provided for @featureIntroSampleTipBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Hearthio creates one water-purifier sample the first time you enter. Open it to see how an item profile and care plan work together.'**
+  String get featureIntroSampleTipBody;
+
+  /// No description provided for @featureIntroBackupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up regularly'**
+  String get featureIntroBackupTitle;
+
+  /// No description provided for @featureIntroBackupBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your archive stays on this device by default. After adding important photos and records, export a full backup from Settings.'**
+  String get featureIntroBackupBody;
+
   /// No description provided for @commonCancel.
   ///
   /// In en, this message translates to:
@@ -2335,6 +2443,12 @@ abstract class AppLocalizations {
   /// **'Enter a space name'**
   String get spaceNameRequired;
 
+  /// No description provided for @spaceNameAlreadyExists.
+  ///
+  /// In en, this message translates to:
+  /// **'A space with this actual name already exists. If you have more than one similar space, change the actual name to tell them apart.'**
+  String get spaceNameAlreadyExists;
+
   /// No description provided for @spaceSaveFailed.
   ///
   /// In en, this message translates to:
@@ -2791,54 +2905,6 @@ abstract class AppLocalizations {
   /// **'Open system notification settings'**
   String get openSystemNotificationSettings;
 
-  /// No description provided for @sampleReadOnlyError.
-  ///
-  /// In en, this message translates to:
-  /// **'Sample data cannot be changed while the archive failed to load. Restart the app or restore a valid backup first.'**
-  String get sampleReadOnlyError;
-
-  /// No description provided for @sampleDataTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Sample data'**
-  String get sampleDataTitle;
-
-  /// No description provided for @sampleDataDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset restores only one “Sample · Kitchen water purifier” item and does not delete items you created.'**
-  String get sampleDataDescription;
-
-  /// No description provided for @resetSamplePurifier.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset sample purifier'**
-  String get resetSamplePurifier;
-
-  /// No description provided for @deleteSampleData.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete sample data'**
-  String get deleteSampleData;
-
-  /// No description provided for @sampleDataSaveFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Sample data could not be saved. Your data was not changed. Try again.'**
-  String get sampleDataSaveFailed;
-
-  /// No description provided for @samplePurifierReset.
-  ///
-  /// In en, this message translates to:
-  /// **'Sample purifier reset'**
-  String get samplePurifierReset;
-
-  /// No description provided for @sampleDataDeleted.
-  ///
-  /// In en, this message translates to:
-  /// **'Sample data deleted'**
-  String get sampleDataDeleted;
-
   /// No description provided for @settingsTitle.
   ///
   /// In en, this message translates to:
@@ -2922,24 +2988,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose a previously exported Hearthio-backup.zip'**
   String get restoreBackupSubtitle;
-
-  /// No description provided for @manageSampleData.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage sample data'**
-  String get manageSampleData;
-
-  /// No description provided for @manageSampleExistingSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete or reset “Sample · Kitchen water purifier”'**
-  String get manageSampleExistingSubtitle;
-
-  /// No description provided for @manageSampleMissingSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Restore a deletable sample purifier'**
-  String get manageSampleMissingSubtitle;
 
   /// No description provided for @privacySection.
   ///

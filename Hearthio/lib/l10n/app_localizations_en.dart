@@ -31,6 +31,69 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose system default, Simplified Chinese, or English';
 
   @override
+  String get featureIntroTitle => 'Feature guide';
+
+  @override
+  String get featureIntroSettingsSubtitle =>
+      'Learn how to create item profiles, care plans, and maintenance records';
+
+  @override
+  String get featureIntroHeroEyebrow => 'Start with an item profile';
+
+  @override
+  String get featureIntroHeroTitle =>
+      'Keep household items and care plans organized';
+
+  @override
+  String get featureIntroHeroBody =>
+      'Hearthio starts with each item profile and keeps its care plans, completed work, and costs together for easy reference.';
+
+  @override
+  String get featureIntroStepsTitle => 'Get started in four steps';
+
+  @override
+  String get featureIntroArchiveTitle => 'Create an item profile';
+
+  @override
+  String get featureIntroArchiveBody =>
+      'Open Items and add an appliance, consumable, or piece of furniture. Include its space, model, photos, and other useful details.';
+
+  @override
+  String get featureIntroPlanTitle => 'Create a care plan';
+
+  @override
+  String get featureIntroPlanBody =>
+      'Open the item, choose Set plan, then add the interval, next date, reminder lead time, and checklist.';
+
+  @override
+  String get featureIntroCompleteTitle => 'Complete and record the work';
+
+  @override
+  String get featureIntroCompleteBody =>
+      'Start care from Schedule or the item page, work through the checklist, and save photos, costs, and notes.';
+
+  @override
+  String get featureIntroReviewTitle => 'Review history and costs';
+
+  @override
+  String get featureIntroReviewBody =>
+      'See completed care on each item and use Reports to understand maintenance activity and household-item spending.';
+
+  @override
+  String get featureIntroSampleTipTitle => 'Explore the sample first';
+
+  @override
+  String get featureIntroSampleTipBody =>
+      'Hearthio creates one water-purifier sample the first time you enter. Open it to see how an item profile and care plan work together.';
+
+  @override
+  String get featureIntroBackupTitle => 'Back up regularly';
+
+  @override
+  String get featureIntroBackupBody =>
+      'Your archive stays on this device by default. After adding important photos and records, export a full backup from Settings.';
+
+  @override
   String get commonCancel => 'Cancel';
 
   @override
@@ -1431,6 +1494,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get spaceNameRequired => 'Enter a space name';
 
   @override
+  String get spaceNameAlreadyExists =>
+      'A space with this actual name already exists. If you have more than one similar space, change the actual name to tell them apart.';
+
+  @override
   String get spaceSaveFailed => 'The space could not be saved. Try again.';
 
   @override
@@ -1728,33 +1795,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Open system notification settings';
 
   @override
-  String get sampleReadOnlyError =>
-      'Sample data cannot be changed while the archive failed to load. Restart the app or restore a valid backup first.';
-
-  @override
-  String get sampleDataTitle => 'Sample data';
-
-  @override
-  String get sampleDataDescription =>
-      'Reset restores only one “Sample · Kitchen water purifier” item and does not delete items you created.';
-
-  @override
-  String get resetSamplePurifier => 'Reset sample purifier';
-
-  @override
-  String get deleteSampleData => 'Delete sample data';
-
-  @override
-  String get sampleDataSaveFailed =>
-      'Sample data could not be saved. Your data was not changed. Try again.';
-
-  @override
-  String get samplePurifierReset => 'Sample purifier reset';
-
-  @override
-  String get sampleDataDeleted => 'Sample data deleted';
-
-  @override
   String get settingsTitle => 'Settings';
 
   @override
@@ -1800,17 +1840,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get restoreBackupSubtitle =>
       'Choose a previously exported Hearthio-backup.zip';
-
-  @override
-  String get manageSampleData => 'Manage sample data';
-
-  @override
-  String get manageSampleExistingSubtitle =>
-      'Delete or reset “Sample · Kitchen water purifier”';
-
-  @override
-  String get manageSampleMissingSubtitle =>
-      'Restore a deletable sample purifier';
 
   @override
   String get privacySection => 'Privacy';

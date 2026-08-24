@@ -30,6 +30,61 @@ class AppLocalizationsZh extends AppLocalizations {
   String get languageSettingSubtitle => '可选择跟随系统、简体中文或 English';
 
   @override
+  String get featureIntroTitle => '功能介绍';
+
+  @override
+  String get featureIntroSettingsSubtitle => '了解如何建立物品档案、保养计划和维护记录';
+
+  @override
+  String get featureIntroHeroEyebrow => '从建档开始';
+
+  @override
+  String get featureIntroHeroTitle => '把家里的物品与保养安排清楚';
+
+  @override
+  String get featureIntroHeroBody => '家务志以物品档案为起点，将保养计划、执行记录和费用留在同一处，方便随时回看。';
+
+  @override
+  String get featureIntroStepsTitle => '四步开始使用';
+
+  @override
+  String get featureIntroArchiveTitle => '建立物品档案';
+
+  @override
+  String get featureIntroArchiveBody => '前往“物品”并添加家电、耗材或家具，补充所在空间、型号、照片等信息。';
+
+  @override
+  String get featureIntroPlanTitle => '建立保养计划';
+
+  @override
+  String get featureIntroPlanBody => '打开物品详情，选择“设置计划”，填写保养周期、下次日期、提前提醒天数和操作步骤。';
+
+  @override
+  String get featureIntroCompleteTitle => '完成保养并留档';
+
+  @override
+  String get featureIntroCompleteBody => '到期后从日程或物品详情开始保养，按步骤完成，并记录照片、费用和备注。';
+
+  @override
+  String get featureIntroReviewTitle => '回看记录与成本';
+
+  @override
+  String get featureIntroReviewBody => '在物品详情查看历次保养，在报告中了解保养次数与家庭物品支出。';
+
+  @override
+  String get featureIntroSampleTipTitle => '先从示例看看';
+
+  @override
+  String get featureIntroSampleTipBody =>
+      '首次进入时会自动创建一条净水器示例。打开它，就能看到物品档案和保养计划如何配合。';
+
+  @override
+  String get featureIntroBackupTitle => '记得定期备份';
+
+  @override
+  String get featureIntroBackupBody => '档案默认保存在本机。积累重要照片和记录后，可在设置中导出完整备份。';
+
+  @override
   String get commonCancel => '取消';
 
   @override
@@ -1261,6 +1316,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get spaceNameRequired => '请填写空间名称';
 
   @override
+  String get spaceNameAlreadyExists => '你已经有一个同名空间了。如果确实有多个同类空间，请修改“实际名称”进行区分。';
+
+  @override
   String get spaceSaveFailed => '空间保存失败，请重试。';
 
   @override
@@ -1521,30 +1579,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get openSystemNotificationSettings => '前往系统通知设置';
 
   @override
-  String get sampleReadOnlyError => '档案读取失败时不能修改示例数据，请先重启或恢复有效备份';
-
-  @override
-  String get sampleDataTitle => '示例数据';
-
-  @override
-  String get sampleDataDescription => '重置只会恢复一条“示例 · 厨房净水器”，不会删除你自己创建的物品。';
-
-  @override
-  String get resetSamplePurifier => '重置示例净水器';
-
-  @override
-  String get deleteSampleData => '删除示例数据';
-
-  @override
-  String get sampleDataSaveFailed => '示例数据保存失败，原数据未改变，请重试。';
-
-  @override
-  String get samplePurifierReset => '示例净水器已重置';
-
-  @override
-  String get sampleDataDeleted => '示例数据已删除';
-
-  @override
   String get settingsTitle => '设置';
 
   @override
@@ -1585,15 +1619,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get restoreBackupSubtitle => '选择此前导出的 Hearthio-backup.zip';
-
-  @override
-  String get manageSampleData => '管理示例数据';
-
-  @override
-  String get manageSampleExistingSubtitle => '可删除或重置“示例 · 厨房净水器”';
-
-  @override
-  String get manageSampleMissingSubtitle => '恢复一条可删除的示例净水器';
 
   @override
   String get privacySection => '隐私';

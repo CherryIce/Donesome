@@ -207,6 +207,96 @@ void main() {
     },
   );
 
+  test(
+    'saving a duplicate actual space name returns a specific error',
+    () async {
+      const room = CareSpace(id: 'living-room', type: '客厅', name: '客厅');
+      final store = CareStore()..spaces = [room];
+
+      await expectLater(
+        store.saveSpace(
+          const CareSpace(id: 'another-room', type: '客厅', name: ' 客厅 '),
+        ),
+        throwsA(
+          isA<DuplicateSpaceNameException>().having(
+            (error) => error.name,
+            'name',
+            '客厅',
+          ),
+        ),
+      );
+
+      expect(store.spaces, [room]);
+    },
+  );
+
+  test(
+    'localized default names conflict but distinct actual names stay allowed',
+    () async {
+      const room = CareSpace(id: 'living-room', type: '客厅', name: '客厅');
+      SharedPreferences.setMockInitialValues({
+        CareRepository.storageKey: const CareDataEnvelope(
+          items: [],
+          spaces: [room],
+        ).encode(),
+      });
+      final preferences = await SharedPreferences.getInstance();
+      final store = CareStore(repository: CareRepository(preferences));
+      await store.load();
+
+      await expectLater(
+        store.saveSpace(
+          const CareSpace(
+            id: 'english-living-room',
+            type: '客厅',
+            name: 'Living room',
+          ),
+        ),
+        throwsA(isA<DuplicateSpaceNameException>()),
+      );
+
+      await store.saveSpace(
+        const CareSpace(id: 'second-living-room', type: '客厅', name: '起居室'),
+      );
+      expect(store.spaces.map((space) => space.name), ['客厅', '起居室']);
+    },
+  );
+
+  testWidgets('English default name detects an existing Chinese default space', (
+    tester,
+  ) async {
+    addTearDown(AppToast.dismiss);
+    const room = CareSpace(id: 'living-room', type: '客厅', name: '客厅');
+    final store = CareStore()
+      ..loaded = true
+      ..spaces = [room];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: AddSpacePage(store: store),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('save-space')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('Living room'), findsWidgets);
+    expect(
+      find.text(
+        'A space with this actual name already exists. If you have more than one similar space, change the actual name to tell them apart.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(AddSpacePage), findsOneWidget);
+    expect(store.spaces, [room]);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('home overview opens items, spaces, year report and assets', (
     tester,
   ) async {

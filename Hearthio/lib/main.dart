@@ -37,6 +37,7 @@ import 'models/maintenance_record.dart';
 import 'models/maintenance_status.dart';
 import 'models/maintenance_task.dart';
 import 'models/maintenance_template.dart';
+import 'feature_intro_page.dart';
 import 'privacy_policy_page.dart';
 import 'services/care_backup_codec.dart';
 import 'services/care_repository.dart';
@@ -1164,9 +1165,9 @@ class CareStore extends ChangeNotifier
     if (spaces.any(
       (candidate) =>
           candidate.id != normalized.id &&
-          candidate.name.toLowerCase() == normalized.name.toLowerCase(),
+          careSpaceNamesAreDuplicate(candidate, normalized),
     )) {
-      throw const FormatException('空间名称不能重复');
+      throw DuplicateSpaceNameException(normalized.name);
     }
     final nextSpaces = [...spaces];
     final index = nextSpaces.indexWhere((entry) => entry.id == normalized.id);
@@ -3923,6 +3924,11 @@ class _AddSpacePageState extends State<AddSpacePage> {
         ),
       );
       if (mounted) Navigator.pop(context, saved);
+    } on DuplicateSpaceNameException {
+      if (mounted) {
+        AppToast.show(context, context.l10n.spaceNameAlreadyExists);
+        setState(() => saving = false);
+      }
     } catch (_) {
       if (mounted) {
         AppToast.show(
@@ -5787,86 +5793,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Future<void> _manageExampleData() async {
-    if (store.isDataReadOnly) {
-      AppToast.show(
-        context,
-        context.l10n.sampleReadOnlyError,
-        style: AppToastStyle.error,
-      );
-      return;
-    }
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      builder: (sheet) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                sheet.l10n.sampleDataTitle,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                sheet.l10n.sampleDataDescription,
-                style: TextStyle(color: sheet.palette.muted, height: 1.5),
-              ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: () => Navigator.pop(sheet, 'reset'),
-                icon: const Icon(Icons.restart_alt_rounded),
-                label: Text(sheet.l10n.resetSamplePurifier),
-              ),
-              if (store.hasExampleData) ...[
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: sheet.palette.danger,
-                  ),
-                  onPressed: () => Navigator.pop(sheet, 'delete'),
-                  icon: const Icon(Icons.delete_outline),
-                  label: Text(sheet.l10n.deleteSampleData),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-    try {
-      if (action == 'reset') {
-        await store.resetExampleData();
-      } else if (action == 'delete') {
-        await store.deleteExampleData();
-      } else {
-        return;
-      }
-    } catch (_) {
-      if (mounted) {
-        AppToast.show(
-          context,
-          context.l10n.sampleDataSaveFailed,
-          style: AppToastStyle.error,
-        );
-      }
-      return;
-    }
-    if (!mounted) return;
-    AppToast.show(
-      context,
-      action == 'reset'
-          ? context.l10n.samplePurifierReset
-          : context.l10n.sampleDataDeleted,
-      style: AppToastStyle.success,
-    );
-  }
-
   Future<void> _showLanguagePicker() async {
     final controller = AppLocaleScope.maybeOf(context);
     if (controller == null) return;
@@ -5954,11 +5880,26 @@ class _SettingsPageState extends State<SettingsPage> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: BreezeSurface(
-            child: SettingRow(
-              icon: Icons.language_rounded,
-              title: l10n.languageTitle,
-              subtitle: '$languageLabel · ${l10n.languageSettingSubtitle}',
-              onTap: localeController == null ? null : _showLanguagePicker,
+            child: Column(
+              children: [
+                SettingRow(
+                  icon: Icons.language_rounded,
+                  title: l10n.languageTitle,
+                  subtitle: '$languageLabel · ${l10n.languageSettingSubtitle}',
+                  onTap: localeController == null ? null : _showLanguagePicker,
+                ),
+                Divider(height: 1, color: context.palette.divider),
+                SettingRow(
+                  key: const Key('settings-feature-intro'),
+                  icon: Icons.auto_stories_outlined,
+                  title: l10n.featureIntroTitle,
+                  subtitle: l10n.featureIntroSettingsSubtitle,
+                  onTap: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const FeatureIntroPage()),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -6013,15 +5954,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   onTap: _restoreInProgress || store.isRestoringBackup
                       ? null
                       : () => _restoreFromBackup(context),
-                ),
-                Divider(height: 1, color: context.palette.divider),
-                SettingRow(
-                  icon: Icons.science_outlined,
-                  title: l10n.manageSampleData,
-                  subtitle: store.hasExampleData
-                      ? l10n.manageSampleExistingSubtitle
-                      : l10n.manageSampleMissingSubtitle,
-                  onTap: _manageExampleData,
                 ),
               ],
             ),
