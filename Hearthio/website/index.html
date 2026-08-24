@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#31584b">
+    <meta name="color-scheme" content="light">
+    <meta
+      name="description"
+      content="家务志 Hearthio 是一款本地优先的家庭物品档案与保养记录 App：安排保养计划、按步骤执行、记录真实费用与照片，并在下一周期到来前提醒你。"
+    >
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="家务志 Hearthio — 让家里的每次保养都有迹可循">
+    <meta
+      property="og:description"
+      content="把家庭物品、保养计划、执行步骤、实际费用与照片整理成一份可持续维护的本地档案。"
+    >
+    <meta property="og:image" content="assets/app-icon.png">
+    <meta name="twitter:card" content="summary">
+    <title>家务志 Hearthio — 家庭物品与保养记录</title>
+    <link rel="icon" href="assets/app-icon.png">
+    <link rel="apple-touch-icon" href="assets/app-icon.png">
+    <link rel="stylesheet" href="styles.css">
+    <script src="site.js" defer></script>
+  </head>
+  <body data-page="home">
+    <a class="skip-link" href="#main" data-zh="跳到主要内容" data-en="Skip to main content">跳到主要内容</a>
+
+    <header class="site-header" data-header>
+      <div class="shell header-inner">
+        <a class="brand" href="#top" aria-label="家务志 Hearthio 首页">
+          <img src="assets/app-icon.png" alt="" width="44" height="44">
+          <span><strong data-zh="家务志" data-en="Hearthio">家务志</strong><small>Hearthio</small></span>
+        </a>
+
+        <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav" data-menu-button>
+          <span class="sr-only" data-zh="打开导航" data-en="Open navigation">打开导航</span>
+          <i></i><i></i><i></i>
+        </button>
+
+        <nav class="site-nav" id="site-nav" aria-label="主要导航" data-aria-zh="主要导航" data-aria-en="Primary navigation" data-nav>
+          <a href="#workflow" data-zh="使用方式" data-en="How it works">使用方式</a>
+          <a href="#features" data-zh="功能" data-en="Features">功能</a>
+          <a href="#privacy" data-zh="隐私优先" data-en="Privacy">隐私优先</a>
+          <a href="#support" data-zh="支持" data-en="Support">支持</a>
+          <a href="privacy.html" data-language-link data-zh="隐私政策" data-en="Privacy policy">隐私政策</a>
+          <div class="language-switch" role="group" aria-label="语言 / Language">
+            <button type="button" data-lang-choice="zh" aria-pressed="true">中</button>
+            <span aria-hidden="true"></span>
+            <button type="button" data-lang-choice="en" aria-pressed="false">EN</button>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="hero-leaf hero-leaf-one" aria-hidden="true"></div>
+        <div class="hero-leaf hero-leaf-two" aria-hidden="true"></div>
+        <div class="shell hero-grid">
+          <div class="hero-copy">
+            <div class="eyebrow">
+              <span aria-hidden="true"></span>
+              <b data-zh="本地优先的家庭保养档案" data-en="A local-first home care archive">本地优先的家庭保养档案</b>
+            </div>
+            <h1>
+              <span data-zh="让家里的每次保养，" data-en="Make every home-care task">让家里的每次保养，</span>
+              <em data-zh="都有迹可循。" data-en="easy to do—and easy to revisit.">都有迹可循。</em>
+            </h1>
+            <p class="hero-lede" data-zh="家务志把家庭物品、保养计划、执行步骤、实际费用与照片整理成一份可持续维护的档案。到期时照着做，完成后自动进入下一周期。" data-en="Hearthio brings home items, maintenance plans, guided steps, actual costs, and photos into one lasting archive. Follow the steps when a task is due, then move naturally into the next cycle.">
+              家务志把家庭物品、保养计划、执行步骤、实际费用与照片整理成一份可持续维护的档案。到期时照着做，完成后自动进入下一周期。
+            </p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#workflow">
+                <span data-zh="看看如何使用" data-en="See how it works">看看如何使用</span><span aria-hidden="true">↘</span>
+              </a>
+              <div class="availability">
+                <span class="availability-mark" aria-hidden="true">●</span>
+                <span>
+                  <strong data-zh="即将登陆 App Store" data-en="Coming to the App Store">即将登陆 App Store</strong>
+                  <small data-zh="iPhone 与 iPad · 中文 / English" data-en="iPhone &amp; iPad · Chinese / English">iPhone 与 iPad · 中文 / English</small>
+                </span>
+              </div>
+            </div>
+            <ul class="trust-list" aria-label="产品特点">
+              <li><span>✓</span><b data-zh="无需账号" data-en="No account">无需账号</b></li>
+              <li><span>✓</span><b data-zh="核心功能离线可用" data-en="Core features work offline">核心功能离线可用</b></li>
+              <li><span>✓</span><b data-zh="可选本地提醒" data-en="Optional on-device reminders">可选本地提醒</b></li>
+            </ul>
+          </div>
+
+          <div class="hero-product" aria-label="家务志 App 首页实际界面" data-aria-zh="家务志 App 首页实际界面" data-aria-en="Current Hearthio app home screen">
+            <div class="soft-orbit orbit-one" aria-hidden="true"></div>
+            <div class="soft-orbit orbit-two" aria-hidden="true"></div>
+            <div class="floating-note due-note" aria-hidden="true">
+              <small data-zh="下一项保养" data-en="Next task">下一项保养</small>
+              <strong data-zh="更换滤芯" data-en="Replace filter">更换滤芯</strong>
+              <span data-zh="按计划进行" data-en="Right on schedule">按计划进行</span>
+            </div>
+            <div class="phone-frame">
+              <div class="phone-speaker" aria-hidden="true"></div>
+              <img src="assets/home-screen.png" alt="家务志首页，展示保养任务和家庭概览" data-alt-zh="家务志首页，展示保养任务和家庭概览" data-alt-en="Hearthio home screen showing maintenance tasks and a household overview">
+            </div>
+            <div class="floating-note local-note" aria-hidden="true">
+              <span class="local-dot">✓</span>
+              <span><small data-zh="默认保存位置" data-en="Saved by default">默认保存位置</small><strong data-zh="你的设备" data-en="Your device">你的设备</strong></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="principle-strip" aria-label="产品原则">
+        <div class="shell principle-grid">
+          <div><strong data-zh="一件物品" data-en="One item">一件物品</strong><span data-zh="可安排多项具名保养计划" data-en="can hold multiple named plans">可安排多项具名保养计划</span></div>
+          <div><strong data-zh="一步一步" data-en="Step by step">一步一步</strong><span data-zh="照计划完成并留下记录" data-en="complete the task and keep the record">照计划完成并留下记录</span></div>
+          <div><strong data-zh="只算事实" data-en="Facts only">只算事实</strong><span data-zh="报告来自真实计划与完成记录" data-en="reports come from plans and completions">报告来自真实计划与完成记录</span></div>
+          <div><strong data-zh="数据可带走" data-en="Portable data">数据可带走</strong><span data-zh="主动导出 CSV 或完整备份" data-en="export CSV or a full backup">主动导出 CSV 或完整备份</span></div>
+        </div>
+      </section>
+
+      <section class="section workflow-section" id="workflow">
+        <div class="shell">
+          <div class="section-heading centered">
+            <span class="section-kicker" data-zh="从物品到下一周期" data-en="From an item to the next cycle">从物品到下一周期</span>
+            <h2 data-zh="家务不只要提醒，更要真正完成。" data-en="Home care needs more than a reminder.">家务不只要提醒，更要真正完成。</h2>
+            <p data-zh="把模糊的“记得保养”，拆成今天能执行、以后能回看的清晰流程。" data-en="Turn “remember to maintain it” into a clear process you can act on today and revisit later.">把模糊的“记得保养”，拆成今天能执行、以后能回看的清晰流程。</p>
+          </div>
+
+          <div class="workflow-grid">
+            <article class="workflow-card">
+              <div class="step-label"><span>01</span><b data-zh="建立物品档案" data-en="Archive the item">建立物品档案</b></div>
+              <h3 data-zh="先把散落的信息收在一起" data-en="Bring scattered details together">先把散落的信息收在一起</h3>
+              <p data-zh="记录空间、品牌、型号、购买与保修日期；说明书、保修卡和凭证照片也能留在物品下。" data-en="Keep room, brand, model, purchase and warranty dates together, with optional photos of manuals, warranty cards, and receipts.">记录空间、品牌、型号、购买与保修日期；说明书、保修卡和凭证照片也能留在物品下。</p>
+              <img src="assets/archive.png" alt="家庭物品档案插画" data-alt-zh="家庭物品档案插画" data-alt-en="Illustration of a home-item archive" loading="lazy">
+            </article>
+
+            <article class="workflow-card">
+              <div class="step-label"><span>02</span><b data-zh="安排具体计划" data-en="Plan specific care">安排具体计划</b></div>
+              <h3 data-zh="每项保养都有名字、周期和步骤" data-en="Give every task a name, cycle, and steps">每项保养都有名字、周期和步骤</h3>
+              <p data-zh="从可编辑模板开始，或自定义周期、提前提醒天数和执行步骤；同一物品可以拥有多项计划。" data-en="Start from an editable template or define your own interval, reminder lead time, and steps. One item can have several plans.">从可编辑模板开始，或自定义周期、提前提醒天数和执行步骤；同一物品可以拥有多项计划。</p>
+              <img src="assets/calendar.png" alt="保养日程与提醒插画" data-alt-zh="保养日程与提醒插画" data-alt-en="Illustration of a maintenance calendar and reminder" loading="lazy">
+            </article>
+
+            <article class="workflow-card">
+              <div class="step-label"><span>03</span><b data-zh="完成并留下证据" data-en="Complete and keep evidence">完成并留下证据</b></div>
+              <h3 data-zh="按步骤做完，记录真实结果" data-en="Follow the steps and record the outcome">按步骤做完，记录真实结果</h3>
+              <p data-zh="可选记录实际费用、耗材型号、备注和保养前后照片；完成记录进入生命周期，并生成下一次日期。" data-en="Optionally record actual cost, material model, notes, and before/after photos. The completion enters the lifecycle and schedules the next date.">可选记录实际费用、耗材型号、备注和保养前后照片；完成记录进入生命周期，并生成下一次日期。</p>
+              <img src="assets/proof.png" alt="照片与保养凭证插画" data-alt-zh="照片与保养凭证插画" data-alt-en="Illustration of photos and maintenance evidence" loading="lazy">
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section features-section" id="features">
+        <div class="shell">
+          <div class="section-heading split-heading">
+            <div>
+              <span class="section-kicker" data-zh="不只是物品清单" data-en="Beyond an inventory list">不只是物品清单</span>
+              <h2 data-zh="记录，是为了下一次做得更稳。" data-en="A record that makes the next task easier.">记录，是为了下一次做得更稳。</h2>
+            </div>
+            <p data-zh="家务志围绕物品的整个保养周期组织信息，而不是把日期、照片和费用留在不同 App 里。" data-en="Hearthio organizes information around the full care cycle instead of scattering dates, photos, and costs across different apps.">家务志围绕物品的整个保养周期组织信息，而不是把日期、照片和费用留在不同 App 里。</p>
+          </div>
+
+          <div class="feature-bento">
+            <article class="feature-tile feature-large plan-feature">
+              <div>
+                <span class="mini-kicker" data-zh="一物多计划" data-en="Multiple plans per item">一物多计划</span>
+                <h3 data-zh="净水器不只有“换滤芯”这一件事。" data-en="A water purifier needs more than one care task.">净水器不只有“换滤芯”这一件事。</h3>
+                <p data-zh="滤芯更换、管路清洁、年度检查可以各自拥有周期、步骤和提醒，不再挤在一条模糊备注里。" data-en="Filter replacement, line cleaning, and annual inspection can each have their own interval, steps, and reminder.">滤芯更换、管路清洁、年度检查可以各自拥有周期、步骤和提醒，不再挤在一条模糊备注里。</p>
+              </div>
+              <div class="plan-stack" aria-hidden="true">
+                <div><span></span><b data-zh="更换滤芯" data-en="Replace filter">更换滤芯</b><small data-zh="每 180 天" data-en="Every 180 days">每 180 天</small></div>
+                <div><span></span><b data-zh="清洁管路" data-en="Clean lines">清洁管路</b><small data-zh="每 90 天" data-en="Every 90 days">每 90 天</small></div>
+                <div><span></span><b data-zh="年度检查" data-en="Annual check">年度检查</b><small data-zh="每 12 个月" data-en="Every 12 months">每 12 个月</small></div>
+              </div>
+            </article>
+
+            <article class="feature-tile reminder-feature">
+              <span class="feature-symbol" aria-hidden="true">◷</span>
+              <span class="mini-kicker" data-zh="本机提醒" data-en="On-device reminders">本机提醒</span>
+              <h3 data-zh="提醒是可选的，记录不是。" data-en="Reminders are optional. Records are not.">提醒是可选的，记录不是。</h3>
+              <p data-zh="不授权通知也能创建物品、安排计划和完成保养；开启后按各计划的提前天数发送本地提醒。" data-en="Create items, plans, and completions without notification access. If enabled, reminders follow each plan’s lead time.">不授权通知也能创建物品、安排计划和完成保养；开启后按各计划的提前天数发送本地提醒。</p>
+            </article>
+
+            <article class="feature-tile privacy-feature" id="privacy">
+              <span class="feature-symbol" aria-hidden="true">⌂</span>
+              <span class="mini-kicker" data-zh="本地优先" data-en="Local first">本地优先</span>
+              <h3 data-zh="无需账号，核心档案默认留在设备。" data-en="No account. Core records stay on your device.">无需账号，核心档案默认留在设备。</h3>
+              <p data-zh="只有你主动导出 CSV、创建 ZIP 备份或从系统分享面板发送文件时，相应内容才会离开 App 沙盒。" data-en="Content leaves the app sandbox only when you export CSV, create a ZIP backup, or choose a destination in the system share sheet.">只有你主动导出 CSV、创建 ZIP 备份或从系统分享面板发送文件时，相应内容才会离开 App 沙盒。</p>
+              <a href="privacy.html" data-language-link data-zh="阅读完整隐私政策 →" data-en="Read the full privacy policy →">阅读完整隐私政策 →</a>
+            </article>
+
+            <article class="feature-tile feature-wide record-feature">
+              <div>
+                <span class="mini-kicker" data-zh="真实完成记录" data-en="Real completion records">真实完成记录</span>
+                <h3 data-zh="费用、耗材和照片，都跟着这次保养走。" data-en="Costs, materials, and photos stay with the completion.">费用、耗材和照片，都跟着这次保养走。</h3>
+                <p data-zh="每次完成都进入物品生命周期。以后查看时，能知道做了什么、花了多少、用了哪个型号，而不是只剩一个打勾。" data-en="Each completion enters the item lifecycle, so you can revisit what was done, what it cost, and which material was used—not just a checkmark.">每次完成都进入物品生命周期。以后查看时，能知道做了什么、花了多少、用了哪个型号，而不是只剩一个打勾。</p>
+              </div>
+              <div class="record-facts" aria-hidden="true">
+                <span><small data-zh="实际费用" data-en="Actual cost">实际费用</small><strong>¥129</strong></span>
+                <span><small data-zh="耗材型号" data-en="Material">耗材型号</small><strong>PP A1</strong></span>
+                <span><small data-zh="步骤" data-en="Steps">步骤</small><strong>4 / 4</strong></span>
+              </div>
+            </article>
+
+            <article class="feature-tile export-feature">
+              <span class="feature-symbol" aria-hidden="true">↗</span>
+              <span class="mini-kicker" data-zh="导出与恢复" data-en="Export and restore">导出与恢复</span>
+              <h3 data-zh="你的档案，也应该能被你带走。" data-en="Your archive should remain portable.">你的档案，也应该能被你带走。</h3>
+              <p data-zh="可主动导出 CSV，或创建包含物品、记录与照片的完整 ZIP 备份；需要时再从备份恢复。" data-en="Export CSV or create a full ZIP backup containing items, records, and photos, then restore it when needed.">可主动导出 CSV，或创建包含物品、记录与照片的完整 ZIP 备份；需要时再从备份恢复。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section app-preview-section">
+        <div class="shell">
+          <div class="section-heading centered">
+            <span class="section-kicker" data-zh="真实界面" data-en="Real app screens">真实界面</span>
+            <h2 data-zh="从到期任务，到完成后的报告。" data-en="From a due task to the report that follows.">从到期任务，到完成后的报告。</h2>
+            <p data-zh="以下画面来自当前 App 的实际运行界面，示例数据会明确标记。" data-en="These screens come from the current running app. Sample data is clearly labeled.">以下画面来自当前 App 的实际运行界面，示例数据会明确标记。</p>
+          </div>
+          <div class="screens-grid">
+            <figure><img src="assets/home-screen.png" alt="家务志首页" data-alt-zh="家务志首页" data-alt-en="Hearthio home screen" loading="lazy"><figcaption data-zh="01 · 今天与下一项保养" data-en="01 · Today and the next task">01 · 今天与下一项保养</figcaption></figure>
+            <figure><img src="assets/execution-screen.png" alt="家务志保养执行步骤页" data-alt-zh="家务志保养执行步骤页" data-alt-en="Hearthio guided maintenance screen" loading="lazy"><figcaption data-zh="02 · 按步骤执行并记录" data-en="02 · Follow steps and record">02 · 按步骤执行并记录</figcaption></figure>
+            <figure><img src="assets/report-screen.png" alt="家务志家庭保养报告" data-alt-zh="家务志家庭保养报告" data-alt-en="Hearthio home-maintenance report" loading="lazy"><figcaption data-zh="03 · 从真实记录生成报告" data-en="03 · Reports from real records">03 · 从真实记录生成报告</figcaption></figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="section support-section" id="support">
+        <div class="shell support-grid">
+          <div class="support-copy">
+            <span class="section-kicker" data-zh="帮助与支持" data-en="Help and support">帮助与支持</span>
+            <h2 data-zh="遇到问题，可以从这里开始。" data-en="Start here when something is not working.">遇到问题，可以从这里开始。</h2>
+            <p data-zh="联系时请附上设备型号、系统版本、App 版本以及问题发生前的操作步骤；请不要发送包含家庭地址、票据或其他敏感信息的截图。" data-en="When contacting support, include your device model, OS version, app version, and the steps before the issue. Do not send screenshots containing home addresses, receipts, or other sensitive information.">联系时请附上设备型号、系统版本、App 版本以及问题发生前的操作步骤；请不要发送包含家庭地址、票据或其他敏感信息的截图。</p>
+            <div class="support-contact">
+              <span data-zh="支持邮箱（待确认）" data-en="Support email (to be confirmed)">支持邮箱（待确认）</span>
+              <code>&lt;example@email.com&gt;</code>
+              <button class="copy-button" type="button" data-copy-email="example@email.com"><span data-copy-label data-zh="复制邮箱" data-en="Copy email">复制邮箱</span></button>
+              <span class="copy-status" role="status" aria-live="polite" data-copy-status></span>
+            </div>
+          </div>
+
+          <div class="faq-list">
+            <details>
+              <summary data-zh="没有收到保养提醒怎么办？" data-en="Why did I not receive a reminder?">没有收到保养提醒怎么办？</summary>
+              <p data-zh="在 App 的“设置”中检查通知状态，并确认对应计划已启用且有下一次日期。不授权通知不会影响物品、计划或完成记录。" data-en="Check notification status in Settings, then confirm the plan is enabled and has a next date. Denying notifications does not affect items, plans, or completion records.">在 App 的“设置”中检查通知状态，并确认对应计划已启用且有下一次日期。不授权通知不会影响物品、计划或完成记录。</p>
+            </details>
+            <details>
+              <summary data-zh="如何备份或换机？" data-en="How do I back up or move to another device?">如何备份或换机？</summary>
+              <p data-zh="在“设置 → 完整备份”创建 Hearthio-backup.zip，并保存到你能再次访问的位置。在目标设备选择“恢复备份”；恢复会替换该设备当前档案，请先保留现有备份。" data-en="Create Hearthio-backup.zip under Settings → Full Backup and save it somewhere you can access again. Choose Restore Backup on the target device. Restore replaces the current archive on that device, so keep a backup first.">在“设置 → 完整备份”创建 Hearthio-backup.zip，并保存到你能再次访问的位置。在目标设备选择“恢复备份”；恢复会替换该设备当前档案，请先保留现有备份。</p>
+            </details>
+            <details>
+              <summary data-zh="怎样删除示例数据？" data-en="How do I remove sample data?">怎样删除示例数据？</summary>
+              <p data-zh="前往“设置 → 管理示例数据”删除或重置示例。重置只处理明确标记的示例，不删除你创建的物品。" data-en="Open Settings → Manage Sample Data to delete or reset it. Reset affects only the clearly labeled sample and does not remove items you created.">前往“设置 → 管理示例数据”删除或重置示例。重置只处理明确标记的示例，不删除你创建的物品。</p>
+            </details>
+            <details>
+              <summary data-zh="相机或相册权限被拒绝后还能使用吗？" data-en="Can I continue after denying Camera or Photos access?">相机或相册权限被拒绝后还能使用吗？</summary>
+              <p data-zh="可以。照片是可选记录；你仍可创建物品、执行步骤和保存维护结果。需要添加照片时，可在系统设置中重新开启相应权限。" data-en="Yes. Photos are optional. You can still create items, follow steps, and save maintenance results. Re-enable the permission in system settings if you later want to add photos.">可以。照片是可选记录；你仍可创建物品、执行步骤和保存维护结果。需要添加照片时，可在系统设置中重新开启相应权限。</p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="closing-section">
+        <div class="shell closing-card">
+          <img src="assets/app-icon.png" alt="家务志 Hearthio 图标" data-alt-zh="家务志 Hearthio 图标" data-alt-en="Hearthio app icon" width="112" height="112">
+          <div>
+            <span class="section-kicker" data-zh="家里的物品，需要一份长期档案" data-en="Your home deserves a lasting care archive">家里的物品，需要一份长期档案</span>
+            <h2 data-zh="这一次认真记录，下一次从容完成。" data-en="Record it well today. Handle it calmly next time.">这一次认真记录，下一次从容完成。</h2>
+          </div>
+          <span class="coming-pill" data-zh="App Store · 即将推出" data-en="App Store · Coming soon">App Store · 即将推出</span>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-grid">
+        <div class="footer-brand">
+          <img src="assets/app-icon.png" alt="" width="48" height="48">
+          <span><strong data-zh="家务志" data-en="Hearthio">家务志</strong><small data-zh="家庭物品与保养记录" data-en="Home inventory and maintenance journal">家庭物品与保养记录</small></span>
+        </div>
+        <nav aria-label="页脚导航">
+          <a href="#features" data-zh="功能" data-en="Features">功能</a>
+          <a href="#support" data-zh="支持" data-en="Support">支持</a>
+          <a href="privacy.html" data-language-link data-zh="隐私政策" data-en="Privacy Policy">隐私政策</a>
+        </nav>
+        <p>© <span data-current-year>2026</span> <span data-zh="&lt;开发者或运营主体名称&gt;" data-en="&lt;Developer or operator name&gt;">&lt;开发者或运营主体名称&gt;</span></p>
+      </div>
+    </footer>
+  </body>
+</html>
