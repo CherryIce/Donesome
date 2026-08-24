@@ -31,12 +31,27 @@ const careSpaceTypeTemplates = <String>[
 ];
 
 String careSpaceTypeForLegacyName(String name) {
-  final normalized = name.trim();
-  if (normalized == '浴室' || normalized == '洗手间') return '卫生间';
-  for (final type in careSpaceTypeTemplates) {
-    if (normalized == type) return type;
-  }
-  return '其他';
+  return knownCareSpaceType(name) ?? '其他';
+}
+
+String? knownCareSpaceType(String value) => switch (value.trim()) {
+  '客厅' || 'Living room' => '客厅',
+  '卧室' || 'Bedroom' => '卧室',
+  '厨房' || 'Kitchen' => '厨房',
+  '卫生间' || '浴室' || '洗手间' || 'Bathroom' => '卫生间',
+  '阳台' || 'Balcony' => '阳台',
+  '书房' || 'Study' => '书房',
+  '餐厅' || 'Dining room' => '餐厅',
+  '储物间' || 'Storage room' => '储物间',
+  '玄关' || 'Entryway' => '玄关',
+  '其他' || 'Other' => '其他',
+  _ => null,
+};
+
+bool careSpaceUsesDefaultName(CareSpace space) {
+  final type = knownCareSpaceType(space.type);
+  final nameType = knownCareSpaceType(space.name);
+  return type != null && nameType == type;
 }
 
 String _requiredSpaceString(Map<String, dynamic> json, String key) {

@@ -944,7 +944,10 @@ class CareStore extends ChangeNotifier
        _imagePicker = imagePicker ?? _pickCareImage;
 
   final _notifications = FlutterLocalNotificationsPlugin();
-  AppLocalizations _localizations = lookupAppLocalizations(const Locale('zh'));
+  AppLocalizations _localizations = lookupAppLocalizations(
+    resolveSupportedAppLocale(null),
+  );
+  bool _receivedAppLocalizations = false;
   Future<void>? _notificationsReady;
   Future<void> _notificationMutationTail = Future.value();
   Future<void> _persistenceTail = Future.value();
@@ -970,9 +973,16 @@ class CareStore extends ChangeNotifier
   bool get isRestoringBackup => _restoreOperation != null;
 
   void updateLocalizations(AppLocalizations value) {
+    _receivedAppLocalizations = true;
     if (_localizations.localeName == value.localeName) return;
     _localizations = value;
     if (loaded) unawaited(_rescheduleRemindersIfAuthorized());
+  }
+
+  Future<void> _resolveInitialLocalizations() async {
+    if (_receivedAppLocalizations) return;
+    final mode = await AppLocaleController.readSavedMode();
+    _localizations = lookupAppLocalizations(resolveAppLocaleForMode(mode));
   }
 
   CareSpace? spaceById(String? id) {
@@ -986,14 +996,18 @@ class CareStore extends ChangeNotifier
   String? spaceNameFor(CareItem item) => spaceById(item.spaceId)?.name;
 
   String locationLabelFor(CareItem item, [AppLocalizations? localizations]) {
-    final room = spaceNameFor(item)?.trim() ?? '';
+    final l10n = localizations ?? _localizations;
+    final space = spaceById(item.spaceId);
+    final room = space == null ? '' : l10n.spaceNameLabel(space).trim();
     final detail = item.locationDetail.trim();
     if (room.isNotEmpty && detail.isNotEmpty) return '$room · $detail';
     if (room.isNotEmpty) return room;
     if (detail.isNotEmpty) {
-      return '${localizations?.unassignedSpace ?? _localizations.unassignedSpace} · $detail';
+      return '${l10n.unassignedSpace} · $detail';
     }
-    return item.location.trim();
+    final fallback = item.location.trim();
+    final fallbackType = knownCareSpaceType(fallback);
+    return fallbackType == null ? fallback : l10n.spaceTypeLabel(fallbackType);
   }
 
   List<CareItem> itemsInSpace(String? spaceId) => items
@@ -1035,8 +1049,11 @@ class CareStore extends ChangeNotifier
 
   Future<void> _load() async {
     try {
+      await _resolveInitialLocalizations();
       final repository = await _openRepository();
-      final result = await repository.load(initialItems: [_newExampleItem()]);
+      final result = await repository.load(
+        initialItems: [_newExampleItem(_localizations)],
+      );
       items = [...result.items];
       spaces = [...result.spaces];
       loadError = null;
@@ -1273,7 +1290,7 @@ class CareStore extends ChangeNotifier
   Future<void> _resetExampleData() async {
     _ensureWritable();
     final examples = items.where((item) => item.isSample).toList();
-    final replacement = _newExampleItem();
+    final replacement = _newExampleItem(_localizations);
     final nextItems = items.where((item) => !item.isSample).toList()
       ..insert(0, replacement);
     final migrated = migrateLegacyItemLocations(
@@ -2298,7 +2315,7 @@ class CareStore extends ChangeNotifier
         ? target.length
         : firstLegacyIndex;
     if (!hasPreservedExample) {
-      target.insert(insertIndex, _newExampleItem());
+      target.insert(insertIndex, _newExampleItem(_localizations));
     }
     return true;
   }
@@ -2311,22 +2328,23 @@ class CareStore extends ChangeNotifier
     return !item.plans.any((plan) => plan.id == _examplePlanId);
   }
 
-  static CareItem _newExampleItem() {
+  static CareItem _newExampleItem(AppLocalizations localizations) {
     final today = maintenanceDateOnly(DateTime.now());
     final template = maintenanceTemplates.firstWhere(
       (candidate) => candidate.id == 'water-purifier-filter',
     );
+    final localizedTemplate = localizations.localizedTemplate(template);
     return CareItem(
       id: _exampleItemId,
-      name: '示例 · 厨房净水器',
-      category: '滤芯与耗材',
-      location: '厨房',
+      name: localizations.sampleItemName,
+      category: canonicalItemCategory(localizations.categoryFiltersConsumables),
+      location: localizations.spaceTypeKitchen,
       brand: '',
       model: '',
-      notes: '这是可删除的示例数据：完成更换滤芯后，可以记录日期、型号和实际费用。',
+      notes: localizations.sampleItemNotes,
       photos: const [],
       plans: [
-        template.createPlan(
+        localizedTemplate.createPlan(
           planId: _examplePlanId,
           referenceDate: addMaintenanceDays(today, -template.intervalDays),
         ),
@@ -3593,7 +3611,9 @@ class _SpaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = space?.name ?? context.l10n.unassignedSpace;
+    final name = space == null
+        ? context.l10n.unassignedSpace
+        : context.l10n.spaceNameLabel(space!);
     final type = space == null
         ? context.l10n.awaitingClassification
         : context.l10n.spaceTypeLabel(space!.type);
@@ -3696,7 +3716,9 @@ class SpaceDetailPage extends StatelessWidget {
       final space = store.spaceById(spaceId);
       final title = unassigned
           ? context.l10n.unassignedSpace
-          : space?.name ?? context.l10n.spaceDeleted;
+          : space == null
+          ? context.l10n.spaceDeleted
+          : context.l10n.spaceNameLabel(space);
       final items = store.itemsInSpace(unassigned ? null : spaceId);
       return Scaffold(
         appBar: AppBar(
@@ -3786,10 +3808,12 @@ class _AddSpacePageState extends State<AddSpacePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_defaultNameInitialized && widget.existing == null) {
+    if (_defaultNameInitialized) return;
+    final existing = widget.existing;
+    if (existing == null || careSpaceUsesDefaultName(existing)) {
       name.text = context.l10n.spaceTypeLabel(type);
-      _defaultNameInitialized = true;
     }
+    _defaultNameInitialized = true;
   }
 
   @override
@@ -3961,7 +3985,7 @@ class SelectSpacePage extends StatelessWidget {
             _SpaceSelectionTile(
               key: ValueKey('select-space-${space.id}'),
               icon: _iconForSpaceType(space.type),
-              name: space.name,
+              name: context.l10n.spaceNameLabel(space),
               subtitle: context.l10n.spaceItemCount(
                 context.l10n.spaceTypeLabel(space.type),
                 store.itemsInSpace(space.id).length,
@@ -4062,13 +4086,14 @@ Future<void> _deleteSpace(
   CareSpace space,
 ) async {
   final affected = store.itemsInSpace(space.id);
+  final spaceName = context.l10n.spaceNameLabel(space);
   String? replacement;
   if (affected.isEmpty) {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(context.l10n.deleteSpaceTitle),
-        content: Text(context.l10n.deleteEmptySpaceMessage(space.name)),
+        content: Text(context.l10n.deleteEmptySpaceMessage(spaceName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -4104,7 +4129,7 @@ Future<void> _deleteSpace(
               ),
               const SizedBox(height: 5),
               Text(
-                sheetContext.l10n.relocateSpaceItemsMessage(space.name),
+                sheetContext.l10n.relocateSpaceItemsMessage(spaceName),
                 style: TextStyle(
                   color: sheetContext.palette.muted,
                   fontSize: 13,
@@ -4122,7 +4147,11 @@ Future<void> _deleteSpace(
               ))
                 ListTile(
                   leading: Icon(_iconForSpaceType(target.type)),
-                  title: Text(sheetContext.l10n.moveToSpace(target.name)),
+                  title: Text(
+                    sheetContext.l10n.moveToSpace(
+                      sheetContext.l10n.spaceNameLabel(target),
+                    ),
+                  ),
                   onTap: () => Navigator.pop(sheetContext, target.id),
                 ),
             ],
@@ -5167,9 +5196,11 @@ class _SchedulePageState extends State<SchedulePage> {
                       color: context.palette.primary,
                     ),
                     const SizedBox(width: 10),
-                    Text(
-                      context.l10n.scheduleDayEmpty,
-                      style: TextStyle(color: context.palette.muted),
+                    Expanded(
+                      child: Text(
+                        context.l10n.scheduleDayEmpty,
+                        style: TextStyle(color: context.palette.muted),
+                      ),
                     ),
                   ],
                 ),
@@ -6266,13 +6297,11 @@ IconData _iconForItem(CareItem item) {
 }
 
 IconData _iconFor(String category) {
-  switch (category) {
-    case '家电':
+  switch (canonicalItemCategory(category)) {
     case '家用电器':
       return Icons.kitchen_outlined;
     case '滤芯与耗材':
       return Icons.water_drop_outlined;
-    case '家具与家居':
     case '家具':
       return Icons.chair_outlined;
     case '厨房用品':
@@ -6510,6 +6539,7 @@ class _DetailPageState extends State<DetailPage> {
                       vertical: 13,
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           row.$1,
@@ -6523,8 +6553,6 @@ class _DetailPageState extends State<DetailPage> {
                           child: Text(
                             row.$2,
                             textAlign: TextAlign.right,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: context.palette.ink,
                               fontWeight: FontWeight.w700,
@@ -6898,15 +6926,6 @@ const _itemCatalog = <_ItemCatalogCategory>[
 
 const _commonItemNames = ['冰箱', '空调', '洗衣机', '净水器', '扫地机器人'];
 
-const _legacyItemCategoryAliases = <String, String>{
-  '家具与家居': '家具',
-  '家电': '家用电器',
-  '其他': '其他物品',
-};
-
-String _canonicalItemCategory(String value) =>
-    _legacyItemCategoryAliases[value] ?? value;
-
 class EditorPage extends StatefulWidget {
   const EditorPage({
     super.key,
@@ -6975,7 +6994,7 @@ class _EditorPageState extends State<EditorPage> {
     currentValue = TextEditingController(
       text: x?.currentValue?.toStringAsFixed(0),
     );
-    category = _canonicalItemCategory(x?.category ?? categories.first);
+    category = canonicalItemCategory(x?.category ?? categories.first);
     if (!categories.contains(category)) categories.add(category);
     purchase = x?.purchaseDate;
     warranty = x?.warrantyDate;
@@ -7683,9 +7702,12 @@ class _EditorPageState extends State<EditorPage> {
     ),
   );
 
-  String get _selectedSpaceName =>
-      widget.store.spaceById(_selectedSpaceId)?.name ??
-      context.l10n.unassignedSpace;
+  String get _selectedSpaceName {
+    final space = widget.store.spaceById(_selectedSpaceId);
+    return space == null
+        ? context.l10n.unassignedSpace
+        : context.l10n.spaceNameLabel(space);
+  }
 
   Widget _spaceSelectorField() => Padding(
     padding: const EdgeInsets.only(bottom: 0),

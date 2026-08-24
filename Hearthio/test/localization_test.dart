@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hearthio/app/locale_controller.dart';
 import 'package:hearthio/l10n/app_localizations.dart';
+import 'package:hearthio/l10n/catalog_l10n.dart';
 import 'package:hearthio/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,6 +38,28 @@ void main() {
       const Locale('zh'),
     );
     expect(resolveSupportedAppLocale(const Locale('fr')), const Locale('en'));
+  });
+
+  test('built-in categories and default space names localize both ways', () {
+    final english = lookupAppLocalizations(const Locale('en'));
+    final chinese = lookupAppLocalizations(const Locale('zh'));
+    const defaultKitchen = CareSpace(
+      id: 'kitchen',
+      type: '厨房',
+      name: 'Kitchen',
+    );
+    const customKitchen = CareSpace(
+      id: 'pantry',
+      type: '厨房',
+      name: 'Dry pantry',
+    );
+
+    expect(chinese.itemCategoryLabel('Filters & consumables'), '滤芯与耗材');
+    expect(english.itemCategoryLabel('滤芯与耗材'), 'Filters & consumables');
+    expect(chinese.itemCategoryLabel('My category'), 'My category');
+    expect(chinese.spaceNameLabel(defaultKitchen), '厨房');
+    expect(english.spaceNameLabel(defaultKitchen), 'Kitchen');
+    expect(chinese.spaceNameLabel(customKitchen), 'Dry pantry');
   });
 
   testWidgets('onboarding localizes every page in English', (tester) async {

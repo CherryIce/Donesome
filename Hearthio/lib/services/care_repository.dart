@@ -306,11 +306,28 @@ class CareRepository {
   List<CareItem> items, {
   List<CareSpace> existingSpaces = const [],
 }) {
-  final spaces = [...existingSpaces];
+  final spaces = <CareSpace>[];
+  final retainedSpaceById = <String, CareSpace>{};
+  final defaultSpaceByType = <String, CareSpace>{};
+  for (final space in existingSpaces) {
+    final type = knownCareSpaceType(space.type);
+    final existingDefault = type == null || !careSpaceUsesDefaultName(space)
+        ? null
+        : defaultSpaceByType[type];
+    if (existingDefault != null) {
+      retainedSpaceById[space.id] = existingDefault;
+      continue;
+    }
+    spaces.add(space);
+    retainedSpaceById[space.id] = space;
+    if (type != null && careSpaceUsesDefaultName(space)) {
+      defaultSpaceByType[type] = space;
+    }
+  }
   final spaceByName = <String, CareSpace>{
-    for (final space in existingSpaces) space.name: space,
+    for (final space in spaces) space.name: space,
   };
-  final spaceIds = existingSpaces.map((space) => space.id).toSet();
+  final spaceIds = spaces.map((space) => space.id).toSet();
   final migratedItems = <CareItem>[];
   const knownNames = <String>[
     '客厅',
@@ -324,12 +341,32 @@ class CareRepository {
     '玄关',
     '浴室',
     '洗手间',
+    'Living room',
+    'Bedroom',
+    'Kitchen',
+    'Bathroom',
+    'Balcony',
+    'Study',
+    'Dining room',
+    'Storage room',
+    'Entryway',
+    'Other',
   ];
   const separators = <String>[' · ', '·', '-', '—', '/'];
 
   for (final item in items) {
     final raw = item.location.trim();
-    if (raw.isEmpty || item.spaceId != null) {
+    final currentSpaceId = item.spaceId;
+    if (currentSpaceId != null) {
+      final retainedSpace = retainedSpaceById[currentSpaceId];
+      migratedItems.add(
+        retainedSpace == null || retainedSpace.id == currentSpaceId
+            ? item
+            : item.copyWith(spaceId: retainedSpace.id),
+      );
+      continue;
+    }
+    if (raw.isEmpty) {
       migratedItems.add(item);
       continue;
     }
@@ -353,20 +390,27 @@ class CareRepository {
       if (matched) break;
     }
 
-    final space = spaceByName.putIfAbsent(roomName, () {
-      var suffix = spaces.length + 1;
-      while (spaceIds.contains('legacy-space-$suffix')) {
-        suffix++;
-      }
-      final created = CareSpace(
-        id: 'legacy-space-$suffix',
-        type: careSpaceTypeForLegacyName(roomName),
-        name: roomName,
-      );
-      spaces.add(created);
-      spaceIds.add(created.id);
-      return created;
-    });
+    final knownType = knownCareSpaceType(roomName);
+    final matchingDefault = knownType == null
+        ? null
+        : defaultSpaceByType[knownType];
+    final space =
+        matchingDefault ??
+        spaceByName.putIfAbsent(roomName, () {
+          var suffix = spaces.length + 1;
+          while (spaceIds.contains('legacy-space-$suffix')) {
+            suffix++;
+          }
+          final created = CareSpace(
+            id: 'legacy-space-$suffix',
+            type: careSpaceTypeForLegacyName(roomName),
+            name: roomName,
+          );
+          spaces.add(created);
+          spaceIds.add(created.id);
+          if (knownType != null) defaultSpaceByType[knownType] = created;
+          return created;
+        });
     migratedItems.add(item.copyWith(spaceId: space.id, locationDetail: detail));
   }
 

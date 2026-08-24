@@ -1116,121 +1116,112 @@ class _ExecutionTimelineStep extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: enabled ? onTap : null,
-          child: SizedBox(
-            height: hasDescription ? 78 : 68,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: 74,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      if (!isLast)
-                        Positioned(
-                          top: hasDescription ? 58 : 54,
-                          bottom: 0,
-                          child: Container(
-                            width: 1.5,
-                            color: completed
-                                ? context.palette.success
-                                : context.palette.border,
-                          ),
-                        ),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: circleColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: borderColor,
-                            width: current ? 2.4 : 1.8,
-                          ),
-                          boxShadow: current
-                              ? <BoxShadow>[
-                                  BoxShadow(
-                                    color: context.palette.success.withValues(
-                                      alpha: 0.20,
-                                    ),
-                                    blurRadius: 0,
-                                    spreadRadius: 8,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: completed
-                            ? Icon(
-                                Icons.check_rounded,
-                                color: context.palette.onPrimary,
-                                size: 28,
-                              )
-                            : Center(
-                                child: Text(
-                                  '$number',
-                                  style: TextStyle(
-                                    color: current
-                                        ? context.palette.successStrong
-                                        : context.palette.muted,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                      ),
-                      if (current)
-                        Positioned(
-                          right: 0,
-                          child: Icon(
-                            Icons.arrow_right_rounded,
-                            color: context.palette.success,
-                            size: 28,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: hasDescription ? 78 : 68),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: AppBackButton.dimension + 16,
+                    child: Stack(
+                      alignment: Alignment.center,
                       children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            color: completed
-                                ? context.palette.primary
-                                : context.palette.ink,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            decoration: completed
-                                ? TextDecoration.lineThrough
-                                : null,
-                            decorationColor: context.palette.subtle,
-                          ),
-                        ),
-                        if (hasDescription) ...[
-                          const SizedBox(height: 3),
-                          Text(
-                            description,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: context.palette.muted,
-                              fontSize: 13,
-                              height: 1.25,
+                        if (!isLast)
+                          Positioned(
+                            top: hasDescription ? 58 : 54,
+                            bottom: 0,
+                            child: Container(
+                              width: 1.5,
+                              color: completed
+                                  ? context.palette.success
+                                  : context.palette.border,
                             ),
                           ),
-                        ],
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: AppBackButton.dimension,
+                          height: AppBackButton.dimension,
+                          decoration: BoxDecoration(
+                            color: circleColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: borderColor,
+                              width: current ? 2.4 : 1.8,
+                            ),
+                          ),
+                          child: completed
+                              ? Icon(
+                                  Icons.check_rounded,
+                                  color: context.palette.onPrimary,
+                                  size: 22,
+                                )
+                              : Center(
+                                  child: Text(
+                                    '$number',
+                                    style: TextStyle(
+                                      color: current
+                                          ? context.palette.successStrong
+                                          : context.palette.muted,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                        if (current)
+                          Positioned(
+                            right: 0,
+                            child: Icon(
+                              Icons.arrow_right_rounded,
+                              color: context.palette.success,
+                              size: 20,
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              color: completed
+                                  ? context.palette.primary
+                                  : context.palette.ink,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              decoration: completed
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                              decorationColor: context.palette.subtle,
+                            ),
+                          ),
+                          if (hasDescription) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              description,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: context.palette.muted,
+                                fontSize: 13,
+                                height: 1.25,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

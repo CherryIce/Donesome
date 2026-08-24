@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hearthio/app/locale_controller.dart';
+import 'package:hearthio/l10n/app_localizations.dart';
 import 'package:hearthio/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,18 +34,82 @@ CareItem _item({
 );
 
 void main() {
-  test('seeded and reset sample stays linked to the kitchen space', () async {
-    SharedPreferences.setMockInitialValues({});
+  test(
+    'resetting an English sample reuses the existing Chinese kitchen space',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        AppLocaleController.preferenceKey:
+            AppLanguageMode.simplifiedChinese.name,
+      });
+      final preferences = await SharedPreferences.getInstance();
+      final store = CareStore(repository: CareRepository(preferences));
+
+      await store.load();
+
+      expect(store.spaces.single.name, '厨房');
+      expect(store.items.single.spaceId, store.spaces.single.id);
+      final kitchenSpaceId = store.spaces.single.id;
+
+      await store.deleteExampleData();
+      store.updateLocalizations(lookupAppLocalizations(const Locale('en')));
+      await store.resetExampleData();
+
+      expect(store.spaces, hasLength(1));
+      expect(store.spaces.single.id, kitchenSpaceId);
+      expect(store.items.single.location, 'Kitchen');
+      expect(store.items.single.spaceId, kitchenSpaceId);
+      expect(store.locationLabelFor(store.items.single), 'Kitchen');
+
+      store.updateLocalizations(lookupAppLocalizations(const Locale('zh')));
+      expect(store.locationLabelFor(store.items.single), '厨房');
+    },
+  );
+
+  test('existing localized default-space duplicates merge on load', () async {
+    const chineseKitchen = CareSpace(id: 'kitchen-zh', type: '厨房', name: '厨房');
+    const englishKitchen = CareSpace(
+      id: 'kitchen-en',
+      type: '厨房',
+      name: 'Kitchen',
+    );
+    final item = _item(
+      id: 'sample-filter',
+      name: 'Sample · Kitchen water purifier',
+      location: 'Kitchen',
+      spaceId: englishKitchen.id,
+    );
+    SharedPreferences.setMockInitialValues({
+      AppLocaleController.preferenceKey: AppLanguageMode.simplifiedChinese.name,
+      CareRepository.storageKey: CareDataEnvelope(
+        items: [item],
+        spaces: const [chineseKitchen, englishKitchen],
+      ).encode(),
+    });
     final preferences = await SharedPreferences.getInstance();
     final store = CareStore(repository: CareRepository(preferences));
 
     await store.load();
 
-    expect(store.spaces.single.name, '厨房');
-    expect(store.items.single.spaceId, store.spaces.single.id);
-    await store.resetExampleData();
-    expect(store.items.single.spaceId, store.spaces.single.id);
+    expect(store.spaces.map((space) => space.id), [chineseKitchen.id]);
+    expect(store.spaces.single.name, chineseKitchen.name);
+    expect(store.items.single.spaceId, chineseKitchen.id);
     expect(store.locationLabelFor(store.items.single), '厨房');
+    final persisted = CareDataEnvelope.decode(
+      preferences.getString(CareRepository.storageKey)!,
+    );
+    expect(persisted.spaces, hasLength(1));
+    expect(persisted.items.single.spaceId, chineseKitchen.id);
+  });
+
+  test('custom spaces of a known type are never merged as defaults', () {
+    const customKitchen = CareSpace(id: 'prep-area', type: '厨房', name: '备餐区');
+    final result = migrateLegacyItemLocations(
+      [_item(id: 'sample', name: 'Sample', location: 'Kitchen')],
+      existingSpaces: const [customKitchen],
+    );
+
+    expect(result.spaces.map((space) => space.name), ['备餐区', 'Kitchen']);
+    expect(result.items.single.spaceId, isNot(customKitchen.id));
   });
 
   test(
@@ -111,6 +177,8 @@ void main() {
     'renaming a space updates linked item display and deletion keeps item',
     () async {
       SharedPreferences.setMockInitialValues({
+        AppLocaleController.preferenceKey:
+            AppLanguageMode.simplifiedChinese.name,
         CareRepository.storageKey: const CareDataEnvelope(items: []).encode(),
       });
       final preferences = await SharedPreferences.getInstance();
@@ -210,6 +278,7 @@ void main() {
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({
+      AppLocaleController.preferenceKey: AppLanguageMode.simplifiedChinese.name,
       CareRepository.storageKey: const CareDataEnvelope(items: []).encode(),
     });
     const room = CareSpace(id: 'living-room', type: '客厅', name: '客厅');

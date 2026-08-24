@@ -1,7 +1,8 @@
+import '../models/care_space.dart';
 import 'app_localizations.dart';
 
 extension HearthioCatalogLocalizations on AppLocalizations {
-  String spaceTypeLabel(String type) => switch (type) {
+  String spaceTypeLabel(String type) => switch (knownCareSpaceType(type)) {
     '客厅' => spaceTypeLivingRoom,
     '卧室' => spaceTypeBedroom,
     '厨房' => spaceTypeKitchen,
@@ -15,31 +16,34 @@ extension HearthioCatalogLocalizations on AppLocalizations {
     _ => type,
   };
 
-  String itemCategoryLabel(String category) => switch (category) {
-    '' || '未分类' => uncategorized,
-    '家具' || '家具与家居' => categoryFurniture,
-    '家电' || '家用电器' => categoryAppliances,
-    '厨房用品' => categoryKitchen,
-    '个人与卫浴' => categoryPersonalBathroom,
-    '织物与床品' => categoryTextilesBedding,
-    '清洁与收纳' => categoryCleaningStorage,
-    '小物品与工具' => categorySmallItemsTools,
-    '医疗保健' => categoryHealthcare,
-    '文件证件' => categoryDocuments,
-    '装饰与兴趣' => categoryDecorHobbies,
-    '滤芯与耗材' => categoryFiltersConsumables,
-    '车辆与出行' => categoryVehiclesTravel,
-    '宠物用品' => categoryPetSupplies,
-    '其他' || '其他物品' => categoryOtherItems,
-    _ => category,
-  };
+  String spaceNameLabel(CareSpace space) =>
+      careSpaceUsesDefaultName(space) ? spaceTypeLabel(space.type) : space.name;
+
+  String itemCategoryLabel(String category) =>
+      switch (canonicalItemCategory(category)) {
+        '' || '未分类' => uncategorized,
+        '家具' || '家具与家居' => categoryFurniture,
+        '家电' || '家用电器' => categoryAppliances,
+        '厨房用品' => categoryKitchen,
+        '个人与卫浴' => categoryPersonalBathroom,
+        '织物与床品' => categoryTextilesBedding,
+        '清洁与收纳' => categoryCleaningStorage,
+        '小物品与工具' => categorySmallItemsTools,
+        '医疗保健' => categoryHealthcare,
+        '文件证件' => categoryDocuments,
+        '装饰与兴趣' => categoryDecorHobbies,
+        '滤芯与耗材' => categoryFiltersConsumables,
+        '车辆与出行' => categoryVehiclesTravel,
+        '宠物用品' => categoryPetSupplies,
+        '其他' || '其他物品' => categoryOtherItems,
+        _ => category,
+      };
 
   String itemNameLabel({
     required String id,
     required bool isSample,
     required String name,
   }) {
-    if (id == 'sample-filter' && isSample) return sampleItemName;
     return name.trim().isEmpty || name == '未命名物品' ? unnamedItem : name;
   }
 
@@ -50,13 +54,32 @@ extension HearthioCatalogLocalizations on AppLocalizations {
     required String id,
     required bool isSample,
     required String notes,
-  }) => id == 'sample-filter' && isSample ? sampleItemNotes : notes;
+  }) => notes;
 
   String itemPresetLabel(String name) {
     if (!localeName.toLowerCase().startsWith('en')) return name;
     return _englishItemPresetLabels[name] ?? name;
   }
 }
+
+String canonicalItemCategory(String value) => switch (value.trim()) {
+  '家具' || '家具与家居' || 'Furniture' => '家具',
+  '家电' || '家用电器' || 'Home appliances' => '家用电器',
+  '厨房用品' || 'Kitchen items' => '厨房用品',
+  '个人与卫浴' || 'Personal & bathroom' => '个人与卫浴',
+  '织物与床品' || 'Textiles & bedding' => '织物与床品',
+  '清洁与收纳' || 'Cleaning & storage' => '清洁与收纳',
+  '小物品与工具' || 'Small items & tools' => '小物品与工具',
+  '医疗保健' || 'Healthcare' => '医疗保健',
+  '文件证件' || 'Documents' => '文件证件',
+  '装饰与兴趣' || 'Decor & hobbies' => '装饰与兴趣',
+  '滤芯与耗材' || 'Filters & consumables' => '滤芯与耗材',
+  '车辆与出行' || 'Vehicles & travel' => '车辆与出行',
+  '宠物用品' || 'Pet supplies' => '宠物用品',
+  '其他' || '其他物品' || 'Other items' => '其他物品',
+  '' || '未分类' || 'Uncategorized' => '',
+  _ => value,
+};
 
 const _englishItemPresetLabels = <String, String>{
   '沙发': 'Sofa',

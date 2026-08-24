@@ -21,12 +21,17 @@ class AppLocaleController extends ChangeNotifier {
     AppLanguageMode.english => const Locale('en'),
   };
 
-  Future<void> load() async {
+  static Future<AppLanguageMode> readSavedMode() async {
     final preferences = await SharedPreferences.getInstance();
     final saved = preferences.getString(preferenceKey);
-    final next = AppLanguageMode.values.where((mode) => mode.name == saved);
-    if (next.isEmpty || next.first == _mode) return;
-    _mode = next.first;
+    final matching = AppLanguageMode.values.where((mode) => mode.name == saved);
+    return matching.isEmpty ? AppLanguageMode.system : matching.first;
+  }
+
+  Future<void> load() async {
+    final next = await readSavedMode();
+    if (next == _mode) return;
+    _mode = next;
     notifyListeners();
   }
 
@@ -60,3 +65,10 @@ Locale resolveSupportedAppLocale(Locale? preferredLocale) {
   final preferred = preferredLocale ?? PlatformDispatcher.instance.locale;
   return Locale(preferred.languageCode.toLowerCase() == 'zh' ? 'zh' : 'en');
 }
+
+Locale resolveAppLocaleForMode(AppLanguageMode mode, {Locale? systemLocale}) =>
+    switch (mode) {
+      AppLanguageMode.system => resolveSupportedAppLocale(systemLocale),
+      AppLanguageMode.simplifiedChinese => const Locale('zh'),
+      AppLanguageMode.english => const Locale('en'),
+    };

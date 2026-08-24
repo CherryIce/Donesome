@@ -12,6 +12,8 @@ import 'package:flutter/cupertino.dart' show CupertinoPicker;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hearthio/app/locale_controller.dart';
+import 'package:hearthio/l10n/app_localizations.dart';
+import 'package:hearthio/l10n/catalog_l10n.dart';
 import 'package:hearthio/main.dart';
 import 'package:hearthio/privacy_policy_page.dart';
 import 'package:image_picker/image_picker.dart';
@@ -228,7 +230,9 @@ void main() {
   });
 
   test('first load seeds one explicitly marked purifier example', () async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({
+      AppLocaleController.preferenceKey: AppLanguageMode.simplifiedChinese.name,
+    });
     final preferences = await SharedPreferences.getInstance();
     final store = CareStore(repository: CareRepository(preferences));
 
@@ -249,6 +253,43 @@ void main() {
       '冲洗',
     ]);
     expect(CareItem.fromJson(store.items.single.toJson()).isSample, isTrue);
+  });
+
+  testWidgets('first load generates every sample field in system English', (
+    tester,
+  ) async {
+    tester.binding.platformDispatcher.localeTestValue = const Locale('en');
+    addTearDown(tester.binding.platformDispatcher.clearLocaleTestValue);
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final store = CareStore(repository: CareRepository(preferences));
+
+    await store.load();
+
+    final sample = store.items.single;
+    final plan = sample.plans.single;
+    expect(sample.name, 'Sample · Kitchen water purifier');
+    expect(sample.category, '滤芯与耗材');
+    expect(sample.location, 'Kitchen');
+    expect(
+      sample.notes,
+      'This is deletable sample data. After replacing the filter, record the date, model, and actual cost.',
+    );
+    expect(plan.title, 'Replace filter');
+    expect(plan.checklist.map((step) => step.title), [
+      'Verify model',
+      'Shut off water',
+      'Replace',
+      'Flush',
+    ]);
+    expect(plan.checklist.map((step) => step.description), [
+      'Confirm the water purifier model and compatible filter',
+      'Close the inlet valve and make sure the water has stopped',
+      'Remove the old filter and install the new one',
+      'Open the water supply and flush until the water runs clear',
+    ]);
+    expect(store.spaces.single.name, 'Kitchen');
+    expect(store.spaces.single.type, '厨房');
   });
 
   test(
@@ -278,6 +319,8 @@ void main() {
         photos: const [],
       );
       SharedPreferences.setMockInitialValues({
+        AppLocaleController.preferenceKey:
+            AppLanguageMode.simplifiedChinese.name,
         CareRepository.storageKey: CareDataEnvelope(
           items: [oldSample, userItem],
         ).encode(),
@@ -360,7 +403,9 @@ void main() {
   });
 
   test('resetting example data preserves user-created items', () async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({
+      AppLocaleController.preferenceKey: AppLanguageMode.simplifiedChinese.name,
+    });
     final preferences = await SharedPreferences.getInstance();
     final store = CareStore(repository: CareRepository(preferences));
     await store.load();
@@ -377,7 +422,22 @@ void main() {
       ),
     );
 
+    store.updateLocalizations(lookupAppLocalizations(const Locale('en')));
     await store.resetExampleData();
+
+    final sample = store.items.firstWhere((item) => item.isSample);
+    expect(sample.name, 'Sample · Kitchen water purifier');
+    expect(sample.category, '滤芯与耗材');
+    expect(
+      lookupAppLocalizations(
+        const Locale('en'),
+      ).itemCategoryLabel(sample.category),
+      'Filters & consumables',
+    );
+    expect(sample.location, 'Kitchen');
+    expect(sample.plans.single.title, 'Replace filter');
+    expect(sample.plans.single.checklist.first.title, 'Verify model');
+
     await store.deleteExampleData();
 
     expect(store.items.map((item) => item.id), contains('user-item'));
@@ -385,9 +445,60 @@ void main() {
   });
 
   testWidgets(
+    'built-in sample category and default space follow the current locale',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        AppLocaleController.preferenceKey: AppLanguageMode.english.name,
+      });
+      final preferences = await SharedPreferences.getInstance();
+      final store = CareStore(repository: CareRepository(preferences));
+      await store.load();
+      final sample = store.items.single;
+
+      expect(sample.name, 'Sample · Kitchen water purifier');
+      expect(store.spaces.single.name, 'Kitchen');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: EditorPage(store: store, item: sample),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sample · Kitchen water purifier'), findsOneWidget);
+      expect(find.byKey(const Key('edit-item-category-value')), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('edit-item-category-value')))
+            .data,
+        '滤芯与耗材',
+      );
+      expect(find.text('厨房'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('edit-item-category-field')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Filters & consumables'), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('edit-item-category-picker')),
+          matching: find.text('滤芯与耗材'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
     'reviewer demo completes the sample and opens its lifecycle without photos',
     (tester) async {
-      SharedPreferences.setMockInitialValues({});
+      SharedPreferences.setMockInitialValues({
+        AppLocaleController.preferenceKey:
+            AppLanguageMode.simplifiedChinese.name,
+      });
       final preferences = await SharedPreferences.getInstance();
       final store = CareStore(
         repository: CareRepository(preferences),
@@ -698,6 +809,19 @@ void main() {
       expect(find.text('请确认净水器型号与适配滤芯'), findsOneWidget);
       expect(find.text('关闭进水阀，确保停止进水'), findsOneWidget);
       expect(find.text('保养前留照（可选）'), findsOneWidget);
+      final stepIndicator = find.descendant(
+        of: find.byKey(const ValueKey('execution-step-filter-step-0')),
+        matching: find.byType(AnimatedContainer),
+      );
+      final backControl = find.descendant(
+        of: find.byType(AppBackButton),
+        matching: find.byType(IconButton),
+      );
+      expect(
+        tester.getSize(stepIndicator),
+        const Size.square(AppBackButton.dimension),
+      );
+      expect(tester.getSize(stepIndicator), tester.getSize(backControl));
       expect(
         tester
             .widget<InkWell>(
@@ -786,6 +910,60 @@ void main() {
       await tester.binding.setSurfaceSize(null);
     },
   );
+
+  testWidgets('English execution steps fit an iPhone viewport', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(402, 874));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final plan = maintenanceTemplates
+        .firstWhere((template) => template.id == 'water-purifier-filter')
+        .createPlan(
+          planId: 'filter',
+          referenceDate: addMaintenanceDays(DateTime.now(), -180),
+        );
+    final item = CareItem(
+      id: 'purifier',
+      name: 'Kitchen water purifier',
+      category: '滤芯与耗材',
+      location: 'Kitchen',
+      brand: '',
+      model: '',
+      notes: '',
+      photos: const [],
+      plans: [plan],
+    );
+    final task = MaintenanceTask(
+      item: item,
+      plan: plan,
+      status: MaintenancePlanStatus.evaluate(plan),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: MaintenanceExecutionPage(
+          controller: _FakeExecutionController(task: task),
+          task: task,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final step in plan.checklist) {
+      await tester.scrollUntilVisible(
+        find.byKey(ValueKey('execution-step-${step.id}')),
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    }
+    expect(
+      find.text('Open the water supply and flush until the water runs clear'),
+      findsOneWidget,
+    );
+  });
 
   testWidgets('fixed action area includes the system bottom inset', (
     tester,
@@ -1363,6 +1541,39 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('item detail wraps long notes instead of truncating them', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(402, 874));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    const longNote = '这是用于验证详情卡片自适应换行的长备注，完整内容不应被省略，并且需要始终保留在卡片边界以内。';
+    final item = CareItem(
+      id: 'long-note-item',
+      name: '厨房净水器',
+      category: '滤芯与耗材',
+      location: '厨房',
+      brand: '',
+      model: '',
+      notes: longNote,
+      photos: const [],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DetailPage(store: CareStore(), item: item),
+      ),
+    );
+    await tester.scrollUntilVisible(
+      find.text(longNote),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.getSize(find.text(longNote)).height, greaterThan(24));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('dashboard highlights the most urgent maintenance task', (
     tester,
   ) async {
@@ -1800,6 +2011,45 @@ void main() {
     expect(find.textContaining('今日到期'), findsWidgets);
     expect(tester.takeException(), isNull);
     await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('schedule empty-day copy wraps at iPhone width', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(402, 874));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final today = maintenanceDateOnly(DateTime.now());
+    final plan = MaintenancePlan(
+      id: 'future-plan',
+      title: 'Filter replacement',
+      intervalDays: 180,
+      dueDate: addMaintenanceDays(today, 1),
+    );
+    final item = CareItem(
+      id: 'future-item',
+      name: 'Water purifier',
+      category: '滤芯与耗材',
+      location: 'Kitchen',
+      brand: '',
+      model: '',
+      notes: '',
+      photos: const [],
+      plans: [plan],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: SchedulePage(store: CareStore()..items = [item]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Nothing is scheduled for this day. Enjoy the time.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
