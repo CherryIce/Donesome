@@ -1,0 +1,59 @@
+# HEARTHIO FLUTTER APP CONFIG: review signing material before the first remote build.
+schema_version: 2
+
+release:
+  allowed_events:
+    - workflow_dispatch
+  allowed_ref_patterns:
+    - refs/heads/main
+    - refs/heads/release/*
+    - refs/tags/ios-v*
+
+app:
+  name: Hearthio
+  team_id: Z353FCBY9T
+  asc_app_id: "6804913721"
+  primary_bundle_id: com.Hearthio.lite
+  bundle_ids:
+    - bundle_id: com.Hearthio.lite
+      target: Runner
+      profile_alias: app
+
+flutter:
+  project_directory: Hearthio
+  version: 3.35.7
+  channel: stable
+  architecture: arm64
+  sdk_sha256: 4d7aaadc4893f9216d4e2ecbe0e8fb4213e9bd49d29fd5f441f34fcc05758e2b
+
+build:
+  container_type: workspace
+  container_path: Hearthio/ios/Runner.xcworkspace
+  scheme: Run-Release
+  configuration: Release
+  runner: macos-26
+  xcode_path: /Applications/Xcode_26.4.app
+  dependency_mode: flutter
+  dependency_command: ""
+
+versioning:
+  marketing_version_source: input
+  build_number_strategy: github_run_number
+  build_number_override_allowed: true
+
+export:
+  method: app-store-connect
+  upload_symbols: true
+  strip_swift_symbols: true
+
+upload:
+  enabled_by_default: false
+  asc_key_type: team
+  wait_level: testflight_internal_ready
+  timeout_minutes: 45
+  poll_interval_seconds: 30
+  internal_beta_group_ids: []
+
+artifacts:
+  retention_days: 30
+  keep_xcarchive: false
