@@ -14,12 +14,14 @@ third-party JavaScript.
 
 ## Replace before publishing
 
-Search this directory for the following visible placeholders:
+The operator is listed as `Hearthio 独立开发者` / `Hearthio Independent
+Developer`, the public contact address is `djl13333995679@163.com`, and the
+policy effective date is August 25, 2026.
 
-- `<开发者或运营主体名称>` / `<Developer or operator name>`
-- `<example@email.com>`
-- `<YYYY-MM-DD>`
-- `<网站托管服务商>` / `<Website hosting provider>`
+The public privacy page uses general website-infrastructure wording and does not
+show an internal hosting reminder. After the production host is selected, record
+the provider in the release checklist and optionally name it in the policy with
+a link to its privacy notice.
 
 Then re-audit the privacy wording against the final release binary and App
 Privacy answers. Do not submit the placeholder values to App Store Connect.

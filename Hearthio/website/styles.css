@@ -1026,13 +1026,19 @@ summary {
 }
 
 .support-contact code,
-.policy-contact code {
+.policy-contact code,
+.email-link {
   align-self: center;
   overflow-wrap: anywhere;
   color: var(--green-800);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 13px;
   font-weight: 700;
+}
+
+.email-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .copy-button {
@@ -1244,32 +1250,8 @@ summary {
 }
 
 .legal-main {
-  padding: 0 0 110px;
+  padding: 56px 0 110px;
   background: var(--canvas);
-}
-
-.policy-draft-note {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 22px;
-  align-items: center;
-  padding: 18px 22px;
-  border: 1px solid #efc6a8;
-  border-radius: 18px;
-  background: var(--orange-soft);
-  transform: translateY(-50%);
-}
-
-.policy-draft-note strong {
-  color: #8a542e;
-  font-size: 12px;
-}
-
-.policy-draft-note p {
-  margin: 0;
-  color: #76583f;
-  font-size: 11px;
-  line-height: 1.6;
 }
 
 .policy-summary {
@@ -1692,12 +1674,6 @@ summary {
     width: 100%;
   }
 
-  .policy-draft-note {
-    grid-template-columns: 1fr;
-    gap: 7px;
-    transform: translateY(-24px);
-  }
-
   .policy-summary {
     margin-top: 0;
   }
@@ -1887,7 +1863,6 @@ summary {
   .site-header,
   .site-footer,
   .policy-toc,
-  .policy-draft-note,
   .copy-button,
   .copy-status {
     display: none !important;
