@@ -233,7 +233,7 @@ abstract class AppLocalizations {
   /// No description provided for @featureIntroSampleTipBody.
   ///
   /// In en, this message translates to:
-  /// **'Hearthio creates one water-purifier sample the first time you enter. Open it to see how an item profile and care plan work together.'**
+  /// **'Hearthio creates one water-purifier sample the first time you enter. Open it to see how an item profile and care plan work together; there is nothing to manage later in Settings.'**
   String get featureIntroSampleTipBody;
 
   /// No description provided for @featureIntroBackupTitle.
@@ -247,6 +247,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your archive stays on this device by default. After adding important photos and records, export a full backup from Settings.'**
   String get featureIntroBackupBody;
+
+  /// No description provided for @featureGuideLoadFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The feature guide could not be opened'**
+  String get featureGuideLoadFailedTitle;
+
+  /// No description provided for @featureGuideLoadFailedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The local guide did not load correctly. Please try again.'**
+  String get featureGuideLoadFailedBody;
+
+  /// No description provided for @featureGuideRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload'**
+  String get featureGuideRetry;
 
   /// No description provided for @commonCancel.
   ///
@@ -3202,7 +3220,7 @@ abstract class AppLocalizations {
   /// No description provided for @sampleItemNotes.
   ///
   /// In en, this message translates to:
-  /// **'This is deletable sample data. After replacing the filter, record the date, model, and actual cost.'**
+  /// **'This is sample data. After replacing the filter, record the date, model, and actual cost.'**
   String get sampleItemNotes;
 
   /// No description provided for @categoryFurniture.

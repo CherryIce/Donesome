@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'feature_guide_page.dart';
 import 'l10n/l10n.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_back_button.dart';
@@ -44,6 +45,7 @@ class FeatureIntroPage extends StatelessWidget {
             icon: Icons.inventory_2_outlined,
             title: l10n.featureIntroArchiveTitle,
             body: l10n.featureIntroArchiveBody,
+            onTap: () => _openGuide(context, FeatureGuideTopic.itemProfile),
           ),
           const SizedBox(height: 12),
           _FeatureStepCard(
@@ -52,6 +54,7 @@ class FeatureIntroPage extends StatelessWidget {
             icon: Icons.event_repeat_rounded,
             title: l10n.featureIntroPlanTitle,
             body: l10n.featureIntroPlanBody,
+            onTap: () => _openGuide(context, FeatureGuideTopic.carePlan),
           ),
           const SizedBox(height: 12),
           _FeatureStepCard(
@@ -60,6 +63,7 @@ class FeatureIntroPage extends StatelessWidget {
             icon: Icons.task_alt_rounded,
             title: l10n.featureIntroCompleteTitle,
             body: l10n.featureIntroCompleteBody,
+            onTap: () => _openGuide(context, FeatureGuideTopic.completeCare),
           ),
           const SizedBox(height: 12),
           _FeatureStepCard(
@@ -68,6 +72,7 @@ class FeatureIntroPage extends StatelessWidget {
             icon: Icons.insights_rounded,
             title: l10n.featureIntroReviewTitle,
             body: l10n.featureIntroReviewBody,
+            onTap: () => _openGuide(context, FeatureGuideTopic.historyReport),
           ),
           const SizedBox(height: 18),
           _FeatureTip(
@@ -83,6 +88,13 @@ class FeatureIntroPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _openGuide(BuildContext context, FeatureGuideTopic topic) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => FeatureGuidePage(topic: topic)),
     );
   }
 }
@@ -192,74 +204,89 @@ class _FeatureStepCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.body,
+    required this.onTap,
   });
 
   final String number;
   final IconData icon;
   final String title;
   final String body;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: context.palette.paper,
+  Widget build(BuildContext context) => Material(
+    color: context.palette.paper,
+    borderRadius: BorderRadius.circular(22),
+    child: InkWell(
+      onTap: onTap,
       borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: context.palette.border),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: context.palette.mist,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(icon, color: context.palette.primary, size: 24),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: context.palette.border),
         ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: context.palette.mist,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, color: context.palette.primary, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        color: context.palette.ink,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            color: context.palette.ink,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
-                    ),
+                      Text(
+                        number,
+                        style: TextStyle(
+                          color: context.palette.subtle,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: .8,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: context.palette.muted,
+                        size: 20,
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 7),
                   Text(
-                    number,
+                    body,
                     style: TextStyle(
-                      color: context.palette.subtle,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: .8,
+                      color: context.palette.muted,
+                      fontSize: 13,
+                      height: 1.5,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 7),
-              Text(
-                body,
-                style: TextStyle(
-                  color: context.palette.muted,
-                  fontSize: 13,
-                  height: 1.5,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
+      ),
     ),
   );
 }

@@ -6513,6 +6513,16 @@ class _DetailPageState extends State<DetailPage> {
     ),
   );
 
+  Future<void> _openPlanSetup() async {
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            EditorPage(store: store, item: item, focusMaintenancePlans: true),
+      ),
+    );
+  }
+
   Widget _plansSection() {
     final visiblePlans = item.plans.where((plan) => !plan.archived).toList()
       ..sort((a, b) {
@@ -6548,9 +6558,24 @@ class _DetailPageState extends State<DetailPage> {
           const SizedBox(height: 8),
           if (visiblePlans.isEmpty)
             BreezeSurface(
-              child: Text(
-                context.l10n.detailNoVisiblePlans,
-                style: TextStyle(color: context.palette.muted),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.l10n.detailNoVisiblePlans,
+                    style: TextStyle(color: context.palette.muted),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonalIcon(
+                      key: const Key('detail-set-maintenance-plan'),
+                      onPressed: _openPlanSetup,
+                      icon: const Icon(Icons.event_repeat_rounded),
+                      label: Text(context.l10n.setPlan),
+                    ),
+                  ),
+                ],
               ),
             )
           else
@@ -6871,16 +6896,19 @@ class EditorPage extends StatefulWidget {
     required this.store,
     this.item,
     this.initialSpaceId,
+    this.focusMaintenancePlans = false,
   });
   final CareStore store;
   final CareItem? item;
   final String? initialSpaceId;
+  final bool focusMaintenancePlans;
   @override
   State<EditorPage> createState() => _EditorPageState();
 }
 
 class _EditorPageState extends State<EditorPage> {
   final form = GlobalKey<FormState>();
+  final _maintenancePlansKey = GlobalKey();
   late final TextEditingController name,
       customName,
       search,
@@ -6901,6 +6929,7 @@ class _EditorPageState extends State<EditorPage> {
   bool _showSupplement = false;
   bool _advancedExpanded = false;
   bool _brandModelExpanded = false;
+  bool _initialPlanFocusScheduled = false;
   String? _selectedPresetName;
   IconData _selectedPresetIcon = Icons.inventory_2_outlined;
   String? _selectedSpaceId;
@@ -6962,6 +6991,27 @@ class _EditorPageState extends State<EditorPage> {
       c.dispose();
     }
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!widget.focusMaintenancePlans ||
+        widget.item == null ||
+        _initialPlanFocusScheduled) {
+      return;
+    }
+    _initialPlanFocusScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final planContext = _maintenancePlansKey.currentContext;
+      if (!mounted || planContext == null) return;
+      Scrollable.ensureVisible(
+        planContext,
+        alignment: .12,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   @override
@@ -7038,6 +7088,7 @@ class _EditorPageState extends State<EditorPage> {
           ),
           const SizedBox(height: 10),
           MaintenancePlansEditorSection(
+            key: _maintenancePlansKey,
             plans: plans,
             records: widget.item?.records ?? const [],
             onChanged: (value) => setState(() => plans = value),

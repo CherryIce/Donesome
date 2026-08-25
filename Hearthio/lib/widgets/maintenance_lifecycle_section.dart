@@ -575,7 +575,7 @@ class _FactRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 45,
+          width: 72,
           child: Text(
             label,
             style: TextStyle(color: context.palette.muted, fontSize: 13),

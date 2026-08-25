@@ -76,13 +76,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get featureIntroSampleTipBody =>
-      '首次进入时会自动创建一条净水器示例。打开它，就能看到物品档案和保养计划如何配合。';
+      '首次进入时会自动创建一条净水器示例。打开它，就能看到物品档案和保养计划如何配合；之后无需在设置中单独管理。';
 
   @override
   String get featureIntroBackupTitle => '记得定期备份';
 
   @override
   String get featureIntroBackupBody => '档案默认保存在本机。积累重要照片和记录后，可在设置中导出完整备份。';
+
+  @override
+  String get featureGuideLoadFailedTitle => '功能教程暂时无法打开';
+
+  @override
+  String get featureGuideLoadFailedBody => '本地教程资源没有正确加载，请重试。';
+
+  @override
+  String get featureGuideRetry => '重新加载';
 
   @override
   String get commonCancel => '取消';
@@ -1738,7 +1747,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sampleItemName => '示例 · 厨房净水器';
 
   @override
-  String get sampleItemNotes => '这是可删除的示例数据：完成更换滤芯后，可以记录日期、型号和实际费用。';
+  String get sampleItemNotes => '这是示例数据：完成更换滤芯后，可以记录日期、型号和实际费用。';
 
   @override
   String get categoryFurniture => '家具';

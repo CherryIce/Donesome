@@ -274,7 +274,7 @@ void main() {
     expect(sample.location, 'Kitchen');
     expect(
       sample.notes,
-      'This is deletable sample data. After replacing the filter, record the date, model, and actual cost.',
+      'This is sample data. After replacing the filter, record the date, model, and actual cost.',
     );
     expect(plan.title, 'Replace filter');
     expect(plan.checklist.map((step) => step.title), [
@@ -2413,6 +2413,16 @@ void main() {
     );
     expect(find.text('未填写购买日期'), findsOneWidget);
     expect(find.text('0 次'), findsOneWidget);
+    expect(
+      find.byKey(const Key('detail-set-maintenance-plan')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('detail-set-maintenance-plan')));
+    await tester.pumpAndSettle();
+    expect(find.byType(EditorPage), findsOneWidget);
+    expect(find.byKey(const Key('add-maintenance-plan')), findsOneWidget);
+    Navigator.of(tester.element(find.byType(EditorPage))).pop();
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byKey(const Key('maintenance-timeline-empty')),
       400,

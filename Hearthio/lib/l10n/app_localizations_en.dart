@@ -84,7 +84,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get featureIntroSampleTipBody =>
-      'Hearthio creates one water-purifier sample the first time you enter. Open it to see how an item profile and care plan work together.';
+      'Hearthio creates one water-purifier sample the first time you enter. Open it to see how an item profile and care plan work together; there is nothing to manage later in Settings.';
 
   @override
   String get featureIntroBackupTitle => 'Back up regularly';
@@ -92,6 +92,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get featureIntroBackupBody =>
       'Your archive stays on this device by default. After adding important photos and records, export a full backup from Settings.';
+
+  @override
+  String get featureGuideLoadFailedTitle =>
+      'The feature guide could not be opened';
+
+  @override
+  String get featureGuideLoadFailedBody =>
+      'The local guide did not load correctly. Please try again.';
+
+  @override
+  String get featureGuideRetry => 'Reload';
 
   @override
   String get commonCancel => 'Cancel';
@@ -1976,7 +1987,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sampleItemNotes =>
-      'This is deletable sample data. After replacing the filter, record the date, model, and actual cost.';
+      'This is sample data. After replacing the filter, record the date, model, and actual cost.';
 
   @override
   String get categoryFurniture => 'Furniture';

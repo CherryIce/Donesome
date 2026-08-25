@@ -469,7 +469,11 @@ class _MaintenancePlanEditorPageState extends State<MaintenancePlanEditorPage> {
     return Scaffold(
       appBar: AppBar(
         leading: const AppBackButton(),
-        title: Text(l10n.editMaintenancePlan),
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(l10n.editMaintenancePlan),
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),

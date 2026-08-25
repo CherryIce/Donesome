@@ -81,7 +81,7 @@
 
 本 App 不需要账号或登录，核心保养流程不依赖网络或外部设备。全新安装后可点击引导页右上角“跳过”直接进入首页。
 
-首页已提供一条明确标记且可删除的“示例 · 厨房净水器”，其中“更换滤芯”任务默认今天到期。建议按以下路径检查核心功能：
+首页已提供一条明确标记的“示例 · 厨房净水器”，其中“更换滤芯”任务默认今天到期。建议按以下路径检查核心功能：
 
 1. 在首页找到“示例 · 厨房净水器 / 更换滤芯”，点击“开始保养”。
 2. 勾选“核对型号、关闭水源、更换、冲洗”四个示例步骤。
@@ -90,13 +90,13 @@
 5. 点击“查看生命周期”，App 会进入该示例物品详情；可以核对累计保养次数、实际费用、下一项任务和刚才生成的时间线记录。
 6. 返回首页后点击底部“报告”，可查看只基于真实记录与计划状态生成的保养报告。
 
-如果通知权限尚未开启，完成结果页会如实提示通知未重新安排，但记录和下一次日期已经保存；通知不是完成流程的前提。示例数据可在“设置 → 管理示例数据”删除或重置，重置不会删除用户创建的物品。
+如果通知权限尚未开启，完成结果页会如实提示通知未重新安排，但记录和下一次日期已经保存；通知不是完成流程的前提。示例在首次进入时自动创建，之后按普通物品使用，无需在设置中单独管理。
 
 ### English
 
 No account or sign-in is required. The core maintenance flow works without a network connection or external hardware. On a fresh install, tap “跳过” at the top-right of onboarding to open the Home screen.
 
-A clearly marked and removable sample item, “示例 · 厨房净水器”, is available on Home. Its “更换滤芯” task is due today.
+A clearly marked sample item, “示例 · 厨房净水器”, is available on Home. Its “更换滤芯” task is due today.
 
 1. Tap “开始保养” on the sample task.
 2. Check the four sample steps: model verification, water shutoff, replacement, and flushing.
@@ -105,7 +105,7 @@ A clearly marked and removable sample item, “示例 · 厨房净水器”, is 
 5. Tap “查看生命周期” to open the sample item detail and verify its completion count, actual cost, next task, and new timeline record.
 6. Return to Home and open the “报告” tab to view a report derived only from actual records and plan states.
 
-If notification permission is not enabled, the result screen states that the notification was not rescheduled, while the maintenance record and next date remain saved. The sample can be deleted or reset under Settings → Manage Sample Data; resetting it does not remove user-created items.
+If notification permission is not enabled, the result screen states that the notification was not rescheduled, while the maintenance record and next date remain saved. The sample is created on first launch, behaves like a regular item afterward, and needs no separate management in Settings.
 
 ## 4. 六张截图清单
 
@@ -113,7 +113,7 @@ If notification permission is not enabled, the result screen states that the not
 
 | 顺序 | 建议标题 | 二进制内页面与准备动作 | 必须可见的事实 |
 |---:|---|---|---|
-| 1 | 今天该做的保养，一眼看清 | 重置示例数据后进入首页 | 示例净水器、“更换滤芯”、今日到期、开始保养 |
+| 1 | 今天该做的保养，一眼看清 | 全新安装后进入首页 | 示例净水器、“更换滤芯”、今日到期、开始保养 |
 | 2 | 一件设备，可安排多项具体任务 | 打开示例详情或物品编辑页的保养计划区域；需要多计划画面时使用人工创建的真实测试数据 | 计划名称、周期、提前天数、步骤数；模板字段可编辑 |
 | 3 | 按步骤执行，记录真实结果 | 从示例任务进入“开始保养”页并填写 `¥129`、`PP 棉滤芯 A1` | 原计划日期、四个步骤、实际费用、耗材与可选照片入口 |
 | 4 | 完成本次，自动进入下一周期 | 完成示例任务后停留在结果页 | 完成日期、本次费用、下一次计划、提前提醒天数 |
@@ -140,5 +140,5 @@ If notification permission is not enabled, the result screen states that the not
 - [ ] App Privacy 已按最终依赖、网络行为和服务重新审计。
 - [ ] 六张截图来自最终 TestFlight 构建并逐项核对。
 - [ ] Review Notes 中的按钮名称和导航路径在提交构建上逐步复现。
-- [ ] 示例数据可删除、可重置，重置不影响用户数据。
+- [ ] 示例数据首次进入自动创建，后续无需在设置中单独管理。
 - [ ] 不包含“智能诊断”“延长寿命”等无法证明的结论。
