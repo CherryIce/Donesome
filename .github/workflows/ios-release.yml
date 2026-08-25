@@ -40,7 +40,7 @@ jobs:
           persist-credentials: false
 
       - name: Build, retain, and optionally upload Flutter iOS app
-        uses: CherryIce/ios-multi-app-cloud-build-system/.github/actions/build-upload@8ccc8f888cd0c4e6744375a2738933e8e419354f
+        uses: CherryIce/ios-multi-app-cloud-build-system/.github/actions/build-upload@df7dfa59be2f0026bb3a33815544fcf488c5651d
         with:
           config_path: .github/ios-build.yml
           marketing_version: ${{ inputs.marketing_version }}
