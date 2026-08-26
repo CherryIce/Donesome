@@ -5987,7 +5987,13 @@ class _SettingsPageState extends State<SettingsPage> {
               subtitle: l10n.privacyPolicySubtitle,
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
+                MaterialPageRoute(
+                  builder: (_) => PrivacyPolicyPage(
+                    remoteUrl: privacyPolicyUrlForLocale(
+                      Localizations.localeOf(context),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

@@ -1306,6 +1306,21 @@ void main() {
     expect(find.textContaining('物品信息、照片、维护记录和计划默认保存在本机'), findsOneWidget);
   });
 
+  test('privacy policy URL follows the effective app locale', () {
+    expect(
+      privacyPolicyUrlForLocale(const Locale('zh')),
+      'https://hearthio.app/privacy.html?lang=zh',
+    );
+    expect(
+      privacyPolicyUrlForLocale(const Locale('en')),
+      'https://hearthio.app/privacy.html?lang=en',
+    );
+    expect(
+      privacyPolicyUrlForLocale(const Locale('fr')),
+      'https://hearthio.app/privacy.html?lang=en',
+    );
+  });
+
   testWidgets(
     'opening home does not mark notification permission as prompted',
     (tester) async {
