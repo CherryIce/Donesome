@@ -82,6 +82,25 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
     }
   }
 
+  void _reloadPolicy() {
+    final controller = _controller;
+    final policyUri = _policyUri;
+    if (controller == null || policyUri == null) return;
+
+    setState(() {
+      _loadError = null;
+      _progress = 0;
+    });
+    // A failed WKWebView navigation may not leave a history item for reload().
+    // Wait until the WebView is mounted again, then start a fresh request.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || controller != _controller || policyUri != _policyUri) {
+        return;
+      }
+      unawaited(controller.loadRequest(policyUri));
+    });
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
@@ -91,10 +110,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
         if (_controller != null)
           IconButton(
             tooltip: context.l10n.commonRefresh,
-            onPressed: () {
-              setState(() => _loadError = null);
-              unawaited(_controller!.reload());
-            },
+            onPressed: _reloadPolicy,
             icon: const Icon(Icons.refresh_rounded),
           ),
       ],
@@ -120,10 +136,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
         title: context.l10n.privacyLoadFailedTitle,
         message: context.l10n.privacyLoadFailedMessage(_loadError!),
         actionLabel: context.l10n.privacyReload,
-        onAction: () {
-          setState(() => _loadError = null);
-          unawaited(_controller!.reload());
-        },
+        onAction: _reloadPolicy,
       );
     }
     return WebViewWidget(controller: _controller!);
