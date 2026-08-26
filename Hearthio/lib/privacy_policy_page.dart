@@ -9,12 +9,16 @@ import 'theme/app_theme.dart';
 import 'widgets/app_back_button.dart';
 import 'widgets/app_safe_area.dart';
 
-/// Configure the production URL with:
-/// `--dart-define=PRIVACY_POLICY_URL=https://example.com/privacy`.
-const privacyPolicyUrl = String.fromEnvironment('PRIVACY_POLICY_URL');
+const privacyPolicyEnglishUrl = 'https://hearthio.app/privacy.html?lang=en';
+const privacyPolicyChineseUrl = 'https://hearthio.app/privacy.html?lang=zh';
+
+String privacyPolicyUrlForLocale(Locale locale) =>
+    locale.languageCode.toLowerCase() == 'zh'
+    ? privacyPolicyChineseUrl
+    : privacyPolicyEnglishUrl;
 
 class PrivacyPolicyPage extends StatefulWidget {
-  const PrivacyPolicyPage({super.key, this.remoteUrl = privacyPolicyUrl});
+  const PrivacyPolicyPage({super.key, required this.remoteUrl});
 
   final String remoteUrl;
 
