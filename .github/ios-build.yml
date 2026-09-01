@@ -49,7 +49,7 @@ export:
 upload:
   enabled_by_default: false
   asc_key_type: team
-  wait_level: testflight_internal_ready
+  wait_level: asc_appeared
   timeout_minutes: 45
   poll_interval_seconds: 30
   internal_beta_group_ids: []
