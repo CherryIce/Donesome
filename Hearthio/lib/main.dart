@@ -17,6 +17,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:stmini_flutter/stmini_flutter.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:url_launcher/url_launcher.dart';
@@ -5985,16 +5986,25 @@ class _SettingsPageState extends State<SettingsPage> {
               icon: Icons.privacy_tip_outlined,
               title: l10n.privacyPolicyTitle,
               subtitle: l10n.privacyPolicySubtitle,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PrivacyPolicyPage(
-                    remoteUrl: privacyPolicyUrlForLocale(
-                      Localizations.localeOf(context),
-                    ),
+              onTap: () async {
+                final remoteUrl = privacyPolicyUrlForLocale(
+                  Localizations.localeOf(context),
+                );
+                if (Platform.isIOS) {
+                  await StminiFlutter.openWeb(
+                    remoteUrl,
+                    title: l10n.privacyPolicyTitle,
+                  );
+                  return;
+                }
+                if (!context.mounted) return;
+                await Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => PrivacyPolicyPage(remoteUrl: remoteUrl),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
         ),
