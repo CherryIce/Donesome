@@ -40,4 +40,19 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
   end
+
+  # MBProgressHUD 1.2.0 predates Apple's privacy manifest requirement. Keep the
+  # manifest in the app repository and copy it into MBProgressHUD.framework.
+  mbprogresshud_target = installer.pods_project.targets.find { |target| target.name == 'MBProgressHUD' }
+  if mbprogresshud_target
+    privacy_manifest_path = File.join(__dir__, 'PrivacyManifests', 'MBProgressHUD', 'PrivacyInfo.xcprivacy')
+    privacy_manifest_reference = installer.pods_project.files.find do |file|
+      file.real_path.to_s == privacy_manifest_path
+    end
+    privacy_manifest_reference ||= installer.pods_project.main_group.new_file(privacy_manifest_path)
+
+    unless mbprogresshud_target.resources_build_phase.files_references.include?(privacy_manifest_reference)
+      mbprogresshud_target.resources_build_phase.add_file_reference(privacy_manifest_reference)
+    end
+  end
 end
