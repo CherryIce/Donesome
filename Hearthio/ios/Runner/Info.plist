@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>用于拍摄物品凭证、说明书、保修卡和维护记录照片。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>用于将你主动保存的图片添加到系统相册。</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>用于让你主动选择并保存物品凭证、说明书或保修照片。</string>
 	<key>UIApplicationSceneManifest</key>

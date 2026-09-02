@@ -1,3 +1,4 @@
 "CFBundleDisplayName" = "家务志";
 "NSCameraUsageDescription" = "用于拍摄物品凭证、说明书、保修卡和维护记录照片。";
+"NSPhotoLibraryAddUsageDescription" = "用于将你主动保存的图片添加到系统相册。";
 "NSPhotoLibraryUsageDescription" = "用于让你主动选择并保存物品凭证、说明书、保修或维护照片。";
