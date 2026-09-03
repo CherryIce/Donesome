@@ -14,7 +14,6 @@ Pod::Spec.new do |s|
   s.dependency 'Masonry'
   s.dependency 'SDWebImage'
   s.dependency 'HXWRefresh'
-  s.dependency 'MBProgressHUD'
   s.dependency 'Toast-Swift'
   s.dependency 'ZIPFoundation', '~> 0.9'
 

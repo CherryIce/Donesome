@@ -280,6 +280,14 @@ import UIKit
         config.params?.removeValue(forKey: "link")
         config.params?.removeValue(forKey: "permission")
         if let cachedNavigationController = STWebMiniProgramKeepAliveStore.shared.take(miniId: name, config: config) {
+            // A cached Mini was hosted in a 1×1 invisible view. UIKit normally
+            // lays it out again during `present`, but a custom transition can
+            // begin before that layout pass and retain the old scale/frame as
+            // a shrunken card. Reset its visible geometry before presentation.
+            cachedNavigationController.loadViewIfNeeded()
+            cachedNavigationController.view.transform = .identity
+            cachedNavigationController.view.frame = crl.view.bounds
+            cachedNavigationController.view.alpha = 1
             cachedNavigationController.view.backgroundColor = .white
             cachedNavigationController.modalPresentationStyle = .custom
             cachedNavigationController.hidesBottomBarWhenPushed = true

@@ -120,6 +120,13 @@ struct STWebRouterApi {
 
         var routeParams = model.params
         routeParams.removeValue(forKey: "methodId")
+        // A login requested by an online `/web` is an authentication detour,
+        // not a normal entry into the package profile page. The local H5
+        // consumes this marker through its existing `isBack` contract and
+        // pops this child back to the original `/web` after success.
+        if router == "/login" || router == "/mine/login" {
+            routeParams["isBack"] = "1"
+        }
         guard JSONSerialization.isValidJSONObject(routeParams),
               let routeData = try? JSONSerialization.data(withJSONObject: routeParams),
               let localPage = STWebResourceManager.installedMiniPackageLocalPageURL(
@@ -192,10 +199,9 @@ struct STWebRouterApi {
     }
 
     private static func trace(_ message: String) {
-        // NSLog is unconditional so this remains visible from a physical
-        // device even when the Pod's DEBUG compilation flag differs from the
-        // Runner target's flag. STProjectHelper.Log remains the file/event log.
-        NSLog("[STMini][web-router] %@", message)
+        // STProjectHelper writes to the Xcode console only in DEBUG and
+        // forwards the same transient event to an embedding Flutter host.
+        // It does not persist a Release log on device.
         STProjectHelper.Log("[web-router] \(message)")
     }
 

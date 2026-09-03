@@ -56,12 +56,16 @@ back/close flow.
 
 ## Host integration
 
+完整中文接入文档见 [docs/host-integration.md](docs/host-integration.md)。
+
 Add the package dependency in the Flutter App:
 
 ```yaml
 dependencies:
   stmini_flutter:
-    path: packages/stmini_flutter
+    git:
+      url: https://github.com/fsst-ios/stmini_flutter.git
+      ref: main
 ```
 
 The iOS plugin vendors the STMini sources and resource bundle, so the Flutter
@@ -69,8 +73,51 @@ App does not reference another App project's absolute path. Run `flutter pub
 get`; Flutter registers the iOS plugin automatically. The host deployment
 target must be iOS 13 or later.
 
-The component contains no application package identifier. If an H5 bridge
-needs one, the embedding host may provide it explicitly:
+### 宿主配置：包名和 Mini 包链接
+
+`stmini_flutter` 不保存任何品牌、业务包名、Mini ID、下载域名或版本号。
+这些值均由各个宿主 App 自己提供；组件只负责解析 `mini://`、下载、校验、
+安装和打开 Mini。
+
+宿主启动后，在 Flutter 首帧完成时初始化组件并打开自己的 Mini：
+
+```dart
+import 'package:stmini_flutter/stmini_flutter.dart';
+
+Future<void> openHomeMini() async {
+  await StminiFlutter.initialize(
+    bridgeContext: const {
+      // H5 调用 getPackageName 时返回宿主自己的包名。
+      'packageName': 'com.example.host',
+    },
+  );
+
+  await StminiFlutter.openMini(
+    'mini://examplemini?'
+    'downloadUrl=https%3A%2F%2Fcdn.example.com%2Fexamplemini-1.0.0.zip&'
+    'currentVersion=1.0.0&'
+    'minSupportVersion=1.0.0&'
+    'miniName=Example%20Mini&'
+    'miniNameEn=Example',
+  );
+}
+```
+
+其中：
+
+- `packageName` 可省略；省略时 H5 的 `getPackageName` 返回空字符串。
+- `mini://<miniId>` 是 Mini 的唯一标识；每个宿主自行决定其值。
+- `downloadUrl`、`currentVersion`、`minSupportVersion`、名称和图标均属于
+  宿主的发布配置，不写入组件。
+- 替换品牌或接入另一个宿主时，通常仅需替换上述 `packageName` 和 Mini 链接。
+
+若宿主有额外的登录态同步或 H5 存储约定，也必须通过可选 `bridgeContext`
+显式传入；组件不会默认读取宿主业务数据或猜测任何存储键。
+
+The component contains no application package identifier, Mini ID, CDN address
+or business domain. Each embedding host provides its own package identifier and
+its own `mini://` package link. If an H5 bridge needs the package identifier,
+the host provides it explicitly:
 
 ```dart
 await StminiFlutter.initialize(
@@ -80,9 +127,8 @@ await StminiFlutter.initialize(
 
 Without this optional value, `getPackageName` returns an empty string.
 
-For production, keep this package in its own repository or private package
-registry and version the vendored `ios/STMini` snapshot together with the
-plugin. Do not edit the installed package in `Documents/STMini` directly.
+Version the vendored `ios/STMini` snapshot together with this plugin. Do not
+edit a downloaded package in `Documents/STMini` directly.
 
 ## Events and package list
 
@@ -100,14 +146,3 @@ plugin. Do not edit the installed package in `Documents/STMini` directly.
 
 `StminiFlutter.installedPackages()` returns only validated runnable packages,
 not failed download staging directories.
-
-## Getting Started
-
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/to/develop-plugins),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.

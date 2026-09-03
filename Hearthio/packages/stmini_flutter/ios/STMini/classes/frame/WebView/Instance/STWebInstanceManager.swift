@@ -83,6 +83,7 @@ private final class STWebMiniProgramRuntimeHost {
             navigationController.willMove(toParent: nil)
             navigationController.view.removeFromSuperview()
             navigationController.removeFromParent()
+            navigationController.view.transform = .identity
             navigationController.view.alpha = 1
             navigationController.view.isUserInteractionEnabled = true
             navigationController.view.accessibilityElementsHidden = false

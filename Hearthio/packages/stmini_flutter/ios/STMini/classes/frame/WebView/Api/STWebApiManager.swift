@@ -80,6 +80,28 @@ import UIKit
             return nil
         }
     }
+
+    /// Bridge responses frequently contain a complete local-storage snapshot.
+    /// Formatting that payload for a debug log can take longer than the
+    /// callback itself and also exposes credentials in Xcode.  Keep the
+    /// diagnostic useful without walking or printing user data.
+    private static func callbackLogSummary(_ params: [String: Any], method: String, methodId: String) -> String {
+        let code = params["code"].map { String(describing: $0) } ?? "<none>"
+        let dataSummary: String
+        switch params["data"] {
+        case let value as [String: Any]:
+            dataSummary = "object(count=\(value.count))"
+        case let value as [Any]:
+            dataSummary = "array(count=\(value.count))"
+        case let value as String:
+            dataSummary = "string(length=\(value.utf8.count))"
+        case nil:
+            dataSummary = "none"
+        default:
+            dataSummary = "type=\(String(describing: type(of: params["data"]!)))"
+        }
+        return "api callback method=\(method) code=\(code) methodId=\(methodId) data=\(dataSummary)"
+    }
     
     
     static func dealWithApiMessage(_ message: Any, webView: STMiniWebView) {
@@ -104,7 +126,9 @@ import UIKit
             let router = model.params["router"] as? String ?? "<empty>"
             let link = (model.params["link"] as? String ?? "<empty>").split(separator: "?").first ?? "<empty>"
             let caller = String(describing: type(of: webView.bindCrl))
+#if DEBUG
             NSLog("[STMini][bridge-open] router=%@ link=%@ caller=%@", router, String(link), caller)
+#endif
         }
         // A Mini must not hand its `/web` route back to the host router.  It
         // stays in the Mini navigation stack so root identity and Mini API
@@ -210,6 +234,9 @@ import UIKit
         }
         else if model.method == "mini_navigateTo" {
             result = STWebRouterApi().navigateTo(model: model)
+        }
+        else if model.method == "mini_notifySessionChanged" {
+            result = STWebApiManager.notifyMiniSessionChanged(model: model)
         }
         else if model.method == "open" {
             // `/web` is handled above by STWebRouterApi. Other routes belong
@@ -388,11 +415,147 @@ import UIKit
         mutableDict["params"] = params;
         guard let result = jsonString(mutableDict) else { return }
         STProjectHelper.Log("sendMsg method: \(method) \nparams: \(params)")
-        webview.evaluateJavaScript("CMSCallJsMessage(\(result))") { (info, error) in
+        // Lifecycle events may arrive while the document is still parsing its
+        // entry module.  Calling an undeclared global at that point throws a
+        // JavaScript exception and loses the event.  The H5 bridge queues
+        // later events itself, so native only needs to skip the pre-bridge
+        // delivery safely.
+        webview.evaluateJavaScript("if (typeof window.CMSCallJsMessage === 'function') { window.CMSCallJsMessage(\(result)); true; } else { false; }") { (info, error) in
             if error != nil {
                 STProjectHelper.Log("js方法<\(method)>调用失败 错误：\(String(describing: error?.localizedDescription))")
+            } else if (info as? Bool) == false {
+                STProjectHelper.Log("js方法<\(method)>暂未投递：H5 Bridge 尚未就绪")
             } else {
                 STProjectHelper.Log("js方法<\(method)>调用成功")
+            }
+        }
+    }
+
+    /// Mini-owned pages have separate JavaScript runtimes. Broadcast a
+    /// credential-free session signal after either login or logout so every
+    /// sibling rehydrates the exact shared auth snapshot through getStorage.
+    private static func notifyMiniSessionChanged<T>(model: T) -> [String: Any] where T: STWebApiForm {
+        guard let sourceWebView = model.webview,
+              let source = sourceWebView.bindCrl,
+              let navigationController = source.navigationController,
+              miniRootController(for: model.webview) != nil else {
+            return ["code": "0", "data": ["msg": "仅小程序页面可通知会话变更"]]
+        }
+
+        let rawReason = model.params["reason"] as? String ?? "sessionChanged"
+        let reason = String(rawReason.prefix(64))
+        let targets: [STMiniWebView] = navigationController.viewControllers.compactMap { controller in
+            if let h5Controller = controller as? STWebH5Crl,
+               h5Controller.webView !== sourceWebView {
+                return h5Controller.webView
+            }
+            if let miniController = controller as? STWebMiniprogramCrl,
+               miniController.webView !== sourceWebView {
+                return miniController.webView
+            }
+            return nil
+        }
+
+        DispatchQueue.main.async {
+            // Online `/web` pages run in a separate WKWebView and retain the
+            // browser's legacy localStorage. The host may explicitly opt in
+            // an origin/key allow-list; only then mirror its selected session
+            // keys and reload the online page from that updated snapshot.
+            STWebApiManager.mirrorSessionToLegacyWebStorage(targets: targets)
+            targets.forEach { webView in
+                STWebApiManager.sendScriptMessageWithMethod(
+                    "miniSessionChanged",
+                    params: ["reason": reason],
+                    webview: webView
+                )
+            }
+        }
+        return ["code": "1", "data": ["notified": targets.count]]
+    }
+
+    private static func mirrorSessionToLegacyWebStorage(targets: [STMiniWebView]) {
+        guard let mirror = StminiFlutterPlugin.bridgeContextSnapshot["legacyWebStorageMirror"] as? [String: Any],
+              let origins = mirror["origins"] as? [String],
+              let rawKeys = mirror["keys"] as? [String],
+              !origins.isEmpty,
+              !rawKeys.isEmpty else {
+            return
+        }
+
+        let allowedOrigins = Set(origins.compactMap { raw -> String? in
+            guard let url = URL(string: raw),
+                  let scheme = url.scheme?.lowercased(),
+                  let host = url.host?.lowercased(),
+                  ["http", "https"].contains(scheme) else {
+                return nil
+            }
+            return "\(scheme)://\(host)"
+        })
+        let keys = Array(Set(rawKeys.filter { !$0.isEmpty && $0.count <= 128 })).sorted()
+        guard !allowedOrigins.isEmpty, !keys.isEmpty else { return }
+
+        let authStorageKey = (mirror["storageKey"] as? String)
+            ?? (StminiFlutterPlugin.bridgeContextSnapshot["authStorageKey"] as? String)
+        guard let authStorageKey,
+              let stored = UserDefaults.standard.string(forKey: authStorageKey),
+              let data = stored.data(using: .utf8),
+              let snapshot = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return
+        }
+
+        var values: [String: Any] = [:]
+        keys.forEach { key in
+            values[key] = snapshot[key] ?? NSNull()
+        }
+
+        // A remote PWA restores Pinia before any page-activation hook runs.
+        // The host may opt in selected cache entries with the same strict
+        // origin allow-list as auth keys. This component never assumes a
+        // product cache key or storage namespace on its own.
+        if let cacheStorageKey = mirror["cacheStorageKey"] as? String,
+           let rawCacheKeys = mirror["cacheKeys"] as? [String],
+           let cached = UserDefaults.standard.string(forKey: cacheStorageKey),
+           let cacheData = cached.data(using: .utf8),
+           let cacheSnapshot = try? JSONSerialization.jsonObject(with: cacheData) as? [String: Any] {
+            let cacheKeys = Set(rawCacheKeys.filter { !$0.isEmpty && $0.count <= 128 })
+            cacheKeys.forEach { key in
+                values[key] = cacheSnapshot[key] ?? NSNull()
+            }
+        }
+
+        guard let payload = jsonString(["values": values]) else { return }
+        let script = """
+        (() => {
+          const values = \(payload).values || {};
+          Object.keys(values).forEach((key) => {
+            const value = values[key];
+            if (value === null || value === undefined || value === '')
+              window.localStorage.removeItem(key);
+            else
+              window.localStorage.setItem(key, String(value));
+          });
+          return true;
+        })();
+        """
+        let reloadOnChange = (mirror["reloadOnChange"] as? Bool) ?? true
+
+        targets.forEach { webView in
+            guard let currentURL = webView.url,
+                  let scheme = currentURL.scheme?.lowercased(),
+                  let host = currentURL.host?.lowercased(),
+                  allowedOrigins.contains("\(scheme)://\(host)") else {
+                return
+            }
+            webView.evaluateJavaScript(script) { _, error in
+                if let error {
+                    STProjectHelper.Log("Mini 会话镜像写入旧 Web 存储失败：\(error.localizedDescription)")
+                    return
+                }
+                let hostName = currentURL.host ?? ""
+                STProjectHelper.Log("Mini 会话镜像已同步至旧 Web 存储：\(hostName)")
+                if reloadOnChange {
+                    webView.reload()
+                }
             }
         }
     }
@@ -411,12 +574,14 @@ import UIKit
             STProjectHelper.Log("api<\(model.method)>回调已取消：无法构造安全 JSON")
             return
         }
-        STProjectHelper.Log("callBack method: \(model.method) \nresult: \(resultDic)")
-        model.webview?.evaluateJavaScript("CMSJsCallBack(\(result))") { (info, error) in
+        STProjectHelper.Log(callbackLogSummary(resultDic, method: model.method, methodId: model.methodId))
+        model.webview?.evaluateJavaScript("if (typeof window.CMSJsCallBack === 'function') { window.CMSJsCallBack(\(result)); true; } else { false; }") { (info, error) in
             if error != nil {
                 STProjectHelper.Log("api<\(model.method)>回调失败 错误：\(String(describing: error?.localizedDescription))")
+            } else if (info as? Bool) == false {
+                STProjectHelper.Log("api<\(model.method)>回调暂未投递：H5 Bridge 尚未就绪")
             } else {
-                STProjectHelper.Log("api<\(model.method)>回调: \(resultDic) ")
+                STProjectHelper.Log(callbackLogSummary(resultDic, method: model.method, methodId: model.methodId))
             }
         }
     }

@@ -1,5 +1,4 @@
 import Flutter
-import MBProgressHUD
 import Photos
 import Toast_Swift
 import UIKit
@@ -20,6 +19,10 @@ public final class StminiFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
   /// Optional, JSON-compatible context supplied by the embedding Flutter app.
   /// STMini stays reusable: it never imports a host's account/login module.
   private var bridgeContext: [String: Any] = [:]
+  /// Read-only host context for the vendored STMini framework APIs. Values
+  /// stay host supplied so this reusable component contains no product IDs,
+  /// domains, or storage-key assumptions.
+  static var bridgeContextSnapshot: [String: Any] = [:]
 
   deinit {
     NotificationCenter.default.removeObserver(self)
@@ -127,6 +130,8 @@ public final class StminiFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
   private func configureIfNeeded(loadingImage: String?, bridgeContext: [String: Any]?) {
     if let bridgeContext {
       self.bridgeContext = bridgeContext
+      Self.bridgeContextSnapshot = bridgeContext
+      applyOneTimeStorageResetIfRequested()
     }
     let handle = STWebPersonalHandle.sharedInstance()
     if let loadingImage, !loadingImage.isEmpty {
@@ -150,6 +155,25 @@ public final class StminiFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
       object: nil)
   }
 
+  /// A host may explicitly recover one Mini from obsolete or corrupted
+  /// persisted state. STMini owns only the generic versioned-key mechanism;
+  /// the host supplies the keys and can remove the request after diagnosis.
+  private func applyOneTimeStorageResetIfRequested() {
+    guard let reset = bridgeContext["storageReset"] as? [String: Any],
+          let version = reset["version"] as? String,
+          !version.isEmpty,
+          let keys = reset["keys"] as? [String],
+          !keys.isEmpty else {
+      return
+    }
+
+    let marker = "stmini.storage-reset.\(version)"
+    guard !UserDefaults.standard.bool(forKey: marker) else { return }
+    keys.filter { !$0.isEmpty }.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+    UserDefaults.standard.set(true, forKey: marker)
+    STProjectHelper.Log("STMini applied requested one-time storage reset version=\(version)")
+  }
+
   /// Generic APIs that are useful in any host. Business methods deliberately
   /// return `handled: 0`, allowing STMini framework APIs to run or the Mini to
   /// receive a clear unsupported-method response.
@@ -168,14 +192,13 @@ public final class StminiFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
       let title = (params["title"] as? String) ?? (params["message"] as? String) ?? ""
       DispatchQueue.main.async {
         guard let view = webView.bindCrl?.view ?? self.currentPresentingViewController()?.view else { return }
-        let hud = MBProgressHUD.showAdded(to: view, animated: true)
-        hud.label.text = title
+        self.showLoading(in: view, title: title)
       }
       return success()
     case "hideLoading":
       DispatchQueue.main.async {
         guard let view = webView.bindCrl?.view ?? self.currentPresentingViewController()?.view else { return }
-        MBProgressHUD.hide(for: view, animated: true)
+        self.hideLoading(in: view)
       }
       return success()
     case "close":
@@ -263,6 +286,8 @@ public final class StminiFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
       return setMiniStorage(params)
     case "getStorage":
       return getMiniStorage(params)
+    case "removeStorage":
+      return removeMiniStorage(params)
     case "getPackageName":
       // Package identity belongs to the embedding host. Returning an empty
       // value by default keeps this reusable component free of business IDs.
@@ -366,6 +391,17 @@ public final class StminiFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
       return success(jsonValue(from: value) ?? value)
     }
     return success(stored)
+  }
+
+  /// Removes one Mini-owned storage entry. Keeping this separate from
+  /// setStorage lets an authentication logout invalidate the old snapshot
+  /// before its anonymous replacement is persisted.
+  private func removeMiniStorage(_ params: [String: Any]) -> [String: Any] {
+    guard let key = validMiniStorageKey(params["key"]) else {
+      return failure("缺少key")
+    }
+    UserDefaults.standard.removeObject(forKey: key)
+    return success()
   }
 
   private func validMiniStorageKey(_ rawKey: Any?) -> String? {
@@ -564,6 +600,11 @@ public final class StminiFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
       "language_code": normalizedLanguage(),
     ]
     result.merge(storedBridgeUserInfo()) { _, storedValue in storedValue }
+    // Some online H5 pages use the normal native `getUserInfo` payload as
+    // their persisted profile and check its `id`, rather than `user_id`.
+    // Keep this component product-agnostic: an embedding host may opt in to
+    // one JSON cache entry and, optionally, a nested profile object.
+    result.merge(storedBridgeUserProfile()) { _, profileValue in profileValue }
     // A host that owns authentication may supply its normal H5 bridge payload
     // through `initialize({ bridgeContext: { userInfo: ... } })`.
     if let userInfo = bridgeContext["userInfo"] as? [String: Any] {
@@ -586,6 +627,33 @@ public final class StminiFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
     result["device_id"] = values["device_id"]
     result["user_id"] = values["user_id"]
     return result.compactMapValues { $0 }
+  }
+
+  /// Reads an optional user profile from the host-selected Mini cache.  The
+  /// cache itself is a JSON object whose selected entry is commonly another
+  /// JSON string (for example a Pinia persisted-store value).
+  private func storedBridgeUserProfile() -> [String: Any] {
+    guard let config = bridgeContext["bridgeUserInfoStorage"] as? [String: Any],
+          let storageKey = config["storageKey"] as? String,
+          let valueKey = config["valueKey"] as? String,
+          let jsonText = UserDefaults.standard.string(forKey: storageKey),
+          let storageValues = jsonValue(from: jsonText) as? [String: Any],
+          let rawValue = storageValues[valueKey] else {
+      return [:]
+    }
+
+    let value: Any
+    if let text = rawValue as? String {
+      guard let decoded = jsonValue(from: text) else { return [:] }
+      value = decoded
+    } else {
+      value = rawValue
+    }
+
+    guard let nestedKey = config["nestedKey"] as? String, !nestedKey.isEmpty else {
+      return value as? [String: Any] ?? [:]
+    }
+    return (value as? [String: Any])?[nestedKey] as? [String: Any] ?? [:]
   }
 
   private func failure(_ message: String) -> [String: Any] {
@@ -624,6 +692,29 @@ public final class StminiFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
     }
     if language.hasPrefix("zh") { return "zh-Hans" }
     return language.hasPrefix("en") ? "en-US" : language
+  }
+
+  /// `showLoading` is a generic bridge API. Keep it in UIKit so every host
+  /// gets the same behavior without embedding an additional third-party
+  /// framework (and its separate privacy-manifest maintenance burden).
+  private func showLoading(in view: UIView, title: String) {
+    if let overlay = view.subviews.compactMap({ $0 as? STMiniLoadingOverlay }).first {
+      overlay.update(title: title)
+      return
+    }
+
+    let overlay = STMiniLoadingOverlay(title: title)
+    view.addSubview(overlay)
+    NSLayoutConstraint.activate([
+      overlay.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      overlay.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      overlay.topAnchor.constraint(equalTo: view.topAnchor),
+      overlay.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+    ])
+  }
+
+  private func hideLoading(in view: UIView) {
+    view.subviews.compactMap { $0 as? STMiniLoadingOverlay }.forEach { $0.removeFromSuperview() }
   }
 
   private func currentPresentingViewController() -> UIViewController? {
@@ -681,5 +772,63 @@ public final class StminiFlutterPlugin: NSObject, FlutterPlugin, FlutterStreamHa
 
   private func emit(_ name: String, _ payload: [String: Any]) {
     eventSink?(["name": name, "payload": payload])
+  }
+}
+
+/// Lightweight UIKit replacement for MBProgressHUD used by the Mini bridge.
+/// It deliberately lives in this file to keep the plugin dependency-free.
+private final class STMiniLoadingOverlay: UIView {
+  private let titleLabel = UILabel()
+
+  init(title: String) {
+    super.init(frame: .zero)
+    translatesAutoresizingMaskIntoConstraints = false
+    backgroundColor = UIColor.black.withAlphaComponent(0.12)
+    isUserInteractionEnabled = true
+    accessibilityViewIsModal = true
+    accessibilityLabel = title.isEmpty ? "Loading" : title
+
+    let card = UIVisualEffectView(effect: UIBlurEffect(style: .systemMaterialDark))
+    card.translatesAutoresizingMaskIntoConstraints = false
+    card.layer.cornerRadius = 12
+    card.clipsToBounds = true
+
+    let indicator = UIActivityIndicatorView(style: .medium)
+    indicator.translatesAutoresizingMaskIntoConstraints = false
+    indicator.color = .white
+    indicator.startAnimating()
+
+    titleLabel.translatesAutoresizingMaskIntoConstraints = false
+    titleLabel.font = .systemFont(ofSize: 13)
+    titleLabel.textColor = .white
+    titleLabel.textAlignment = .center
+    titleLabel.numberOfLines = 2
+    titleLabel.text = title
+
+    addSubview(card)
+    card.contentView.addSubview(indicator)
+    card.contentView.addSubview(titleLabel)
+    NSLayoutConstraint.activate([
+      card.centerXAnchor.constraint(equalTo: centerXAnchor),
+      card.centerYAnchor.constraint(equalTo: centerYAnchor),
+      card.widthAnchor.constraint(greaterThanOrEqualToConstant: 96),
+      card.widthAnchor.constraint(lessThanOrEqualToConstant: 240),
+      card.heightAnchor.constraint(greaterThanOrEqualToConstant: 88),
+      indicator.topAnchor.constraint(equalTo: card.contentView.topAnchor, constant: 20),
+      indicator.centerXAnchor.constraint(equalTo: card.contentView.centerXAnchor),
+      titleLabel.topAnchor.constraint(equalTo: indicator.bottomAnchor, constant: 10),
+      titleLabel.leadingAnchor.constraint(equalTo: card.contentView.leadingAnchor, constant: 16),
+      titleLabel.trailingAnchor.constraint(equalTo: card.contentView.trailingAnchor, constant: -16),
+      titleLabel.bottomAnchor.constraint(equalTo: card.contentView.bottomAnchor, constant: -16),
+    ])
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  func update(title: String) {
+    titleLabel.text = title
+    accessibilityLabel = title.isEmpty ? "Loading" : title
   }
 }

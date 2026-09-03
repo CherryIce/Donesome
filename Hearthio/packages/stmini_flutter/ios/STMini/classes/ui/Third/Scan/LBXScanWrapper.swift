@@ -79,7 +79,9 @@ open class LBXScanWrapper: NSObject,AVCaptureMetadataOutputObjectsDelegate {
         do {
             input = try AVCaptureDeviceInput(device: device)
         } catch let error as NSError {
+#if DEBUG
             print("AVCaptureDeviceInput(): \(error)")
+#endif
         }
         guard let input = input else {
             return
@@ -128,7 +130,9 @@ open class LBXScanWrapper: NSObject,AVCaptureMetadataOutputObjectsDelegate {
                 input.device.focusMode = AVCaptureDevice.FocusMode.continuousAutoFocus
                 input.device.unlockForConfiguration()
             } catch let error as NSError {
+#if DEBUG
                 print("device.lockForConfiguration(): \(error)")
+#endif
             }
         }
     }
@@ -258,7 +262,9 @@ open class LBXScanWrapper: NSObject,AVCaptureMetadataOutputObjectsDelegate {
             input?.device.torchMode = torch ? AVCaptureDevice.TorchMode.on : AVCaptureDevice.TorchMode.off
             input?.device.unlockForConfiguration()
         } catch let error as NSError {
+#if DEBUG
             print("device.lockForConfiguration(): \(error)")
+#endif
         }
     }
     

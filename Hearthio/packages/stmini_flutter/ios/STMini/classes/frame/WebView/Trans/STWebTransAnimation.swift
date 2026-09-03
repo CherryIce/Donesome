@@ -53,6 +53,7 @@ class STWebTransAnimation: NSObject, UIViewControllerAnimatedTransitioning {
 
     func animateTransition(using transitionContext: UIViewControllerContextTransitioning) {
         let containerView = transitionContext.containerView
+        let containerBounds = containerView.bounds
         if self.transType == .present {
             
             
@@ -60,35 +61,30 @@ class STWebTransAnimation: NSObject, UIViewControllerAnimatedTransitioning {
             self.transitionBack = transitionBack
             
             let tempLayer = CALayer()
-            tempLayer.frame = CGRectMake(0, 0, UIScreen.main.bounds.size.width, UIScreen.main.bounds.size.height)
+            tempLayer.frame = containerBounds
             tempLayer.backgroundColor = UIColor.black.cgColor
             containerView.layer.addSublayer(tempLayer)
-            transitionBack.frame = CGRect(x: 0,
-                                    y: 0,
-                                    width: UIScreen.main.bounds.size.width,
-                                    height: UIScreen.main.bounds.size.height)
+            transitionBack.frame = containerBounds
             containerView.addSubview(transitionBack)
             transitionBack.layer.setAffineTransform(CGAffineTransform(scaleX: 1, y: 1))
             
-            let transitionShadow = UIView.init(frame: CGRectMake(0, 0, UIScreen.main.bounds.size.width, UIScreen.main.bounds.size.height))
+            let transitionShadow = UIView(frame: containerBounds)
             self.transitionShadow = transitionShadow
             transitionShadow.backgroundColor = .black
             transitionShadow.alpha = 0
             containerView.addSubview(transitionShadow)
             let toCrl = transitionContext.viewController(forKey: UITransitionContextViewControllerKey.to)
-            toCrl!.view.frame = CGRect(x: 0,
-                                        y: UIScreen.main.bounds.size.height,
-                                        width: UIScreen.main.bounds.size.width,
-                                        height: UIScreen.main.bounds.size.height)
+            let toView = toCrl!.view!
+            toView.transform = .identity
+            toView.frame = containerBounds.offsetBy(dx: 0, dy: containerBounds.height)
             containerView.addSubview(toCrl!.view)
             UIView.animate(withDuration: self.transitionDuration(using: transitionContext), delay: 0, options: .curveEaseOut) {
-                toCrl!.view.frame = CGRect(x: 0,
-                                            y: 0,
-                                            width: UIScreen.main.bounds.size.width,
-                                            height: UIScreen.main.bounds.size.height)
+                toView.frame = containerBounds
                 self.transitionBack?.layer.setAffineTransform(CGAffineTransform(scaleX: transitionBackScale, y: transitionBackScale))
                 self.transitionShadow?.alpha = transitionShadowAlpha
             } completion: { completed in
+                toView.transform = .identity
+                toView.frame = containerBounds
                 
                 transitionContext.completeTransition(true)
                 tempLayer.removeFromSuperlayer()

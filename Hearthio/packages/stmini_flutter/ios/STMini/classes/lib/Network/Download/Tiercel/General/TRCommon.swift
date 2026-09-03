@@ -74,7 +74,7 @@ extension TiercelCompatible {
 
 
 public func TiercelLog<T>(_ message: T, file: String = #file, method: String = #function, line: Int = #line) {
-
+#if DEBUG
     switch TRManager.logLevel {
     case .detailed:
         print("")
@@ -89,5 +89,5 @@ public func TiercelLog<T>(_ message: T, file: String = #file, method: String = #
     case .simple: print(message)
     case .none: break
     }
+#endif
 }
-

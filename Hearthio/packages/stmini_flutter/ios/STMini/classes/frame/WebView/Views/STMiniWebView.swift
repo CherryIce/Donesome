@@ -81,6 +81,15 @@ import Foundation
         backgroundColor = .clear
         uiDelegate = self
         navigationDelegate = self
+
+        // WKWebView is backed by a UIScrollView. Its default touch delay is
+        // useful for scroll views, but makes form controls in a Mini page
+        // feel as though they need repeated taps before receiving focus.
+        // A WebView owns the browser's own scroll/touch arbitration, so hand
+        // the first tap to the page immediately and do not cancel it once a
+        // scroll gesture starts.
+        scrollView.delaysContentTouches = false
+        scrollView.canCancelContentTouches = false
         
         initialWebViewConfiguration()
         

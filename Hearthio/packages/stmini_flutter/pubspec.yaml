@@ -1,7 +1,7 @@
 name: stmini_flutter
-description: "A new Flutter plugin project."
-version: 0.0.1
-homepage:
+description: Reusable Flutter host for verified STMini mini-program packages.
+version: 0.1.1
+homepage: https://github.com/fsst-ios/stmini_flutter
 
 environment:
   sdk: ^3.9.2

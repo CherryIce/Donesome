@@ -4,14 +4,14 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'stmini_flutter'
-  s.version          = '0.0.1'
+  s.version          = '0.1.1'
   s.summary          = 'Flutter host for STMini online Mini programs.'
   s.description      = <<-DESC
 Reusable Flutter host for verified, downloadable STMini packages.
                        DESC
-  s.homepage         = 'https://example.invalid/stmini_flutter'
+  s.homepage         = 'https://github.com/fsst-ios/stmini_flutter'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'FSST iOS' => 'https://github.com/fsst-ios' }
   s.source           = { :path => '.' }
   # STMini is vendored with the plugin so the consuming Flutter App has no
   # dependency on a different App project's absolute source path.
@@ -28,7 +28,6 @@ Reusable Flutter host for verified, downloadable STMini packages.
   s.dependency 'Masonry'
   s.dependency 'SDWebImage'
   s.dependency 'HXWRefresh'
-  s.dependency 'MBProgressHUD'
   s.dependency 'Toast-Swift'
   s.dependency 'ZIPFoundation', '~> 0.9'
   s.platform = :ios, '13.0'
@@ -36,4 +35,5 @@ Reusable Flutter host for verified, downloadable STMini packages.
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
   s.swift_version = '5.0'
+
 end
