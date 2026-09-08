@@ -2929,6 +2929,30 @@ abstract class AppLocalizations {
   /// **'Keep reminders, backups, and privacy under your control'**
   String get settingsSubtitle;
 
+  /// No description provided for @kifxMiniTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'KIFX Mini Program'**
+  String get kifxMiniTitle;
+
+  /// No description provided for @kifxMiniSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to open the KIFX Mini Program'**
+  String get kifxMiniSubtitle;
+
+  /// No description provided for @kifxMiniUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The KIFX Mini Program is available on iOS only.'**
+  String get kifxMiniUnavailable;
+
+  /// No description provided for @kifxMiniOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The KIFX Mini Program cannot be opened right now. Try again later.'**
+  String get kifxMiniOpenFailed;
+
   /// No description provided for @dataAndRemindersSection.
   ///
   /// In en, this message translates to:

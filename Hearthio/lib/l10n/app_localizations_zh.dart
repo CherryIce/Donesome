@@ -1591,6 +1591,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsSubtitle => '提醒、备份与隐私都留在你的掌握中';
 
   @override
+  String get kifxMiniTitle => 'KIFX小程序';
+
+  @override
+  String get kifxMiniSubtitle => '点击打开 KIFX 小程序';
+
+  @override
+  String get kifxMiniUnavailable => 'KIFX 小程序仅支持 iOS 设备';
+
+  @override
+  String get kifxMiniOpenFailed => 'KIFX 小程序暂时无法打开，请稍后重试';
+
+  @override
   String get dataAndRemindersSection => '数据与提醒';
 
   @override

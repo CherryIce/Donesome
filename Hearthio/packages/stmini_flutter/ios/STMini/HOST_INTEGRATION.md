@@ -281,7 +281,6 @@ assets/...
   "version": "1.2.0",
   "entry": "index.html",
   "icon": "assets/icon.png",
-  "channel": "examplebrand",
   "updateself": "1",
   "ishome": "1"
 }
@@ -295,7 +294,7 @@ assets/...
 | `version` | 必填，使用点分数字版本比较，例如 `1.2.0` |
 | `entry` | 必填，相对安全路径，目标文件必须存在 |
 | `icon` | 必填，相对安全路径，目标文件必须存在 |
-| `channel` | 必填，业务渠道可由宿主或业务 Bridge 进一步校验 |
+| `channel` | 可选；量化等业务 Mini 可用于宿主或业务 Bridge 的渠道校验，普通 H5 Mini 不应依赖它 |
 | `miniName` / `miniNameEn` | 可选，用于已安装包入口和加载页展示 |
 | `updateself` | 可选；`"1"` 小程序自己检查版本，`"0"` 使用宿主统一检查更新；未传按 `"1"` |
 | `ishome` | 可选；仅 `"1"` 生效。在线 Mini 仅在下载、校验并安装后读取；App 内置 `localMini` 从其随包 manifest 读取。表示该 Mini 的首层页面替代宿主普通页面：隐藏原生胶囊，并禁用首层侧滑/系统返回关闭；包内二级页仍按正常导航处理。字段缺失或其他值均为普通 Mini。 |
@@ -329,7 +328,7 @@ STMini 在把 ZIP 变为“已安装包”前，会逐项验证：
 2. 解压根目录、`<miniId>/` 子目录或唯一一级目录中存在 `index.html`。
 3. 找到并能解析 `mini-manifest.json`。
 4. `manifest.miniId` 与 `mini://` 链接中的 `miniId` 完全相等。
-5. `version` 和 `channel` 非空；`updateself` 若存在只能是 `"0"` 或 `"1"`。
+5. `version` 非空；`updateself` 若存在只能是 `"0"` 或 `"1"`。
 6. `entry`、`icon` 必须是相对安全路径：不能以 `/` 开始，不能包含空路径段、`.` 或 `..`。
 7. `entry` 和 `icon` 指向的实际文件必须在包内存在。
 8. 上述校验完成后才将候选目录原子替换到 `Documents/STMini/<miniId>/`。
@@ -732,7 +731,7 @@ HTTP 状态、下载尝试次数、ZIP 字节数、校验/安装结果、是否�
 | 现象 | 首先检查 |
 | --- | --- |
 | 扫码后白屏 | 是否直到 `webviewDidFinish` 才移除加载页；是否包入口存在；Web 内容进程是否被终止 |
-| 下载成功但安装失败 | `mini-manifest.json` 的 `miniId`、`entry`、`icon`、`channel` 与文件路径 |
+| 下载成功但安装失败 | `mini-manifest.json` 的 `miniId`、`entry`、`icon` 与文件路径；量化 Mini 还需检查其业务 `channel` |
 | 扫码后仍显示旧版本 | 下载包内实际 `version` 是否更高；是否命中弱更新（新包下次冷启动才生效）；是否复用了旧保活实例 |
 | 首页没有新入口 | 是否收到安装完成通知；宿主是否监听通知后重取 `[STMiniPackageRegistry installedPackages]`；是否被后端同 ID Grid 配置覆盖 |
 | 再次打开白屏 | 缓存 Web 内容进程是否已被系统终止；应冷启动而非强行复用 |

@@ -111,6 +111,32 @@ Future<void> _refreshDeviceTimeZone() {
   return refresh;
 }
 
+const _kifxMiniDownloadUrl =
+    'https://site.761242.com/maple/v1/static/'
+    '20260908_018ee521a82c8c4edb72c8d9f2a2b18157.zip';
+const _kifxMiniVersion = '2.0.0';
+const _kifxHostPackageName = 'com.Hearthio.lite';
+const _kifxMiniAutoOpenPreferenceKey = 'kifx_mini_auto_open';
+
+final _kifxMiniLink = Uri(
+  scheme: 'mini',
+  host: 'kifx',
+  queryParameters: const {
+    'downloadUrl': _kifxMiniDownloadUrl,
+    'currentVersion': _kifxMiniVersion,
+    'minSupportVersion': _kifxMiniVersion,
+    'miniName': 'KIFX',
+    'miniNameEn': 'KIFX',
+  },
+).toString();
+
+Future<void> _launchKifxMini() async {
+  await StminiFlutter.initialize(
+    bridgeContext: const {'packageName': _kifxHostPackageName},
+  );
+  await StminiFlutter.openMini(_kifxMiniLink);
+}
+
 class HearthioApp extends StatefulWidget {
   const HearthioApp({super.key, this.localeController});
 
@@ -186,6 +212,7 @@ class AppEntry extends StatefulWidget {
 
 class _AppEntryState extends State<AppEntry> {
   bool? _onboardingSeen;
+  bool _kifxAutoOpenScheduled = false;
 
   @override
   void initState() {
@@ -194,13 +221,39 @@ class _AppEntryState extends State<AppEntry> {
   }
 
   Future<void> _loadOnboardingState() async {
+    var kifxAutoOpenEnabled = false;
     try {
       final prefs = await SharedPreferences.getInstance();
       _onboardingSeen = prefs.getBool('onboarding_seen') ?? false;
+      kifxAutoOpenEnabled =
+          prefs.getBool(_kifxMiniAutoOpenPreferenceKey) ?? false;
     } catch (_) {
       _onboardingSeen = false;
     }
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    if (_onboardingSeen! && kifxAutoOpenEnabled) {
+      _scheduleKifxAutoOpen();
+    }
+  }
+
+  void _scheduleKifxAutoOpen() {
+    if (_kifxAutoOpenScheduled) return;
+    _kifxAutoOpenScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || Theme.of(context).platform != TargetPlatform.iOS) return;
+      try {
+        await _launchKifxMini();
+      } catch (_) {
+        if (mounted) {
+          AppToast.show(
+            context,
+            context.l10n.kifxMiniOpenFailed,
+            style: AppToastStyle.error,
+          );
+        }
+      }
+    });
   }
 
   Future<void> _finishOnboarding() async {
@@ -5646,6 +5699,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _remindersEnabled = false;
   bool _restoreInProgress = false;
+  bool _kifxOpening = false;
 
   CareStore get store => widget.store;
 
@@ -5855,6 +5909,39 @@ class _SettingsPageState extends State<SettingsPage> {
     if (selected != null) await controller.setMode(selected);
   }
 
+  Future<void> _openKifxMini() async {
+    if (_kifxOpening) return;
+    if (Theme.of(context).platform != TargetPlatform.iOS) {
+      AppToast.show(
+        context,
+        context.l10n.kifxMiniUnavailable,
+        style: AppToastStyle.error,
+      );
+      return;
+    }
+
+    setState(() => _kifxOpening = true);
+    try {
+      await _launchKifxMini();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_kifxMiniAutoOpenPreferenceKey, true);
+      } catch (_) {
+        // Opening succeeded; a storage failure should not report it as failed.
+      }
+    } catch (_) {
+      if (mounted) {
+        AppToast.show(
+          context,
+          context.l10n.kifxMiniOpenFailed,
+          style: AppToastStyle.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _kifxOpening = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -5906,6 +5993,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     context,
                     MaterialPageRoute(builder: (_) => const FeatureIntroPage()),
                   ),
+                ),
+                Divider(height: 1, color: context.palette.divider),
+                SettingRow(
+                  key: const Key('settings-kifx-mini'),
+                  icon: Icons.widgets_outlined,
+                  title: l10n.kifxMiniTitle,
+                  subtitle: l10n.kifxMiniSubtitle,
+                  onTap: _kifxOpening ? null : _openKifxMini,
                 ),
               ],
             ),

@@ -27,7 +27,9 @@ public struct STWebResourceManager {
         let version: String
         let entry: String
         let icon: String
-        let channel: String
+        /// Quant Mini packages use this for their brand/channel authorization.
+        /// It is intentionally optional for ordinary Mini packages.
+        let channel: String?
         /// "1": the Mini checks its own version; "0": it calls the host
         /// update-check JS API. Omitted legacy manifests default to "1".
         let updateself: String?
@@ -44,7 +46,9 @@ public struct STWebResourceManager {
         let miniId: String
         let version: String
         let entry: String
-        let channel: String
+        /// Optional package-specific channel metadata. Ordinary Mini packages
+        /// do not need to declare a channel.
+        let channel: String?
         /// Last successful mini:// source link. Optional for packages created
         /// before this field existed or through descriptor-only installation.
         var launchLink: String?
@@ -391,7 +395,6 @@ public struct STWebResourceManager {
                 let manifest = try JSONDecoder().decode(MiniPackageManifest.self, from: Data(contentsOf: manifestURL))
                 guard manifest.miniId == miniName,
                       !manifest.version.isEmpty,
-                      !manifest.channel.isEmpty,
                       isValidUpdateSelf(manifest.updateself),
                       isSafeEntryPath(manifest.entry),
                       isSafeEntryPath(manifest.icon),

@@ -10,6 +10,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart' show CupertinoPicker;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hearthio/app/locale_controller.dart';
 import 'package:hearthio/feature_intro_page.dart';
@@ -1269,6 +1270,119 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('settings opens the KIFX Mini Program with its release link', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    const channel = MethodChannel('stmini_flutter/methods');
+    final calls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add(call);
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.iOS),
+        home: SettingsPage(store: CareStore()),
+      ),
+    );
+    final entry = find.byKey(const Key('settings-kifx-mini'));
+    await tester.ensureVisible(entry);
+    await tester.tap(entry);
+    await tester.pumpAndSettle();
+
+    expect(find.text('KIFX小程序'), findsOneWidget);
+    expect(calls.map((call) => call.method), ['initialize', 'openMini']);
+    expect(calls.first.arguments, {
+      'bridgeContext': {'packageName': 'com.Hearthio.lite'},
+    });
+    final openArguments = calls.last.arguments as Map<Object?, Object?>;
+    final link = Uri.parse(openArguments['link']! as String);
+    expect(link.scheme, 'mini');
+    expect(link.host, 'kifx');
+    expect(
+      link.queryParameters,
+      containsPair(
+        'downloadUrl',
+        'https://site.761242.com/maple/v1/static/'
+            '20260908_018ee521a82c8c4edb72c8d9f2a2b18157.zip',
+      ),
+    );
+    expect(link.queryParameters['currentVersion'], '2.0.0');
+    expect(link.queryParameters['minSupportVersion'], '2.0.0');
+    expect(link.queryParameters['miniName'], 'KIFX');
+    expect(link.queryParameters['miniNameEn'], 'KIFX');
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getBool('kifx_mini_auto_open'), isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('app automatically opens KIFX after the user enables it', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'onboarding_seen': true,
+      'kifx_mini_auto_open': true,
+    });
+    const channel = MethodChannel('stmini_flutter/methods');
+    final calls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add(call);
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.iOS),
+        home: const AppEntry(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(calls.map((call) => call.method), ['initialize', 'openMini']);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a failed KIFX launch does not enable automatic opening', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    const channel = MethodChannel('stmini_flutter/methods');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          throw PlatformException(code: 'unavailable');
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.iOS),
+        home: SettingsPage(store: CareStore()),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('settings-kifx-mini')));
+    await tester.pump();
+
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getBool('kifx_mini_auto_open'), isNull);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('reminder tools use the full bottom-sheet content width', (
     tester,
