@@ -57,6 +57,7 @@ import 'widgets/maintenance_lifecycle_section.dart';
 import 'widgets/maintenance_task_card.dart';
 import 'widgets/maintenance_report_page.dart';
 import 'widgets/system_permission_alert.dart';
+import 'widgets/three_finger_long_press_region.dart';
 
 export 'models/care_item.dart';
 export 'models/care_space.dart';
@@ -5952,7 +5953,7 @@ class _SettingsPageState extends State<SettingsPage> {
       AppLanguageMode.english => l10n.english,
       null => l10n.systemLanguage,
     };
-    return ListView(
+    final content = ListView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 30),
       children: [
@@ -5994,14 +5995,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     MaterialPageRoute(builder: (_) => const FeatureIntroPage()),
                   ),
                 ),
-                Divider(height: 1, color: context.palette.divider),
-                SettingRow(
-                  key: const Key('settings-kifx-mini'),
-                  icon: Icons.widgets_outlined,
-                  title: l10n.kifxMiniTitle,
-                  subtitle: l10n.kifxMiniSubtitle,
-                  onTap: _kifxOpening ? null : _openKifxMini,
-                ),
+                // Divider(height: 1, color: context.palette.divider),
+                // SettingRow(
+                //   key: const Key('settings-kifx-mini'),
+                //   icon: Icons.widgets_outlined,
+                //   title: l10n.kifxMiniTitle,
+                //   subtitle: l10n.kifxMiniSubtitle,
+                //   onTap: _kifxOpening ? null : _openKifxMini,
+                // ),
               ],
             ),
           ),
@@ -6104,6 +6105,10 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
       ],
+    );
+    return ThreeFingerLongPressRegion(
+      onLongPress: () => unawaited(_openKifxMini()),
+      child: content,
     );
   }
 

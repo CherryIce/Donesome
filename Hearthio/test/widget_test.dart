@@ -1271,6 +1271,64 @@ void main() {
     },
   );
 
+  testWidgets('settings recognizes a five-second three-finger long press', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    const channel = MethodChannel('stmini_flutter/methods');
+    final calls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add(call);
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.iOS),
+        home: SettingsPage(store: CareStore()),
+      ),
+    );
+
+    final entry = find.byKey(const Key('settings-kifx-mini'));
+    await tester.ensureVisible(entry);
+    await tester.pumpAndSettle();
+    final entryBounds = tester.getRect(entry);
+    final first = await tester.startGesture(
+      Offset(entryBounds.left + 60, entryBounds.center.dy),
+      pointer: 1,
+    );
+    final second = await tester.startGesture(
+      Offset(entryBounds.left + 140, entryBounds.center.dy),
+      pointer: 2,
+    );
+    final third = await tester.startGesture(
+      Offset(entryBounds.left + 220, entryBounds.center.dy),
+      pointer: 3,
+    );
+
+    await tester.pump(const Duration(milliseconds: 4999));
+    expect(calls, isEmpty);
+
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump();
+    expect(calls.map((call) => call.method), ['initialize', 'openMini']);
+
+    await tester.pump(const Duration(seconds: 5));
+    expect(calls.map((call) => call.method), ['initialize', 'openMini']);
+
+    await first.up();
+    await second.up();
+    await third.up();
+    await tester.pump();
+    expect(calls.map((call) => call.method), ['initialize', 'openMini']);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('settings opens the KIFX Mini Program with its release link', (
     tester,
   ) async {
