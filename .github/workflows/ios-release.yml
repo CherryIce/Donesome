@@ -39,8 +39,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Set up locked Ruby toolchain
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: "3.3.0"
+          bundler-cache: true
+          working-directory: Hearthio
+
       - name: Build, retain, and optionally upload Flutter iOS app
-        uses: CherryIce/ios-multi-app-cloud-build-system/.github/actions/build-upload@df7dfa59be2f0026bb3a33815544fcf488c5651d
+        uses: CherryIce/ios-multi-app-cloud-build-system/.github/actions/build-upload@92be072bbded79b3fd8feca41cb3b9a79f8a461c
         with:
           config_path: .github/ios-build.yml
           marketing_version: ${{ inputs.marketing_version }}
