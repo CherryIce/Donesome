@@ -658,7 +658,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: HomePage(store: store)));
     await tester.pumpAndSettle();
 
-    expect(find.text('家务志'), findsOneWidget);
+    expect(find.text('LAURUS'), findsOneWidget);
     expect(find.byKey(const Key('dashboard-add-item')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('bottom-tab-1')));
@@ -1239,7 +1239,7 @@ void main() {
 
     expect(find.text('如何恢复完整备份？'), findsOneWidget);
     expect(find.text('选择备份文件'), findsOneWidget);
-    expect(find.textContaining('Hearthio-backup.zip'), findsWidgets);
+    expect(find.textContaining('LAURUS-backup.zip'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 

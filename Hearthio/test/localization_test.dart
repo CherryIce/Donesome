@@ -24,6 +24,14 @@ void main() {
     expect(english.keys.toSet(), chinese.keys.toSet());
   });
 
+  test('app name is LAURUS in both supported languages', () {
+    for (final locale in [const Locale('en'), const Locale('zh')]) {
+      final l10n = lookupAppLocalizations(locale);
+      expect(l10n.appTitle, 'LAURUS');
+      expect(l10n.dashboardTitle, 'LAURUS');
+    }
+  });
+
   test('locale controller persists the explicit language choice', () async {
     final controller = AppLocaleController();
     await controller.setMode(AppLanguageMode.english);

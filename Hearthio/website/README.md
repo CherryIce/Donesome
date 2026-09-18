@@ -1,7 +1,7 @@
-# Hearthio website
+# LAURUS website
 
 This directory contains the static marketing/support website and the privacy
-policy for Hearthio (家务志).
+policy for LAURUS.
 
 ## Pages
 
@@ -14,7 +14,7 @@ third-party JavaScript.
 
 ## Replace before publishing
 
-The operator is listed as `Hearthio 独立开发者` / `Hearthio Independent
+The operator is listed as `LAURUS 独立开发者` / `LAURUS Independent
 Developer`, the public contact address is `djl13333995679@163.com`, and the
 policy effective date is August 25, 2026.
 

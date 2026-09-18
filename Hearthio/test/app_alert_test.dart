@@ -89,7 +89,7 @@ void main() {
           body: AppAlertDialog<void>(
             title: '如何恢复完整备份？',
             message:
-                '接下来会打开“文件”选择器。\n\n1. 找到此前通过“完整备份”导出的 Hearthio-backup.zip。\n2. 选择该文件后，物品、维护记录和凭证照片会一起恢复。\n3. 当前设备上的档案将被替换；如需保留，请先导出一次当前完整备份。',
+                '接下来会打开“文件”选择器。\n\n1. 找到此前通过“完整备份”导出的 LAURUS-backup.zip。\n2. 选择该文件后，物品、维护记录和凭证照片会一起恢复。\n3. 当前设备上的档案将被替换；如需保留，请先导出一次当前完整备份。',
             actions: [
               AppAlertAction(
                 label: '知道了',

@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTitle.
   ///
   /// In en, this message translates to:
-  /// **'Hearthio'**
+  /// **'LAURUS'**
   String get appTitle;
 
   /// No description provided for @languageTitle.
@@ -167,7 +167,7 @@ abstract class AppLocalizations {
   /// No description provided for @featureIntroHeroBody.
   ///
   /// In en, this message translates to:
-  /// **'Hearthio starts with each item profile and keeps its care plans, completed work, and costs together for easy reference.'**
+  /// **'LAURUS starts with each item profile and keeps its care plans, completed work, and costs together for easy reference.'**
   String get featureIntroHeroBody;
 
   /// No description provided for @featureIntroStepsTitle.
@@ -233,7 +233,7 @@ abstract class AppLocalizations {
   /// No description provided for @featureIntroSampleTipBody.
   ///
   /// In en, this message translates to:
-  /// **'Hearthio creates one water-purifier sample the first time you enter. Open it to see how an item profile and care plan work together; there is nothing to manage later in Settings.'**
+  /// **'LAURUS creates one water-purifier sample the first time you enter. Open it to see how an item profile and care plan work together; there is nothing to manage later in Settings.'**
   String get featureIntroSampleTipBody;
 
   /// No description provided for @featureIntroBackupTitle.
@@ -521,7 +521,7 @@ abstract class AppLocalizations {
   /// No description provided for @permissionOpenSettingsManually.
   ///
   /// In en, this message translates to:
-  /// **'Open Settings manually and allow Hearthio to access {permission}.'**
+  /// **'Open Settings manually and allow LAURUS to access {permission}.'**
   String permissionOpenSettingsManually(String permission);
 
   /// No description provided for @permissionStatusUnavailable.
@@ -539,7 +539,7 @@ abstract class AppLocalizations {
   /// No description provided for @permissionDeniedGuidance.
   ///
   /// In en, this message translates to:
-  /// **'{permission} access is not enabled, so this feature is temporarily unavailable. Allow Hearthio to access {permission} in Settings, then try again.'**
+  /// **'{permission} access is not enabled, so this feature is temporarily unavailable. Allow LAURUS to access {permission} in Settings, then try again.'**
   String permissionDeniedGuidance(String permission);
 
   /// No description provided for @privacyPolicyTitle.
@@ -581,7 +581,7 @@ abstract class AppLocalizations {
   /// No description provided for @privacyLocalFirstSummary.
   ///
   /// In en, this message translates to:
-  /// **'Hearthio does not require an account. Item details, photos, maintenance records, and plans stay on this device by default. Files leave the app sandbox only when you choose to export, back up, or share them.'**
+  /// **'LAURUS does not require an account. Item details, photos, maintenance records, and plans stay on this device by default. Files leave the app sandbox only when you choose to export, back up, or share them.'**
   String get privacyLocalFirstSummary;
 
   /// No description provided for @maintenanceStatePlanned.
@@ -2098,7 +2098,7 @@ abstract class AppLocalizations {
   /// No description provided for @notificationPrimerMessage.
   ///
   /// In en, this message translates to:
-  /// **'Hearthio can send on-device notifications using each plan’s reminder lead time.\n\nDeclining does not affect items or maintenance plans. You can enable notifications later in Settings.'**
+  /// **'LAURUS can send on-device notifications using each plan’s reminder lead time.\n\nDeclining does not affect items or maintenance plans. You can enable notifications later in Settings.'**
   String get notificationPrimerMessage;
 
   /// No description provided for @notificationNotNow.
@@ -2200,7 +2200,7 @@ abstract class AppLocalizations {
   /// No description provided for @dashboardTitle.
   ///
   /// In en, this message translates to:
-  /// **'Hearthio'**
+  /// **'LAURUS'**
   String get dashboardTitle;
 
   /// No description provided for @dashboardDate.
@@ -2314,7 +2314,7 @@ abstract class AppLocalizations {
   /// No description provided for @emptyMaintenanceSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Add an item and a maintenance interval. Hearthio will remind you before it is due.'**
+  /// **'Add an item and a maintenance interval. LAURUS will remind you before it is due.'**
   String get emptyMaintenanceSubtitle;
 
   /// No description provided for @createMaintenancePlan.
@@ -2878,7 +2878,7 @@ abstract class AppLocalizations {
   /// No description provided for @remindersNoScheduledPlans.
   ///
   /// In en, this message translates to:
-  /// **'No enabled maintenance plans have due dates yet. After you create one, Hearthio can remind you using that plan’s lead time.'**
+  /// **'No enabled maintenance plans have due dates yet. After you create one, LAURUS can remind you using that plan’s lead time.'**
   String get remindersNoScheduledPlans;
 
   /// No description provided for @remindersScheduledPlans.
@@ -2908,7 +2908,7 @@ abstract class AppLocalizations {
   /// No description provided for @notificationSettingsManual.
   ///
   /// In en, this message translates to:
-  /// **'Open Settings → Notifications → Hearthio to manage reminders manually.'**
+  /// **'Open Settings → Notifications → LAURUS to manage reminders manually.'**
   String get notificationSettingsManual;
 
   /// No description provided for @openSystemNotificationSettings.
@@ -3022,7 +3022,7 @@ abstract class AppLocalizations {
   /// No description provided for @restoreBackupSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Choose a previously exported Hearthio-backup.zip'**
+  /// **'Choose LAURUS-backup.zip or an older backup ZIP file'**
   String get restoreBackupSubtitle;
 
   /// No description provided for @privacySection.
@@ -3052,13 +3052,13 @@ abstract class AppLocalizations {
   /// No description provided for @restoreGuideMessage.
   ///
   /// In en, this message translates to:
-  /// **'The Files picker will open next.\n\n1. Find the Hearthio-backup.zip previously created with Full backup.\n2. Select it to restore items, maintenance records, and document photos together.\n3. The archive on this device will be replaced. Export a current full backup first if you need to keep it.'**
+  /// **'The Files picker will open next.\n\n1. Find a LAURUS-backup.zip created with Full backup. Older backup ZIP files also work.\n2. Select it to restore items, maintenance records, and document photos together.\n3. The archive on this device will be replaced. Export a current full backup first if you need to keep it.'**
   String get restoreGuideMessage;
 
   /// No description provided for @restoreConfirmMessage.
   ///
   /// In en, this message translates to:
-  /// **'The Files picker will open next. Choose a previously exported Hearthio-backup.zip.\n\nRestoring replaces the archive currently on this device.'**
+  /// **'The Files picker will open next. Choose LAURUS-backup.zip or an older backup ZIP file.\n\nRestoring replaces the archive currently on this device.'**
   String get restoreConfirmMessage;
 
   /// No description provided for @restoreNotNow.
@@ -3082,7 +3082,7 @@ abstract class AppLocalizations {
   /// No description provided for @restoreInvalid.
   ///
   /// In en, this message translates to:
-  /// **'No valid Hearthio-backup.zip was selected. The current archive was not changed.'**
+  /// **'No valid full-backup ZIP file was selected. The current archive was not changed.'**
   String get restoreInvalid;
 
   /// No description provided for @itemNoMaintenanceReminder.
@@ -3646,7 +3646,7 @@ abstract class AppLocalizations {
   /// No description provided for @csvExportShareTitle.
   ///
   /// In en, this message translates to:
-  /// **'Hearthio home-item data export'**
+  /// **'LAURUS home-item data export'**
   String get csvExportShareTitle;
 
   /// No description provided for @backupExportFailed.
@@ -3658,7 +3658,7 @@ abstract class AppLocalizations {
   /// No description provided for @testNotificationTitle.
   ///
   /// In en, this message translates to:
-  /// **'Hearthio reminders are on'**
+  /// **'LAURUS reminders are on'**
   String get testNotificationTitle;
 
   /// No description provided for @testNotificationBody.

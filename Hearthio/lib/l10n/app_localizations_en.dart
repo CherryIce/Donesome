@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Hearthio';
+  String get appTitle => 'LAURUS';
 
   @override
   String get languageTitle => 'Language';
@@ -46,7 +46,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get featureIntroHeroBody =>
-      'Hearthio starts with each item profile and keeps its care plans, completed work, and costs together for easy reference.';
+      'LAURUS starts with each item profile and keeps its care plans, completed work, and costs together for easy reference.';
 
   @override
   String get featureIntroStepsTitle => 'Get started in four steps';
@@ -84,7 +84,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get featureIntroSampleTipBody =>
-      'Hearthio creates one water-purifier sample the first time you enter. Open it to see how an item profile and care plan work together; there is nothing to manage later in Settings.';
+      'LAURUS creates one water-purifier sample the first time you enter. Open it to see how an item profile and care plan work together; there is nothing to manage later in Settings.';
 
   @override
   String get featureIntroBackupTitle => 'Back up regularly';
@@ -245,7 +245,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String permissionOpenSettingsManually(String permission) {
-    return 'Open Settings manually and allow Hearthio to access $permission.';
+    return 'Open Settings manually and allow LAURUS to access $permission.';
   }
 
   @override
@@ -260,7 +260,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String permissionDeniedGuidance(String permission) {
-    return '$permission access is not enabled, so this feature is temporarily unavailable. Allow Hearthio to access $permission in Settings, then try again.';
+    return '$permission access is not enabled, so this feature is temporarily unavailable. Allow LAURUS to access $permission in Settings, then try again.';
   }
 
   @override
@@ -287,7 +287,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get privacyLocalFirstSummary =>
-      'Hearthio does not require an account. Item details, photos, maintenance records, and plans stay on this device by default. Files leave the app sandbox only when you choose to export, back up, or share them.';
+      'LAURUS does not require an account. Item details, photos, maintenance records, and plans stay on this device by default. Files leave the app sandbox only when you choose to export, back up, or share them.';
 
   @override
   String get maintenanceStatePlanned => 'Planned';
@@ -1282,7 +1282,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notificationPrimerMessage =>
-      'Hearthio can send on-device notifications using each plan’s reminder lead time.\n\nDeclining does not affect items or maintenance plans. You can enable notifications later in Settings.';
+      'LAURUS can send on-device notifications using each plan’s reminder lead time.\n\nDeclining does not affect items or maintenance plans. You can enable notifications later in Settings.';
 
   @override
   String get notificationNotNow => 'Not now';
@@ -1338,7 +1338,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboardHouseholdOverview => 'Home overview';
 
   @override
-  String get dashboardTitle => 'Hearthio';
+  String get dashboardTitle => 'LAURUS';
 
   @override
   String dashboardDate(String date, String weekday) {
@@ -1418,7 +1418,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get emptyMaintenanceSubtitle =>
-      'Add an item and a maintenance interval. Hearthio will remind you before it is due.';
+      'Add an item and a maintenance interval. LAURUS will remind you before it is due.';
 
   @override
   String get createMaintenancePlan => 'Create maintenance plan';
@@ -1770,7 +1770,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get remindersNoScheduledPlans =>
-      'No enabled maintenance plans have due dates yet. After you create one, Hearthio can remind you using that plan’s lead time.';
+      'No enabled maintenance plans have due dates yet. After you create one, LAURUS can remind you using that plan’s lead time.';
 
   @override
   String remindersScheduledPlans(int count) {
@@ -1796,7 +1796,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notificationSettingsManual =>
-      'Open Settings → Notifications → Hearthio to manage reminders manually.';
+      'Open Settings → Notifications → LAURUS to manage reminders manually.';
 
   @override
   String get openSystemNotificationSettings =>
@@ -1861,7 +1861,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get restoreBackupSubtitle =>
-      'Choose a previously exported Hearthio-backup.zip';
+      'Choose LAURUS-backup.zip or an older backup ZIP file';
 
   @override
   String get privacySection => 'Privacy';
@@ -1878,11 +1878,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get restoreGuideMessage =>
-      'The Files picker will open next.\n\n1. Find the Hearthio-backup.zip previously created with Full backup.\n2. Select it to restore items, maintenance records, and document photos together.\n3. The archive on this device will be replaced. Export a current full backup first if you need to keep it.';
+      'The Files picker will open next.\n\n1. Find a LAURUS-backup.zip created with Full backup. Older backup ZIP files also work.\n2. Select it to restore items, maintenance records, and document photos together.\n3. The archive on this device will be replaced. Export a current full backup first if you need to keep it.';
 
   @override
   String get restoreConfirmMessage =>
-      'The Files picker will open next. Choose a previously exported Hearthio-backup.zip.\n\nRestoring replaces the archive currently on this device.';
+      'The Files picker will open next. Choose LAURUS-backup.zip or an older backup ZIP file.\n\nRestoring replaces the archive currently on this device.';
 
   @override
   String get restoreNotNow => 'Not now';
@@ -1896,7 +1896,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get restoreInvalid =>
-      'No valid Hearthio-backup.zip was selected. The current archive was not changed.';
+      'No valid full-backup ZIP file was selected. The current archive was not changed.';
 
   @override
   String get itemNoMaintenanceReminder => 'No maintenance reminder yet';
@@ -2208,14 +2208,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get csvHeaderNotes => 'Notes';
 
   @override
-  String get csvExportShareTitle => 'Hearthio home-item data export';
+  String get csvExportShareTitle => 'LAURUS home-item data export';
 
   @override
   String get backupExportFailed =>
       'The full backup could not be exported. Check device storage and try again.';
 
   @override
-  String get testNotificationTitle => 'Hearthio reminders are on';
+  String get testNotificationTitle => 'LAURUS reminders are on';
 
   @override
   String get testNotificationBody =>

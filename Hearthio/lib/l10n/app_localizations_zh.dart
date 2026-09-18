@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => '家务志 · Hearthio';
+  String get appTitle => 'LAURUS';
 
   @override
   String get languageTitle => '语言';
@@ -42,7 +42,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get featureIntroHeroTitle => '把家里的物品与保养安排清楚';
 
   @override
-  String get featureIntroHeroBody => '家务志以物品档案为起点，将保养计划、执行记录和费用留在同一处，方便随时回看。';
+  String get featureIntroHeroBody =>
+      'LAURUS 以物品档案为起点，将保养计划、执行记录和费用留在同一处，方便随时回看。';
 
   @override
   String get featureIntroStepsTitle => '四步开始使用';
@@ -231,7 +232,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String permissionOpenSettingsManually(String permission) {
-    return '请手动前往系统设置，为“家务志”开启$permission权限。';
+    return '请手动前往系统设置，为“LAURUS”开启$permission权限。';
   }
 
   @override
@@ -246,7 +247,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String permissionDeniedGuidance(String permission) {
-    return '$permission权限尚未开启，因此暂时无法使用此功能。请前往系统设置允许“家务志”访问$permission后再试。';
+    return '$permission权限尚未开启，因此暂时无法使用此功能。请前往系统设置允许“LAURUS”访问$permission后再试。';
   }
 
   @override
@@ -271,7 +272,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get privacyLocalFirstSummary =>
-      '家务志无需注册。物品信息、照片、维护记录和计划默认保存在本机；只有在你主动导出、备份或分享时，相关文件才会离开 App 沙盒。';
+      'LAURUS 无需注册。物品信息、照片、维护记录和计划默认保存在本机；只有在你主动导出、备份或分享时，相关文件才会离开 App 沙盒。';
 
   @override
   String get maintenanceStatePlanned => '已计划';
@@ -1122,7 +1123,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get notificationPrimerMessage =>
-      '开启后，家务志会按每个计划设置的提前天数发送本地通知。\n\n不授权不会影响物品和保养计划保存，你也可以稍后在“设置”中开启。';
+      '开启后，LAURUS 会按每个计划设置的提前天数发送本地通知。\n\n不授权不会影响物品和保养计划保存，你也可以稍后在“设置”中开启。';
 
   @override
   String get notificationNotNow => '暂不开启';
@@ -1175,7 +1176,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dashboardHouseholdOverview => '家庭概览';
 
   @override
-  String get dashboardTitle => '家务志';
+  String get dashboardTitle => 'LAURUS';
 
   @override
   String dashboardDate(String date, String weekday) {
@@ -1579,7 +1580,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sendTestReminder => '发送测试提醒';
 
   @override
-  String get notificationSettingsManual => '请手动前往“设置 → 通知 → 家务志”管理提醒';
+  String get notificationSettingsManual => '请手动前往“设置 → 通知 → LAURUS”管理提醒';
 
   @override
   String get openSystemNotificationSettings => '前往系统通知设置';
@@ -1636,7 +1637,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restoreInProgress => '正在恢复，请勿关闭应用';
 
   @override
-  String get restoreBackupSubtitle => '选择此前导出的 Hearthio-backup.zip';
+  String get restoreBackupSubtitle => '选择 LAURUS-backup.zip 或旧版备份 ZIP 文件';
 
   @override
   String get privacySection => '隐私';
@@ -1652,11 +1653,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get restoreGuideMessage =>
-      '接下来会打开“文件”选择器。\n\n1. 找到此前通过“完整备份”导出的 Hearthio-backup.zip。\n2. 选择该文件后，物品、维护记录和凭证照片会一起恢复。\n3. 当前设备上的档案将被替换；如需保留，请先导出一次当前完整备份。';
+      '接下来会打开“文件”选择器。\n\n1. 找到此前通过“完整备份”导出的 LAURUS-backup.zip，旧版备份 ZIP 也可使用。\n2. 选择该文件后，物品、维护记录和凭证照片会一起恢复。\n3. 当前设备上的档案将被替换；如需保留，请先导出一次当前完整备份。';
 
   @override
   String get restoreConfirmMessage =>
-      '接下来会打开“文件”选择器，请选择此前导出的 Hearthio-backup.zip。\n\n恢复会替换当前设备上的档案。';
+      '接下来会打开“文件”选择器，请选择 LAURUS-backup.zip 或旧版备份 ZIP 文件。\n\n恢复会替换当前设备上的档案。';
 
   @override
   String get restoreNotNow => '暂不恢复';
@@ -1668,7 +1669,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get restoreSuccess => '备份已恢复：物品、记录和照片已更新';
 
   @override
-  String get restoreInvalid => '没有选择有效的 Hearthio-backup.zip，当前档案未发生变化';
+  String get restoreInvalid => '没有选择有效的完整备份 ZIP 文件，当前档案未发生变化';
 
   @override
   String get itemNoMaintenanceReminder => '还没有保养提醒';
@@ -1969,7 +1970,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get backupExportFailed => '完整备份未导出，请检查设备存储后重试。';
 
   @override
-  String get testNotificationTitle => '家务志提醒已开启';
+  String get testNotificationTitle => 'LAURUS 提醒已开启';
 
   @override
   String get testNotificationBody => '这是一条测试提醒。之后会按每个计划设置的提前天数通知你。';

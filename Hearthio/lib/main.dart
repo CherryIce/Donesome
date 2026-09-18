@@ -1770,7 +1770,7 @@ class CareStore extends ChangeNotifier
     final root = await getApplicationDocumentsDirectory();
     final exports = Directory('${root.path}/exports');
     await exports.create(recursive: true);
-    final file = File('${exports.path}/hearthio-export.csv');
+    final file = File('${exports.path}/laurus-export.csv');
     await file.writeAsString('\uFEFF${rows.join('\n')}');
     if (context.mounted) {
       await SharePlus.instance.share(
@@ -1792,12 +1792,12 @@ class CareStore extends ChangeNotifier
         photoBytesByPath: photoBytes,
       );
       final file = File(
-        '${(await getTemporaryDirectory()).path}/Hearthio-backup.zip',
+        '${(await getTemporaryDirectory()).path}/LAURUS-backup.zip',
       );
       await file.writeAsBytes(bytes, flush: true);
       if (context.mounted) {
         await SharePlus.instance.share(
-          ShareParams(files: [XFile(file.path)], title: 'Hearthio backup'),
+          ShareParams(files: [XFile(file.path)], title: 'LAURUS backup'),
         );
       }
     } on CareBackupException {

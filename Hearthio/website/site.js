@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const languageKey = "hearthio-site-language";
+  const languageKey = "laurus-site-language";
   const supportedLanguages = new Set(["zh", "en"]);
   const page = document.body.dataset.page || "home";
   let activeLanguage = "zh";
@@ -9,26 +9,26 @@
   const pageMetadata = {
     home: {
       zh: {
-        title: "家务志 Hearthio — 家庭物品与保养记录",
+        title: "LAURUS — 家庭物品与保养记录",
         description:
-          "家务志 Hearthio 是一款本地优先的家庭物品档案与保养记录 App：安排保养计划、按步骤执行、记录真实费用与照片，并在下一周期到来前提醒你。",
+          "LAURUS 是一款本地优先的家庭物品档案与保养记录 App：安排保养计划、按步骤执行、记录真实费用与照片，并在下一周期到来前提醒你。",
       },
       en: {
-        title: "Hearthio — Home Inventory & Maintenance Journal",
+        title: "LAURUS — Home Inventory & Maintenance Journal",
         description:
           "A local-first home inventory and maintenance journal for plans, guided steps, actual costs, photos, and on-device reminders.",
       },
     },
     privacy: {
       zh: {
-        title: "家务志 Hearthio 隐私政策",
+        title: "LAURUS 隐私政策",
         description:
-          "了解家务志如何在设备本地处理物品档案、保养记录、照片、本地通知、导出与备份。",
+          "了解 LAURUS 如何在设备本地处理物品档案、保养记录、照片、本地通知、导出与备份。",
       },
       en: {
-        title: "Hearthio Privacy Policy",
+        title: "LAURUS Privacy Policy",
         description:
-          "Learn how Hearthio handles item archives, maintenance records, photos, local notifications, exports, and backups on your device.",
+          "Learn how LAURUS handles item archives, maintenance records, photos, local notifications, exports, and backups on your device.",
       },
     },
   };
