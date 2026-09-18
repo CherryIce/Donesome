@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Hearthio App Store preview artwork from the supplied device captures."""
+"""Build LAURUS App Store preview artwork from the supplied device captures."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 ROOT = Path(__file__).resolve().parents[1]
 ARTIFACTS = ROOT / "artifacts" / "app-store-previews"
 SOURCE_DIR = ARTIFACTS / "source"
-BACKGROUND = ARTIFACTS / "backgrounds" / "hearthio-brand-background.png"
+BACKGROUND = ARTIFACTS / "backgrounds" / "laurus-brand-background.png"
 APP_ICON = (
     ROOT
     / "ios"
@@ -192,7 +192,7 @@ def add_brand(canvas: Image.Image, layout: Layout, index: int) -> None:
             x + layout.brand_icon + round(layout.brand_icon * 0.25),
             layout.brand_y + round(layout.brand_icon * 0.16),
         ),
-        "Hearthio",
+        "LAURUS",
         font=sf_font(brand_size, 680),
         fill=(255, 255, 255, 255),
     )
@@ -284,6 +284,7 @@ def screenshot_panel(
     shadow_blur: int,
 ) -> tuple[Image.Image, Image.Image]:
     source = flatten(Image.open(source_path), background=(247, 248, 243))
+    source = update_source_brand_copy(source, source_path.name)
     if crop_height is not None:
         source = source.crop((0, 0, source.width, min(crop_height, source.height)))
     target_height = round(source.height * target_width / source.width)
@@ -324,6 +325,39 @@ def screenshot_panel(
     return panel, shadow
 
 
+def update_source_brand_copy(source: Image.Image, filename: str) -> Image.Image:
+    """Replace old visible brand copy in the composite, preserving source files."""
+    if filename not in {"01-home.jpg", "05-settings.jpg"}:
+        return source
+
+    source = source.copy()
+    draw = ImageDraw.Draw(source)
+    if filename == "01-home.jpg":
+        draw.rectangle((45, 160, 430, 250), fill=(247, 248, 243))
+        draw.text(
+            (54, 151),
+            "LAURUS",
+            font=sf_font(82, 750),
+            fill=(38, 54, 48),
+        )
+    else:
+        draw.rectangle((245, 1918, 905, 2014), fill=(255, 254, 250))
+        font = sf_font(37, 400)
+        draw.text(
+            (252, 1923),
+            "Choose LAURUS-backup.zip or an older",
+            font=font,
+            fill=(114, 129, 122),
+        )
+        draw.text(
+            (252, 1964),
+            "backup ZIP file",
+            font=font,
+            fill=(114, 129, 122),
+        )
+    return source
+
+
 def compose(layout: Layout, preview: Preview, index: int) -> Path:
     centering = (0.5, 0.5) if layout.canvas_size[0] < 1500 else (0.5, 0.18)
     background = ImageOps.fit(
@@ -358,6 +392,36 @@ def compose(layout: Layout, preview: Preview, index: int) -> Path:
     return output
 
 
+def make_contact_sheet(layout: Layout, thumbnail_width: int) -> Path:
+    thumbnails = []
+    for preview in PREVIEWS:
+        with Image.open(layout.final_dir / preview.output) as image:
+            thumbnail_height = round(image.height * thumbnail_width / image.width)
+            thumbnails.append(
+                image.convert("RGB").resize(
+                    (thumbnail_width, thumbnail_height), Image.Resampling.LANCZOS
+                )
+            )
+
+    margin = 16
+    gap = 32
+    sheet = Image.new(
+        "RGB",
+        (
+            margin * 2 + thumbnail_width * len(thumbnails) + gap * (len(thumbnails) - 1),
+            margin * 2 + thumbnails[0].height,
+        ),
+        (243, 239, 229),
+    )
+    for index, thumbnail in enumerate(thumbnails):
+        sheet.paste(thumbnail, (margin + index * (thumbnail_width + gap), margin))
+
+    output = ARTIFACTS / "qa" / f"{layout.final_dir.name}-contact-sheet.png"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(output, format="PNG", optimize=True)
+    return output
+
+
 def main() -> None:
     required = [BACKGROUND, APP_ICON, *(SOURCE_DIR / item.source for item in PREVIEWS)]
     missing = [path for path in required if not path.exists()]
@@ -370,6 +434,12 @@ def main() -> None:
         for layout in (IPHONE_65, IPAD_13)
         for index, preview in enumerate(PREVIEWS, start=1)
     ]
+    outputs.extend(
+        (
+            make_contact_sheet(IPHONE_65, 300),
+            make_contact_sheet(IPAD_13, 420),
+        )
+    )
     for output in outputs:
         print(output.relative_to(ROOT))
 
